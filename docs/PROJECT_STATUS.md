@@ -1,7 +1,7 @@
 # CereOnco Community API — Project Status
 
 **Last updated:** 3 June 2026  
-**Status:** Phase 1 ✅ Complete · Phase 2 ✅ Complete · Phase 3+ Planned
+**Status:** Phase 1 ✅ Complete · Phase 2 ✅ Complete · Phase 3 ✅ Complete · Phase 4+ Planned
 
 ---
 
@@ -26,7 +26,12 @@ A modular REST API backend designed to serve both web and mobile clients for the
 **What's live:**
 - User registration and login with JWT authentication
 - Password hashing with bcrypt
-- User profile retrieval and update
+- Role-based user profiles: `patient`, `caregiver`, `medical_professional`, `admin`
+- Extended profile fields: `cancerType`, `treatmentStage`, `interests` (patient/caregiver); `specialty`, `hospitalAffiliation`, `medicalLicenseNumber` (medical professionals)
+- Medical professional verification states: `none` → `pending` → `approved` / `rejected`
+- Auto-pending: submitting a license number automatically sets status to `pending`
+- Onboarding completion flag (`onboardingCompleted`)
+- Profile photo URL (`profilePhotoUrl`)
 - Posts with full CRUD (create, read, update, delete)
 - Like / unlike toggle per post (with live count)
 - Bookmark / unbookmark toggle per post
@@ -97,7 +102,7 @@ workspace/
 │           ├── index.ts               # Exports db (Drizzle client) + schema
 │           └── schema/
 │               ├── index.ts           # Re-exports all schemas
-│               ├── users.ts           # usersTable
+│               ├── users.ts           # usersTable (Phase 1 + Phase 3 fields)
 │               └── posts.ts           # postsTable, likesTable, bookmarksTable
 │
 └── docs/
@@ -110,7 +115,7 @@ workspace/
 - Never use `console.log` in server code — use `req.log` in handlers, `logger` singleton elsewhere.
 - Always run `pnpm --filter @workspace/api-spec run codegen` after changing `openapi.yaml`.
 - Always run `pnpm --filter @workspace/db run push` after changing any schema file.
-- Route params in Express 5 are `string | string[]` — parse with `Array.isArray` check before using.
+- Route params in Express 5 are `string | string[]` — parse with the generated `GetXParams` Zod schemas.
 
 ---
 
@@ -128,6 +133,15 @@ workspace/
 | bio | text | nullable |
 | location | text | nullable |
 | avatar_url | text | nullable |
+| profile_photo_url | text | nullable |
+| onboarding_completed | boolean | NOT NULL, DEFAULT false |
+| cancer_type | text | nullable |
+| treatment_stage | text | nullable |
+| interests | text[] | nullable |
+| specialty | text | nullable |
+| hospital_affiliation | text | nullable |
+| medical_license_number | text | nullable |
+| verification_status | text | NOT NULL, DEFAULT 'none' |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | NOT NULL, DEFAULT now() |
 
@@ -190,15 +204,34 @@ workspace/
 |---|---|---|---|---|
 | POST | `/auth/register` | No | `{ name, email, password, role }` | `{ token, user }` |
 | POST | `/auth/login` | No | `{ email, password }` | `{ token, user }` |
-| POST | `/auth/logout` | No | — | success message |
+| POST | `/auth/logout` | Optional Bearer | — | success message |
 
 ### Users
 
 | Method | Route | Auth | Request Body | Response |
 |---|---|---|---|---|
-| GET | `/users/me` | Bearer | — | User object |
-| PATCH | `/users/me` | Bearer | `{ name?, bio?, location?, avatarUrl? }` | Updated user |
-| GET | `/users/:id` | No | — | User object |
+| GET | `/users/me` | Bearer | — | Full user object (all fields) |
+| PATCH | `/users/me` | Bearer | See profile fields below | Updated user object |
+| GET | `/users/:id` | No | — | Full user object |
+
+**PATCH /users/me — updatable fields:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `name` | string | min 1 char |
+| `bio` | string | |
+| `location` | string | |
+| `avatarUrl` | string | legacy |
+| `profilePhotoUrl` | string | preferred |
+| `onboardingCompleted` | boolean | |
+| `cancerType` | string | patient/caregiver |
+| `treatmentStage` | string | patient/caregiver |
+| `interests` | string[] | patient/caregiver |
+| `specialty` | string | medical_professional |
+| `hospitalAffiliation` | string | medical_professional |
+| `medicalLicenseNumber` | string | triggers auto-pending |
+
+**Auto-pending rule:** If `medicalLicenseNumber` is provided and `role = medical_professional` and `verificationStatus = none`, the server automatically sets `verificationStatus = pending`.
 
 ### Posts
 
@@ -218,8 +251,8 @@ workspace/
 
 ## 6. Authentication Flow
 
-1. **Register** — `POST /auth/register` with `{ name, email, password, role }`. Password is bcrypt-hashed (10 rounds). Returns JWT + user object.
-2. **Login** — `POST /auth/login` with `{ email, password }`. Compares bcrypt hash. Returns JWT + user object.
+1. **Register** — `POST /auth/register` with `{ name, email, password, role }`. Password is bcrypt-hashed (10 rounds). Returns JWT + full user object.
+2. **Login** — `POST /auth/login` with `{ email, password }`. Compares bcrypt hash. Returns JWT + full user object.
 3. **Authenticated requests** — Add `Authorization: Bearer <token>` header. The `requireAuth` middleware validates the JWT and attaches `req.userId`.
 4. **Logout** — Client deletes the token. Server-side: `POST /auth/logout` returns success (stateless).
 5. **Token expiry** — 7 days. User must re-login after expiry.
@@ -262,13 +295,13 @@ pnpm --filter @workspace/api-spec run codegen
 
 | Phase | Module | Status |
 |---|---|---|
-| Phase 3 | Comments & Replies | Planned |
-| Phase 3 | Role Extensions (MD verification, admin) | Planned |
-| Phase 4 | Groups (create, join, group feed) | Planned |
-| Phase 4 | Direct Messages | Planned |
-| Phase 5 | Notifications (real-time) | Planned |
-| Phase 5 | Cognie AI integration | Planned |
-| Phase 6 | File uploads (OCI Object Storage) | Planned |
-| Phase 6 | Admin Dashboard APIs | Planned |
-| Phase 7 | Events & RSVPs | Planned |
-| Phase 7 | Survivor Stories | Planned |
+| Phase 4 | Comments & Replies | Planned |
+| Phase 4 | Admin endpoints (verify/reject MDs) | Planned |
+| Phase 5 | Groups (create, join, group feed) | Planned |
+| Phase 5 | Direct Messages | Planned |
+| Phase 6 | Notifications (real-time) | Planned |
+| Phase 6 | Cognie AI integration | Planned |
+| Phase 7 | File uploads (OCI Object Storage) | Planned |
+| Phase 7 | Admin Dashboard APIs | Planned |
+| Phase 8 | Events & RSVPs | Planned |
+| Phase 8 | Survivor Stories | Planned |

@@ -88,7 +88,7 @@ The server starts on `$PORT` (default 5000 in dev).
 |---|---|---|---|
 | POST | `/api/auth/register` | No | Register a new user |
 | POST | `/api/auth/login` | No | Login and get JWT |
-| POST | `/api/auth/logout` | No | Logout (client deletes token) |
+| POST | `/api/auth/logout` | Optional Bearer | Logout (client deletes token) |
 
 ### Users
 
@@ -148,6 +148,75 @@ All responses follow a consistent envelope:
 
 ---
 
+## Verification Statuses (medical_professional only)
+
+| Status | Description |
+|---|---|
+| `none` | Not submitted (default) |
+| `pending` | License submitted, awaiting review |
+| `approved` | Verified medical professional |
+| `rejected` | Verification denied |
+
+> **Auto-pending rule:** When a `medical_professional` submits their `medicalLicenseNumber` for the first time (and `verificationStatus` is currently `none`), the server automatically transitions status to `pending`.
+
+---
+
+## User Profile Fields
+
+### Common (all roles)
+
+| Field | Type | Updatable | Description |
+|---|---|---|---|
+| `name` | string | Yes | Display name |
+| `bio` | string \| null | Yes | Short bio |
+| `location` | string \| null | Yes | City / country |
+| `avatarUrl` | string \| null | Yes | Legacy avatar URL |
+| `profilePhotoUrl` | string \| null | Yes | Profile photo URL |
+| `onboardingCompleted` | boolean | Yes | Onboarding flow flag |
+| `role` | UserRole | No (set at register) | User role |
+| `verificationStatus` | VerificationStatus | Auto / admin | MD verification state |
+
+### Patient / Caregiver
+
+| Field | Type | Updatable | Description |
+|---|---|---|---|
+| `cancerType` | string \| null | Yes | Cancer type / diagnosis |
+| `treatmentStage` | string \| null | Yes | e.g. `remission`, `active_treatment` |
+| `interests` | string[] \| null | Yes | Topic interests array |
+
+### Medical Professional
+
+| Field | Type | Updatable | Description |
+|---|---|---|---|
+| `specialty` | string \| null | Yes | Medical specialty |
+| `hospitalAffiliation` | string \| null | Yes | Hospital or institution |
+| `medicalLicenseNumber` | string \| null | Yes | License number (triggers auto-pending) |
+
+---
+
+## PATCH /api/users/me — Request Body
+
+All fields are optional. Send only what you want to change.
+
+```json
+{
+  "name": "string",
+  "bio": "string",
+  "location": "string",
+  "avatarUrl": "string",
+  "profilePhotoUrl": "string",
+  "onboardingCompleted": true,
+  "cancerType": "string",
+  "treatmentStage": "string",
+  "interests": ["string"],
+  "specialty": "string",
+  "hospitalAffiliation": "string",
+  "medicalLicenseNumber": "string"
+}
+```
+
+---
+
 ## Postman Testing Guide
 
 ### 1. Import the Collection
@@ -167,47 +236,82 @@ GET {{base_url}}/healthz
 ```
 Expected: `{ "status": "ok" }`
 
-**Step 2 — Register**
+**Step 2 — Register (patient)**
 ```
 POST {{base_url}}/auth/register
-Body: { "name": "Dia", "email": "dia@example.com", "password": "password123", "role": "patient" }
+Body: { "name": "Ananya Sharma", "email": "ananya@example.com", "password": "password123", "role": "patient" }
 ```
-Copy the `data.token` from the response.
+Copy `data.token` — collection auto-saves to `token` variable.
 
-**Step 3 — Set Token**
-In Postman, set the collection variable `token` to the JWT from step 2.
+**Step 3 — Register (medical professional)**
+```
+POST {{base_url}}/auth/register
+Body: { "name": "Dr. Priya Nair", "email": "priya@example.com", "password": "password123", "role": "medical_professional" }
+```
+Copy `data.token` — save as `token_md`.
 
-**Step 4 — Get Profile**
+**Step 4 — Update patient profile (onboarding)**
+```
+PATCH {{base_url}}/users/me
+Authorization: Bearer {{token}}
+Body: {
+  "cancerType": "Breast Cancer",
+  "treatmentStage": "remission",
+  "interests": ["support_groups", "nutrition"],
+  "onboardingCompleted": true
+}
+```
+
+**Step 5 — Update MD profile (triggers auto-pending)**
+```
+PATCH {{base_url}}/users/me
+Authorization: Bearer {{token_md}}
+Body: {
+  "specialty": "Oncology",
+  "hospitalAffiliation": "AIIMS Delhi",
+  "medicalLicenseNumber": "MH-2024-ON-7831",
+  "onboardingCompleted": true
+}
+```
+Expected: `verificationStatus` = `"pending"` in response.
+
+**Step 6 — Get profile (GET /users/me)**
 ```
 GET {{base_url}}/users/me
-Headers: Authorization: Bearer {{token}}
+Authorization: Bearer {{token}}
 ```
 
-**Step 5 — Create Post**
+**Step 7 — Get user by ID**
+```
+GET {{base_url}}/users/1
+```
+
+**Step 8 — Create Post**
 ```
 POST {{base_url}}/posts
-Headers: Authorization: Bearer {{token}}
+Authorization: Bearer {{token}}
 Body: { "content": "Hello CereOnco community!" }
 ```
-Copy the `data.id` from the response as `post_id`.
+Collection auto-saves `data.id` to `post_id`.
 
-**Step 6 — Like the Post**
+**Step 9 — Like the Post**
 ```
 POST {{base_url}}/posts/{{post_id}}/like
-Headers: Authorization: Bearer {{token}}
+Authorization: Bearer {{token}}
 ```
 
-**Step 7 — Bookmark the Post**
+**Step 10 — Bookmark the Post**
 ```
 POST {{base_url}}/posts/{{post_id}}/bookmark
-Headers: Authorization: Bearer {{token}}
+Authorization: Bearer {{token}}
 ```
 
-**Step 8 — Get Feed**
+**Step 11 — Get Feed**
 ```
 GET {{base_url}}/posts
-Headers: Authorization: Bearer {{token}}
+Authorization: Bearer {{token}}
 ```
+Expected: posts with `isLiked: true`, `isBookmarked: true`.
 
 ---
 
@@ -216,15 +320,16 @@ Headers: Authorization: Bearer {{token}}
 - **OpenAPI-first**: The `lib/api-spec/openapi.yaml` is the single source of truth. Zod validation schemas are code-generated from it — never hand-written.
 - **Response envelope**: All routes return `{ success, message, data }` for consistent client handling.
 - **Optional auth on feed**: The feed and single-post endpoints accept optional Bearer tokens to return per-user `isLiked` / `isBookmarked` state when authenticated.
+- **Auto-pending verification**: When a `medical_professional` submits `medicalLicenseNumber` for the first time, `verificationStatus` is automatically set to `pending` — no separate submission endpoint needed.
 - **Cascade deletes**: Deleting a user removes all their posts, likes, and bookmarks. Deleting a post removes all its likes and bookmarks.
 - **JWT expiry**: Tokens expire after 7 days. Logout is client-side (delete the token).
 
-## Future Modules (Phase 3+)
+## Future Modules (Phase 4+)
 
 - Comments & Replies
 - Groups
 - Direct Messages
 - Notifications
-- Admin Dashboard
+- Admin Dashboard (verification approval/rejection)
 - Cognie AI integration
 - File uploads (OCI Object Storage)

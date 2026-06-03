@@ -38,9 +38,32 @@ router.patch("/users/me", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  // Fetch current user to apply business logic
+  const [current] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, req.userId!));
+
+  if (!current) {
+    error(res, "User not found", 404);
+    return;
+  }
+
+  // Auto-pending: when a medical_professional submits their license number
+  // for the first time (verificationStatus is currently 'none'), set status to 'pending'
+  const finalUpdates: typeof updates & { verificationStatus?: "pending" } = { ...updates };
+  if (
+    current.role === "medical_professional" &&
+    updates.medicalLicenseNumber !== undefined &&
+    updates.medicalLicenseNumber.length > 0 &&
+    current.verificationStatus === "none"
+  ) {
+    finalUpdates.verificationStatus = "pending";
+  }
+
   const [updated] = await db
     .update(usersTable)
-    .set(updates)
+    .set(finalUpdates)
     .where(eq(usersTable.id, req.userId!))
     .returning();
 

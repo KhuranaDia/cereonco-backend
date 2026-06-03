@@ -6,12 +6,12 @@
  * OpenAPI spec version: 0.3.0
  */
 
-export type UserRole = typeof UserRole[keyof typeof UserRole];
+export type VerificationStatus = typeof VerificationStatus[keyof typeof VerificationStatus];
 
 
-export const UserRole = {
-  patient: 'patient',
-  caregiver: 'caregiver',
-  medical_professional: 'medical_professional',
-  admin: 'admin',
+export const VerificationStatus = {
+  none: 'none',
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
 } as const;

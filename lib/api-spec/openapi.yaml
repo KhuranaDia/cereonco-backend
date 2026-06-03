@@ -2,8 +2,8 @@ openapi: 3.1.0
 info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.2.0
-  description: CereOnco Community API — Phase 1 (Auth/Users) + Phase 2 (Posts)
+  version: 0.3.0
+  description: CereOnco Community API — Phase 1 (Auth/Users) + Phase 2 (Posts) + Phase 3 (Roles Extension)
 servers:
   - url: /api
     description: Base API path
@@ -36,9 +36,13 @@ components:
       type: string
       enum: [patient, caregiver, medical_professional, admin]
 
+    VerificationStatus:
+      type: string
+      enum: [none, pending, approved, rejected]
+
     User:
       type: object
-      required: [id, name, email, role, createdAt, updatedAt]
+      required: [id, name, email, role, onboardingCompleted, verificationStatus, createdAt, updatedAt]
       properties:
         id:
           type: integer
@@ -54,6 +58,28 @@ components:
           type: ["string", "null"]
         avatarUrl:
           type: ["string", "null"]
+        profilePhotoUrl:
+          type: ["string", "null"]
+        onboardingCompleted:
+          type: boolean
+        cancerType:
+          type: ["string", "null"]
+        treatmentStage:
+          type: ["string", "null"]
+        interests:
+          oneOf:
+            - type: array
+              items:
+                type: string
+            - type: "null"
+        specialty:
+          type: ["string", "null"]
+        hospitalAffiliation:
+          type: ["string", "null"]
+        medicalLicenseNumber:
+          type: ["string", "null"]
+        verificationStatus:
+          $ref: "#/components/schemas/VerificationStatus"
         createdAt:
           type: string
           format: date-time
@@ -186,6 +212,24 @@ components:
           type: string
         avatarUrl:
           type: string
+        profilePhotoUrl:
+          type: string
+        onboardingCompleted:
+          type: boolean
+        cancerType:
+          type: string
+        treatmentStage:
+          type: string
+        interests:
+          type: array
+          items:
+            type: string
+        specialty:
+          type: string
+        hospitalAffiliation:
+          type: string
+        medicalLicenseNumber:
+          type: string
 
     PostInput:
       type: object
@@ -269,6 +313,8 @@ paths:
       operationId: logout
       tags: [auth]
       summary: Logout (client-side token invalidation)
+      security:
+        - bearerAuth: []
       responses:
         "200":
           description: Logged out

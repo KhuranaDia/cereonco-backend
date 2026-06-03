@@ -1,30 +1,35 @@
 {
   "info": {
     "name": "CereOnco Community API",
-    "description": "Phase 1 (Auth/Users) + Phase 2 (Posts/Likes/Bookmarks)",
+    "description": "Phase 1 (Auth/Users) + Phase 2 (Posts/Likes/Bookmarks) + Phase 3 (Roles Extension)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_postman_id": "cereonco-community-api-v1"
+    "version": "0.3.0"
   },
   "variable": [
     {
       "key": "base_url",
-      "value": "https://your-domain.replit.app/api",
-      "description": "Base API URL — update to your deployed domain"
+      "value": "https://<your-domain>/api",
+      "type": "string"
     },
     {
       "key": "token",
       "value": "",
-      "description": "JWT token — set this after login/register"
+      "type": "string"
+    },
+    {
+      "key": "token_md",
+      "value": "",
+      "type": "string"
     },
     {
       "key": "post_id",
       "value": "1",
-      "description": "Post ID — update after creating a post"
+      "type": "string"
     },
     {
       "key": "user_id",
       "value": "1",
-      "description": "User ID — update as needed"
+      "type": "string"
     }
   ],
   "item": [
@@ -35,26 +40,17 @@
           "name": "Health Check",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/healthz",
-              "host": ["{{base_url}}"],
-              "path": ["healthz"]
-            }
+            "url": "{{base_url}}/healthz",
+            "description": "Returns { status: 'ok' } when the server is running."
           },
-          "response": [],
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Returns ok', () => {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.status).to.eql('ok');",
-                  "});"
-                ],
-                "type": "text/javascript"
+                  "pm.test('ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+                ]
               }
             }
           ]
@@ -65,101 +61,174 @@
       "name": "Auth",
       "item": [
         {
-          "name": "Register",
+          "name": "Register (patient)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ananya Sharma\",\n  \"email\": \"ananya@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"patient\"\n}"
+            },
+            "description": "Register a new patient. Auto-saves token to collection variable."
+          },
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Returns token', () => {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.success).to.be.true;",
-                  "  pm.expect(body.data.token).to.be.a('string');",
-                  "  pm.collectionVariables.set('token', body.data.token);",
-                  "  pm.collectionVariables.set('user_id', body.data.user.id);",
-                  "});"
-                ],
-                "type": "text/javascript"
+                  "const d = pm.response.json().data;",
+                  "pm.test('Has token', () => pm.expect(d.token).to.be.a('string'));",
+                  "pm.test('Role is patient', () => pm.expect(d.user.role).to.eql('patient'));",
+                  "pm.test('verificationStatus is none', () => pm.expect(d.user.verificationStatus).to.eql('none'));",
+                  "pm.test('onboardingCompleted is false', () => pm.expect(d.user.onboardingCompleted).to.eql(false));",
+                  "pm.collectionVariables.set('token', d.token);",
+                  "pm.collectionVariables.set('user_id', d.user.id);"
+                ]
               }
             }
-          ],
+          ]
+        },
+        {
+          "name": "Register (medical_professional)",
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
+            "url": "{{base_url}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Dia Khurana\",\n  \"email\": \"dia@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"patient\"\n}"
+              "raw": "{\n  \"name\": \"Dr. Priya Nair\",\n  \"email\": \"priya@cereoncomed.com\",\n  \"password\": \"password123\",\n  \"role\": \"medical_professional\"\n}"
             },
-            "url": {
-              "raw": "{{base_url}}/auth/register",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "register"]
+            "description": "Register a medical professional. Auto-saves token to token_md variable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Role is medical_professional', () => pm.expect(d.user.role).to.eql('medical_professional'));",
+                  "pm.test('verificationStatus is none', () => pm.expect(d.user.verificationStatus).to.eql('none'));",
+                  "pm.collectionVariables.set('token_md', d.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register (caregiver)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rohan Mehta\",\n  \"email\": \"rohan@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"caregiver\"\n}"
             }
           },
-          "response": []
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Role is caregiver', () => pm.expect(pm.response.json().data.user.role).to.eql('caregiver'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register — 409 duplicate email",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dup\",\n  \"email\": \"ananya@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"patient\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 409', () => pm.response.to.have.status(409));",
+                  "pm.test('success false', () => pm.expect(pm.response.json().success).to.eql(false));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Login",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ananya@example.com\",\n  \"password\": \"password123\"\n}"
+            }
+          },
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Returns token', () => {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.success).to.be.true;",
-                  "  pm.collectionVariables.set('token', body.data.token);",
-                  "});"
-                ],
-                "type": "text/javascript"
+                  "const d = pm.response.json().data;",
+                  "pm.test('Has token', () => pm.expect(d.token).to.be.a('string'));",
+                  "pm.collectionVariables.set('token', d.token);"
+                ]
               }
             }
-          ],
+          ]
+        },
+        {
+          "name": "Login — 401 wrong password",
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
+            "url": "{{base_url}}/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"dia@example.com\",\n  \"password\": \"password123\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/auth/login",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "login"]
+              "raw": "{\n  \"email\": \"ananya@example.com\",\n  \"password\": \"wrongpassword\"\n}"
             }
           },
-          "response": []
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/logout",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "description": "Stateless logout. Accepts optional Bearer token."
+          },
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Success', () => pm.response.json().success === true);"
-                ],
-                "type": "text/javascript"
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.eql(true));"
+                ]
               }
             }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/auth/logout",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "logout"]
-            }
-          },
-          "response": []
+          ]
         }
       ]
     },
@@ -167,97 +236,169 @@
       "name": "Users",
       "item": [
         {
-          "name": "Get My Profile",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Returns user', () => {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.success).to.be.true;",
-                  "  pm.expect(body.data.email).to.be.a('string');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
+          "name": "Get Me",
           "request": {
             "method": "GET",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
-            "url": {
-              "raw": "{{base_url}}/users/me",
-              "host": ["{{base_url}}"],
-              "path": ["users", "me"]
-            }
+            "url": "{{base_url}}/users/me",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
           },
-          "response": []
-        },
-        {
-          "name": "Update My Profile",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Profile updated', () => {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.success).to.be.true;",
-                  "  pm.expect(body.data.bio).to.be.a('string');",
-                  "});"
-                ],
-                "type": "text/javascript"
+                  "const u = pm.response.json().data;",
+                  "pm.test('Has role', () => pm.expect(u.role).to.be.a('string'));",
+                  "pm.test('Has verificationStatus', () => pm.expect(u.verificationStatus).to.be.a('string'));",
+                  "pm.test('Has onboardingCompleted', () => pm.expect(u).to.have.property('onboardingCompleted'));"
+                ]
               }
             }
-          ],
+          ]
+        },
+        {
+          "name": "Get Me — 401 no token",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/users/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Me — patient onboarding",
           "request": {
             "method": "PATCH",
+            "url": "{{base_url}}/users/me",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Dia Khurana\",\n  \"bio\": \"Cancer advocate and patient. Navigating this journey one day at a time.\",\n  \"location\": \"New Delhi, India\"\n}"
+              "raw": "{\n  \"bio\": \"Stage 3 breast cancer survivor, one day at a time.\",\n  \"cancerType\": \"Breast Cancer\",\n  \"treatmentStage\": \"remission\",\n  \"interests\": [\"support_groups\", \"nutrition\", \"mindfulness\"],\n  \"profilePhotoUrl\": \"https://cdn.example.com/photos/ananya.jpg\",\n  \"location\": \"Mumbai\",\n  \"onboardingCompleted\": true\n}"
             },
-            "url": {
-              "raw": "{{base_url}}/users/me",
-              "host": ["{{base_url}}"],
-              "path": ["users", "me"]
-            }
+            "description": "Complete onboarding for a patient — cancer type, treatment stage, interests."
           },
-          "response": []
-        },
-        {
-          "name": "Get User by ID",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Status 200 or 404', () => {",
-                  "  pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
-                  "});"
-                ],
-                "type": "text/javascript"
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const u = pm.response.json().data;",
+                  "pm.test('cancerType set', () => pm.expect(u.cancerType).to.eql('Breast Cancer'));",
+                  "pm.test('treatmentStage set', () => pm.expect(u.treatmentStage).to.eql('remission'));",
+                  "pm.test('interests is array', () => pm.expect(u.interests).to.be.an('array'));",
+                  "pm.test('onboardingCompleted true', () => pm.expect(u.onboardingCompleted).to.eql(true));"
+                ]
               }
             }
-          ],
+          ]
+        },
+        {
+          "name": "Update Me — MD onboarding (auto-pending)",
           "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/users/{{user_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["users", "{{user_id}}"]
+            "method": "PATCH",
+            "url": "{{base_url}}/users/me",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_md}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"specialty\": \"Oncology\",\n  \"hospitalAffiliation\": \"AIIMS Delhi\",\n  \"medicalLicenseNumber\": \"MH-2024-ON-7831\",\n  \"profilePhotoUrl\": \"https://cdn.example.com/photos/priya.jpg\",\n  \"location\": \"New Delhi\",\n  \"onboardingCompleted\": true\n}"
+            },
+            "description": "Complete MD onboarding. Submitting medicalLicenseNumber when verificationStatus=none auto-sets it to 'pending'."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const u = pm.response.json().data;",
+                  "pm.test('specialty set', () => pm.expect(u.specialty).to.eql('Oncology'));",
+                  "pm.test('hospitalAffiliation set', () => pm.expect(u.hospitalAffiliation).to.eql('AIIMS Delhi'));",
+                  "pm.test('verificationStatus is pending', () => pm.expect(u.verificationStatus).to.eql('pending'));",
+                  "pm.test('onboardingCompleted true', () => pm.expect(u.onboardingCompleted).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Me — partial (name + bio)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/users/me",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ananya S.\",\n  \"bio\": \"Survivor. Advocate. Fighter.\"\n}"
             }
           },
-          "response": []
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('name updated', () => pm.expect(pm.response.json().data.name).to.eql('Ananya S.'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/users/{{user_id}}",
+            "description": "Public profile — no auth required."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const u = pm.response.json().data;",
+                  "pm.test('Has id', () => pm.expect(u.id).to.be.a('number'));",
+                  "pm.test('Has verificationStatus', () => pm.expect(u.verificationStatus).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get User by ID — 404",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/users/99999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -266,288 +407,272 @@
       "item": [
         {
           "name": "Create Post",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/posts",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Hello CereOnco community! Glad to be here.\"\n}"
+            }
+          },
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Post created', () => {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.success).to.be.true;",
-                  "  pm.collectionVariables.set('post_id', body.data.id);",
-                  "});"
-                ],
-                "type": "text/javascript"
+                  "const d = pm.response.json().data;",
+                  "pm.test('Has content', () => pm.expect(d.content).to.be.a('string'));",
+                  "pm.collectionVariables.set('post_id', d.id);"
+                ]
               }
             }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"content\": \"Hello CereOnco community! Joining this platform to connect with others on a similar journey. Diagnosed with breast cancer 6 months ago — grateful to find a safe space.\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/posts",
-              "host": ["{{base_url}}"],
-              "path": ["posts"]
-            }
-          },
-          "response": []
+          ]
         },
         {
-          "name": "Get Feed",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Returns array', () => {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.success).to.be.true;",
-                  "  pm.expect(body.data).to.be.an('array');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
+          "name": "Get Feed (authenticated)",
           "request": {
             "method": "GET",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
             "url": {
-              "raw": "{{base_url}}/posts?limit=20&offset=0",
-              "host": ["{{base_url}}"],
-              "path": ["posts"],
+              "raw": "{{base_url}}/posts?limit=10&offset=0",
               "query": [
-                { "key": "limit", "value": "20" },
+                { "key": "limit", "value": "10" },
                 { "key": "offset", "value": "0" }
               ]
-            }
+            },
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
           },
-          "response": []
-        },
-        {
-          "name": "Get Single Post",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Post has author and counts', () => {",
-                  "  const { data } = pm.response.json();",
-                  "  pm.expect(data.author).to.be.an('object');",
-                  "  pm.expect(data.likeCount).to.be.a('number');",
-                  "  pm.expect(data.bookmarkCount).to.be.a('number');",
-                  "});"
-                ],
-                "type": "text/javascript"
+                  "const feed = pm.response.json().data;",
+                  "pm.test('Is array', () => pm.expect(feed).to.be.an('array'));",
+                  "if (feed.length > 0) {",
+                  "  pm.test('Has isLiked', () => pm.expect(feed[0]).to.have.property('isLiked'));",
+                  "  pm.test('Has isBookmarked', () => pm.expect(feed[0]).to.have.property('isBookmarked'));",
+                  "  pm.test('Has author', () => pm.expect(feed[0].author).to.have.property('role'));",
+                  "}"
+                ]
               }
             }
-          ],
+          ]
+        },
+        {
+          "name": "Get Feed (unauthenticated)",
           "request": {
             "method": "GET",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
-            "url": {
-              "raw": "{{base_url}}/posts/{{post_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["posts", "{{post_id}}"]
-            }
+            "url": "{{base_url}}/posts"
           },
-          "response": []
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Post by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/posts/{{post_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has likeCount', () => pm.expect(pm.response.json().data).to.have.property('likeCount'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Update Post",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Post updated', () => {",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.success).to.be.true;",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
           "request": {
             "method": "PATCH",
+            "url": "{{base_url}}/posts/{{post_id}}",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"content\": \"Updated: Hello CereOnco community! So glad to be here.\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/posts/{{post_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["posts", "{{post_id}}"]
+              "raw": "{\n  \"content\": \"Updated: Hello CereOnco community!\"\n}"
             }
           },
-          "response": []
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Like Post",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Liked', () => {",
-                  "  const { data } = pm.response.json();",
-                  "  pm.expect(data.liked).to.be.true;",
-                  "  pm.expect(data.likeCount).to.be.a('number');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
-            "url": {
-              "raw": "{{base_url}}/posts/{{post_id}}/like",
-              "host": ["{{base_url}}"],
-              "path": ["posts", "{{post_id}}", "like"]
-            }
+            "url": "{{base_url}}/posts/{{post_id}}/like",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
           },
-          "response": []
-        },
-        {
-          "name": "Unlike Post",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Unliked', () => {",
-                  "  const { data } = pm.response.json();",
-                  "  pm.expect(data.liked).to.be.false;",
-                  "});"
-                ],
-                "type": "text/javascript"
+                  "pm.test('liked true', () => pm.expect(pm.response.json().data.liked).to.eql(true));"
+                ]
               }
             }
-          ],
+          ]
+        },
+        {
+          "name": "Like Post (idempotent)",
           "request": {
-            "method": "DELETE",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
-            "url": {
-              "raw": "{{base_url}}/posts/{{post_id}}/like",
-              "host": ["{{base_url}}"],
-              "path": ["posts", "{{post_id}}", "like"]
-            }
+            "method": "POST",
+            "url": "{{base_url}}/posts/{{post_id}}/like",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "description": "Double-liking is silently ignored. likeCount should not increase."
           },
-          "response": []
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Bookmark Post",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Bookmarked', () => {",
-                  "  const { data } = pm.response.json();",
-                  "  pm.expect(data.bookmarked).to.be.true;",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
-            "url": {
-              "raw": "{{base_url}}/posts/{{post_id}}/bookmark",
-              "host": ["{{base_url}}"],
-              "path": ["posts", "{{post_id}}", "bookmark"]
-            }
+            "url": "{{base_url}}/posts/{{post_id}}/bookmark",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
           },
-          "response": []
-        },
-        {
-          "name": "Remove Bookmark",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Bookmark removed', () => {",
-                  "  const { data } = pm.response.json();",
-                  "  pm.expect(data.bookmarked).to.be.false;",
-                  "});"
-                ],
-                "type": "text/javascript"
+                  "pm.test('bookmarked true', () => pm.expect(pm.response.json().data.bookmarked).to.eql(true));"
+                ]
               }
             }
-          ],
+          ]
+        },
+        {
+          "name": "Unlike Post",
           "request": {
             "method": "DELETE",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
-            "url": {
-              "raw": "{{base_url}}/posts/{{post_id}}/bookmark",
-              "host": ["{{base_url}}"],
-              "path": ["posts", "{{post_id}}", "bookmark"]
-            }
+            "url": "{{base_url}}/posts/{{post_id}}/like",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
           },
-          "response": []
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('liked false', () => pm.expect(pm.response.json().data.liked).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unbookmark Post",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/posts/{{post_id}}/bookmark",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('bookmarked false', () => pm.expect(pm.response.json().data.bookmarked).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Post — 403 not owner",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/posts/{{post_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_md}}" }],
+            "description": "Attempt to delete a post owned by another user. Should return 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Delete Post",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/posts/{{post_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          },
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "pm.test('Status 204', () => pm.response.to.have.status(204));"
-                ],
-                "type": "text/javascript"
+                ]
               }
             }
-          ],
+          ]
+        },
+        {
+          "name": "Get Post — 404 after delete",
           "request": {
-            "method": "DELETE",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
-            "url": {
-              "raw": "{{base_url}}/posts/{{post_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["posts", "{{post_id}}"]
-            }
+            "method": "GET",
+            "url": "{{base_url}}/posts/{{post_id}}"
           },
-          "response": []
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
         }
       ]
     }
