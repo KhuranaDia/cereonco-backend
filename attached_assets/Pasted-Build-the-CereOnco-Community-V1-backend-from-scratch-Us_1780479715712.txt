@@ -1,0 +1,144 @@
+Build the CereOnco Community V1 backend from scratch.
+
+Use:
+
+* Node.js
+* Express.js
+* PostgreSQL
+* JWT authentication
+* bcrypt password hashing
+* CORS
+* Swagger/OpenAPI documentation
+* Postman collection
+* Modular folder structure
+
+Use the Community V1 technical specification and Figma design as source of truth.
+
+Figma:
+https://www.figma.com/design/0DxQJj5Ka2KWLMAqTJocM6/FINAL---CEREONCO?node-id=1085-2&p=f&t=AdhJlAmiUpkTjC2T-0
+
+Build Phase 1 only.
+
+Create this structure:
+
+backend/
+├── package.json
+├── server.js
+├── .env.example
+├── README.md
+├── docs/
+│   ├── PROJECT_STATUS.md
+│   └── postman-collection.json
+└── src/
+├── app.js
+├── config/
+│   └── db.js
+├── controllers/
+│   ├── auth.controller.js
+│   └── user.controller.js
+├── routes/
+│   ├── auth.routes.js
+│   └── user.routes.js
+├── middleware/
+│   ├── auth.middleware.js
+│   ├── error.middleware.js
+│   └── validate.middleware.js
+├── models/
+│   └── user.model.js
+├── utils/
+│   ├── generateToken.js
+│   └── response.js
+└── database/
+├── schema.sql
+└── seed.sql
+
+Phase 1 requirements:
+
+1. Server setup
+2. PostgreSQL connection
+3. Health check API
+4. User registration API
+5. User login API
+6. User logout API
+7. Get current user profile API
+8. Update current user profile API
+9. JWT authentication
+10. Password hashing with bcrypt
+11. CORS setup for web/mobile
+12. Standard JSON responses
+13. Swagger docs at /api/docs
+14. Postman collection in docs/
+15. README with setup + testing steps
+16. PROJECT_STATUS.md with current progress
+
+Users table should include:
+
+* id
+* name
+* email
+* password_hash
+* role: patient, caregiver, medical_professional, admin
+* bio
+* location
+* created_at
+* updated_at
+
+API routes:
+
+GET /api/healthz
+
+POST /api/auth/register
+Body:
+{
+"name": "Dia",
+"email": "[dia@example.com](mailto:dia@example.com)",
+"password": "password123",
+"role": "patient"
+}
+
+POST /api/auth/login
+Body:
+{
+"email": "[dia@example.com](mailto:dia@example.com)",
+"password": "password123"
+}
+
+POST /api/auth/logout
+
+GET /api/users/me
+Headers:
+Authorization: Bearer TOKEN
+
+PATCH /api/users/me
+Headers:
+Authorization: Bearer TOKEN
+Body:
+{
+"name": "Dia Khurana",
+"bio": "Backend test user",
+"location": "New Delhi"
+}
+
+Use consistent response format:
+
+Success:
+{
+"success": true,
+"message": "Message here",
+"data": {}
+}
+
+Error:
+{
+"success": false,
+"message": "Error message here"
+}
+
+Important:
+
+* Keep everything modular.
+* Do not build posts, comments, groups, messages, notifications, admin, Cognie, or file uploads yet.
+* Make it easy to add those later.
+* Make sure every endpoint is testable in Postman.
+* Include exact commands to install dependencies and run the project.
+* After Phase 1 is complete, stop and give the public API URL and Postman testing steps.
