@@ -1,0 +1,555 @@
+{
+  "info": {
+    "name": "CereOnco Community API",
+    "description": "Phase 1 (Auth/Users) + Phase 2 (Posts/Likes/Bookmarks)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "cereonco-community-api-v1"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://your-domain.replit.app/api",
+      "description": "Base API URL — update to your deployed domain"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "description": "JWT token — set this after login/register"
+    },
+    {
+      "key": "post_id",
+      "value": "1",
+      "description": "Post ID — update after creating a post"
+    },
+    {
+      "key": "user_id",
+      "value": "1",
+      "description": "User ID — update as needed"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/healthz",
+              "host": ["{{base_url}}"],
+              "path": ["healthz"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns ok', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql('ok');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Returns token', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.true;",
+                  "  pm.expect(body.data.token).to.be.a('string');",
+                  "  pm.collectionVariables.set('token', body.data.token);",
+                  "  pm.collectionVariables.set('user_id', body.data.user.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dia Khurana\",\n  \"email\": \"dia@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"patient\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns token', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.true;",
+                  "  pm.collectionVariables.set('token', body.data.token);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"dia@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Success', () => pm.response.json().success === true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns user', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.true;",
+                  "  pm.expect(body.data.email).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/me",
+              "host": ["{{base_url}}"],
+              "path": ["users", "me"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update My Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Profile updated', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.true;",
+                  "  pm.expect(body.data.bio).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dia Khurana\",\n  \"bio\": \"Cancer advocate and patient. Navigating this journey one day at a time.\",\n  \"location\": \"New Delhi, India\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/me",
+              "host": ["{{base_url}}"],
+              "path": ["users", "me"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 or 404', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{user_id}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Posts",
+      "item": [
+        {
+          "name": "Create Post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Post created', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.true;",
+                  "  pm.collectionVariables.set('post_id', body.data.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Hello CereOnco community! Joining this platform to connect with others on a similar journey. Diagnosed with breast cancer 6 months ago — grateful to find a safe space.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/posts",
+              "host": ["{{base_url}}"],
+              "path": ["posts"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Feed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.true;",
+                  "  pm.expect(body.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/posts?limit=20&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["posts"],
+              "query": [
+                { "key": "limit", "value": "20" },
+                { "key": "offset", "value": "0" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Post has author and counts', () => {",
+                  "  const { data } = pm.response.json();",
+                  "  pm.expect(data.author).to.be.an('object');",
+                  "  pm.expect(data.likeCount).to.be.a('number');",
+                  "  pm.expect(data.bookmarkCount).to.be.a('number');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/posts/{{post_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["posts", "{{post_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Post updated', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.success).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Updated: Hello CereOnco community! So glad to be here.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/posts/{{post_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["posts", "{{post_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Like Post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Liked', () => {",
+                  "  const { data } = pm.response.json();",
+                  "  pm.expect(data.liked).to.be.true;",
+                  "  pm.expect(data.likeCount).to.be.a('number');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/posts/{{post_id}}/like",
+              "host": ["{{base_url}}"],
+              "path": ["posts", "{{post_id}}", "like"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unlike Post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Unliked', () => {",
+                  "  const { data } = pm.response.json();",
+                  "  pm.expect(data.liked).to.be.false;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/posts/{{post_id}}/like",
+              "host": ["{{base_url}}"],
+              "path": ["posts", "{{post_id}}", "like"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Bookmark Post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Bookmarked', () => {",
+                  "  const { data } = pm.response.json();",
+                  "  pm.expect(data.bookmarked).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/posts/{{post_id}}/bookmark",
+              "host": ["{{base_url}}"],
+              "path": ["posts", "{{post_id}}", "bookmark"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Bookmark",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Bookmark removed', () => {",
+                  "  const { data } = pm.response.json();",
+                  "  pm.expect(data.bookmarked).to.be.false;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/posts/{{post_id}}/bookmark",
+              "host": ["{{base_url}}"],
+              "path": ["posts", "{{post_id}}", "bookmark"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/posts/{{post_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["posts", "{{post_id}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

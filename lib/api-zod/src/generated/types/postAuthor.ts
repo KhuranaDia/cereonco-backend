@@ -5,7 +5,12 @@
  * CereOnco Community API — Phase 1 (Auth/Users) + Phase 2 (Posts)
  * OpenAPI spec version: 0.2.0
  */
+import type { UserRole } from './userRole';
 
-export interface HealthStatus {
-  status: string;
+export interface PostAuthor {
+  id: number;
+  name: string;
+  role: UserRole;
+  /** @nullable */
+  avatarUrl?: string | null;
 }

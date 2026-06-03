@@ -1,0 +1,3 @@
+- [CereOnco project context](cereonco-context.md) — Backend-only build; user explicitly wants no frontend. Phase 3+ needs explicit approval before starting.
+- [Response envelope pattern](response-envelope.md) — All routes wrap with { success, message, data } via utils/response.ts; spec defines only the data payload shape, not the envelope.
+- [Optional auth on read routes](optional-auth-pattern.md) — Feed and single-post use optionalAuth middleware so unauthenticated clients get counts and authenticated clients get per-user isLiked/isBookmarked state.

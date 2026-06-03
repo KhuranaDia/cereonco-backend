@@ -6,6 +6,12 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface Post {
+  id: number;
+  userId: number;
+  content: string;
+  /** @nullable */
+  imageUrl?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }

@@ -1,0 +1,73 @@
+import { Router, type IRouter } from "express";
+import { eq } from "drizzle-orm";
+import { db, usersTable } from "@workspace/db";
+import { UpdateMeBody, GetUserParams } from "@workspace/api-zod";
+import { requireAuth } from "../middlewares/auth";
+import { success, error } from "../utils/response";
+
+const router: IRouter = Router();
+
+function safeUser(user: typeof usersTable.$inferSelect) {
+  const { passwordHash: _pw, ...pub } = user;
+  return pub;
+}
+
+router.get("/users/me", requireAuth, async (req, res): Promise<void> => {
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, req.userId!));
+
+  if (!user) {
+    error(res, "User not found", 404);
+    return;
+  }
+  success(res, "Profile retrieved", safeUser(user));
+});
+
+router.patch("/users/me", requireAuth, async (req, res): Promise<void> => {
+  const parsed = UpdateMeBody.safeParse(req.body);
+  if (!parsed.success) {
+    error(res, parsed.error.issues.map((i) => i.message).join(", "), 400);
+    return;
+  }
+
+  const updates = parsed.data;
+  if (Object.keys(updates).length === 0) {
+    error(res, "No fields provided to update", 400);
+    return;
+  }
+
+  const [updated] = await db
+    .update(usersTable)
+    .set(updates)
+    .where(eq(usersTable.id, req.userId!))
+    .returning();
+
+  if (!updated) {
+    error(res, "User not found", 404);
+    return;
+  }
+  success(res, "Profile updated", safeUser(updated));
+});
+
+router.get("/users/:id", async (req, res): Promise<void> => {
+  const params = GetUserParams.safeParse(req.params);
+  if (!params.success) {
+    error(res, "Invalid user ID", 400);
+    return;
+  }
+
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, params.data.id));
+
+  if (!user) {
+    error(res, "User not found", 404);
+    return;
+  }
+  success(res, "User profile retrieved", safeUser(user));
+});
+
+export default router;
