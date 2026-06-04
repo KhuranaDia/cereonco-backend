@@ -6,6 +6,7 @@ import {
   usersTable,
   likesTable,
   bookmarksTable,
+  commentsTable,
 } from "@workspace/db";
 import {
   CreatePostBody,
@@ -39,6 +40,7 @@ async function buildFeedPosts(
     authorAvatarUrl: string | null;
     likeCount: number;
     bookmarkCount: number;
+    commentCount: number;
   }>,
   currentUserId?: number,
 ) {
@@ -86,6 +88,7 @@ async function buildFeedPosts(
     },
     likeCount: p.likeCount,
     bookmarkCount: p.bookmarkCount,
+    commentCount: p.commentCount,
     isLiked: likedPostIds.has(p.id),
     isBookmarked: bookmarkedPostIds.has(p.id),
   }));
@@ -106,11 +109,13 @@ async function queryFeed(limit: number, offset: number) {
       authorAvatarUrl: usersTable.avatarUrl,
       likeCount: sql<number>`cast(count(distinct ${likesTable.id}) as integer)`,
       bookmarkCount: sql<number>`cast(count(distinct ${bookmarksTable.id}) as integer)`,
+      commentCount: sql<number>`cast(count(distinct ${commentsTable.id}) filter (where not ${commentsTable.isDeleted}) as integer)`,
     })
     .from(postsTable)
     .innerJoin(usersTable, eq(postsTable.userId, usersTable.id))
     .leftJoin(likesTable, eq(likesTable.postId, postsTable.id))
     .leftJoin(bookmarksTable, eq(bookmarksTable.postId, postsTable.id))
+    .leftJoin(commentsTable, eq(commentsTable.postId, postsTable.id))
     .groupBy(postsTable.id, usersTable.id)
     .orderBy(desc(postsTable.createdAt))
     .limit(limit)
@@ -163,11 +168,13 @@ router.get("/posts/:id", optionalAuth, async (req, res): Promise<void> => {
       authorAvatarUrl: usersTable.avatarUrl,
       likeCount: sql<number>`cast(count(distinct ${likesTable.id}) as integer)`,
       bookmarkCount: sql<number>`cast(count(distinct ${bookmarksTable.id}) as integer)`,
+      commentCount: sql<number>`cast(count(distinct ${commentsTable.id}) filter (where not ${commentsTable.isDeleted}) as integer)`,
     })
     .from(postsTable)
     .innerJoin(usersTable, eq(postsTable.userId, usersTable.id))
     .leftJoin(likesTable, eq(likesTable.postId, postsTable.id))
     .leftJoin(bookmarksTable, eq(bookmarksTable.postId, postsTable.id))
+    .leftJoin(commentsTable, eq(commentsTable.postId, postsTable.id))
     .where(eq(postsTable.id, params.data.id))
     .groupBy(postsTable.id, usersTable.id);
 

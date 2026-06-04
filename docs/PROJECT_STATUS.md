@@ -1,7 +1,7 @@
 # CereOnco Community API — Project Status
 
-**Last updated:** 3 June 2026  
-**Status:** Phase 1 ✅ Complete · Phase 2 ✅ Complete · Phase 3 ✅ Complete · Phase 4+ Planned
+**Last updated:** 4 June 2026  
+**Status:** Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase 4 ✅ · Phase 5+ Planned
 
 ---
 
@@ -21,23 +21,25 @@
 
 ## 1. Project Overview
 
-A modular REST API backend designed to serve both web and mobile clients for the CereOnco Community platform. Built API-first with a clear contract defined in OpenAPI 3.1, code-generated Zod validation schemas, and a consistent JSON response envelope on every endpoint.
+A modular REST API backend for the CereOnco Community platform. Built API-first with OpenAPI 3.1, code-generated Zod validation, and a consistent JSON response envelope on every endpoint.
 
 **What's live:**
-- User registration and login with JWT authentication
-- Password hashing with bcrypt
+- User registration and login with JWT + bcrypt
 - Role-based user profiles: `patient`, `caregiver`, `medical_professional`, `admin`
 - Extended profile fields: `cancerType`, `treatmentStage`, `interests` (patient/caregiver); `specialty`, `hospitalAffiliation`, `medicalLicenseNumber` (medical professionals)
 - Medical professional verification states: `none` → `pending` → `approved` / `rejected`
 - Auto-pending: submitting a license number automatically sets status to `pending`
-- Onboarding completion flag (`onboardingCompleted`)
-- Profile photo URL (`profilePhotoUrl`)
-- Posts with full CRUD (create, read, update, delete)
-- Like / unlike toggle per post (with live count)
-- Bookmark / unbookmark toggle per post
-- Feed endpoint returning per-user like and bookmark state
-- Optional auth on feed — unauthenticated clients get posts without state; authenticated clients get `isLiked` / `isBookmarked` per post
-- Interactive Swagger UI at `/api/docs`
+- Onboarding flag and profile photo URL
+- Posts with full CRUD, feed (paginated, newest-first)
+- Like / unlike toggle with live counts
+- Bookmark / unbookmark toggle
+- Per-user `isLiked` / `isBookmarked` state in feed responses
+- Comments & Replies with full threaded structure
+- `commentCount` on all post responses
+- Soft delete on comments — threads never broken
+- Edit own comment, delete own comment
+- Authorization on all write endpoints
+- Swagger UI at `/api/docs`
 - Postman collection in `docs/`
 
 ---
@@ -67,55 +69,35 @@ A modular REST API backend designed to serve both web and mobile clients for the
 workspace/
 │
 ├── artifacts/
-│   └── api-server/                    # Deployable API server
-│       ├── build.mjs                  # esbuild bundler config
-│       ├── package.json               # Runtime deps: express, drizzle, bcryptjs, jwt…
-│       ├── tsconfig.json
+│   └── api-server/
 │       └── src/
-│           ├── app.ts                 # Express app: CORS, JSON body parser, pino logger
-│           ├── index.ts               # Entry point — reads PORT, starts HTTP server
-│           ├── openapi-spec.ts        # OpenAPI spec as JS object (powers Swagger UI)
-│           ├── lib/
-│           │   └── logger.ts          # Pino logger singleton
 │           ├── middlewares/
-│           │   ├── auth.ts            # requireAuth — verifies Bearer JWT, attaches userId
-│           │   └── optionalAuth.ts    # optionalAuth — attaches userId if token present
+│           │   ├── auth.ts            # requireAuth
+│           │   └── optionalAuth.ts    # optionalAuth
 │           ├── routes/
-│           │   ├── index.ts           # Mounts all routers under /api prefix
+│           │   ├── index.ts           # Mounts all routers
 │           │   ├── health.ts          # GET /api/healthz
-│           │   ├── auth.ts            # POST /api/auth/register, /login, /logout
-│           │   ├── users.ts           # GET/PATCH /api/users/me, GET /api/users/:id
-│           │   ├── posts.ts           # Full posts CRUD + likes + bookmarks
-│           │   └── docs.ts            # Swagger UI at /api/docs
+│           │   ├── auth.ts            # Auth endpoints
+│           │   ├── users.ts           # User profile endpoints
+│           │   ├── posts.ts           # Posts + likes + bookmarks
+│           │   ├── comments.ts        # Comments + replies (Phase 4)
+│           │   └── docs.ts            # Swagger UI
 │           └── utils/
-│               ├── response.ts        # success(res, msg, data) / error(res, msg, code)
-│               └── token.ts           # generateToken(payload) / verifyToken(token)
+│               ├── response.ts        # success() / error()
+│               └── token.ts           # generateToken() / verifyToken()
 │
 ├── lib/
-│   ├── api-spec/                      # OpenAPI contract (source of truth)
-│   │   ├── openapi.yaml               # Spec file — edit when adding endpoints
-│   │   └── orval.config.ts            # Codegen config
-│   │
-│   └── db/                            # Shared database layer
-│       ├── drizzle.config.ts
-│       └── src/
-│           ├── index.ts               # Exports db (Drizzle client) + schema
-│           └── schema/
-│               ├── index.ts           # Re-exports all schemas
-│               ├── users.ts           # usersTable (Phase 1 + Phase 3 fields)
-│               └── posts.ts           # postsTable, likesTable, bookmarksTable
+│   ├── api-spec/openapi.yaml          # OpenAPI contract (source of truth)
+│   └── db/src/schema/
+│       ├── users.ts                   # usersTable
+│       ├── posts.ts                   # postsTable, likesTable, bookmarksTable
+│       └── comments.ts                # commentsTable (Phase 4)
 │
 └── docs/
-    ├── PROJECT_STATUS.md              # This file
-    ├── README.md                      # Setup guide + Postman testing steps
-    └── postman-collection.json        # Importable Postman collection (v2.1)
+    ├── PROJECT_STATUS.md
+    ├── README.md
+    └── postman-collection.json
 ```
-
-**Key conventions:**
-- Never use `console.log` in server code — use `req.log` in handlers, `logger` singleton elsewhere.
-- Always run `pnpm --filter @workspace/api-spec run codegen` after changing `openapi.yaml`.
-- Always run `pnpm --filter @workspace/db run push` after changing any schema file.
-- Route params in Express 5 are `string | string[]` — parse with the generated `GetXParams` Zod schemas.
 
 ---
 
@@ -128,7 +110,7 @@ workspace/
 | id | serial | PRIMARY KEY |
 | name | text | NOT NULL |
 | email | text | NOT NULL, UNIQUE |
-| password_hash | text | NOT NULL (bcrypt) |
+| password_hash | text | NOT NULL |
 | role | text | NOT NULL, DEFAULT 'patient' |
 | bio | text | nullable |
 | location | text | nullable |
@@ -176,14 +158,28 @@ workspace/
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 | — | — | UNIQUE (user_id, post_id) |
 
+### comments
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | serial | PRIMARY KEY |
+| post_id | integer | NOT NULL, FK → posts.id CASCADE |
+| user_id | integer | NOT NULL, FK → users.id CASCADE |
+| content | text | NOT NULL |
+| parent_comment_id | integer | nullable, FK → comments.id SET NULL |
+| is_deleted | boolean | NOT NULL, DEFAULT false |
+| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | NOT NULL, DEFAULT now() |
+
 **Relationships:**
-- `users` (1) ──< (many) `posts`
-- `users` (1) ──< (many) `likes`
-- `users` (1) ──< (many) `bookmarks`
-- `posts` (1) ──< (many) `likes`
-- `posts` (1) ──< (many) `bookmarks`
-- Deleting a user removes all their posts, likes, and bookmarks (CASCADE).
-- Deleting a post removes all its likes and bookmarks (CASCADE).
+- `users` ──< `posts` (CASCADE delete)
+- `users` ──< `likes` (CASCADE delete)
+- `users` ──< `bookmarks` (CASCADE delete)
+- `users` ──< `comments` (CASCADE delete)
+- `posts` ──< `likes` (CASCADE delete)
+- `posts` ──< `bookmarks` (CASCADE delete)
+- `posts` ──< `comments` (CASCADE delete)
+- `comments` ──< `comments` (self-ref: parent → child; SET NULL on parent delete)
 
 ---
 
@@ -200,62 +196,58 @@ workspace/
 
 ### Auth
 
-| Method | Route | Auth | Request Body | Response |
+| Method | Route | Auth | Body | Response |
 |---|---|---|---|---|
 | POST | `/auth/register` | No | `{ name, email, password, role }` | `{ token, user }` |
 | POST | `/auth/login` | No | `{ email, password }` | `{ token, user }` |
-| POST | `/auth/logout` | Optional Bearer | — | success message |
+| POST | `/auth/logout` | Optional | — | success |
 
 ### Users
 
-| Method | Route | Auth | Request Body | Response |
+| Method | Route | Auth | Body | Response |
 |---|---|---|---|---|
-| GET | `/users/me` | Bearer | — | Full user object (all fields) |
-| PATCH | `/users/me` | Bearer | See profile fields below | Updated user object |
+| GET | `/users/me` | Bearer | — | Full user object |
+| PATCH | `/users/me` | Bearer | See profile fields | Updated user |
 | GET | `/users/:id` | No | — | Full user object |
-
-**PATCH /users/me — updatable fields:**
-
-| Field | Type | Notes |
-|---|---|---|
-| `name` | string | min 1 char |
-| `bio` | string | |
-| `location` | string | |
-| `avatarUrl` | string | legacy |
-| `profilePhotoUrl` | string | preferred |
-| `onboardingCompleted` | boolean | |
-| `cancerType` | string | patient/caregiver |
-| `treatmentStage` | string | patient/caregiver |
-| `interests` | string[] | patient/caregiver |
-| `specialty` | string | medical_professional |
-| `hospitalAffiliation` | string | medical_professional |
-| `medicalLicenseNumber` | string | triggers auto-pending |
-
-**Auto-pending rule:** If `medicalLicenseNumber` is provided and `role = medical_professional` and `verificationStatus = none`, the server automatically sets `verificationStatus = pending`.
 
 ### Posts
 
 | Method | Route | Auth | Description |
 |---|---|---|---|
-| GET | `/posts` | Optional | Feed — newest first, paginated with `?limit=&offset=` |
-| POST | `/posts` | Bearer | Create post: `{ content, imageUrl? }` |
-| GET | `/posts/:id` | Optional | Single post with author, counts, like/bookmark state |
-| PATCH | `/posts/:id` | Bearer | Update own post: `{ content?, imageUrl? }` |
+| GET | `/posts` | Optional | Feed with `commentCount`, `likeCount`, `bookmarkCount`, `isLiked`, `isBookmarked` |
+| POST | `/posts` | Bearer | Create post |
+| GET | `/posts/:id` | Optional | Single post with all counts |
+| PATCH | `/posts/:id` | Bearer | Update own post |
 | DELETE | `/posts/:id` | Bearer | Delete own post → 204 |
 | POST | `/posts/:id/like` | Bearer | Like → `{ liked: true, likeCount }` |
 | DELETE | `/posts/:id/like` | Bearer | Unlike → `{ liked: false, likeCount }` |
 | POST | `/posts/:id/bookmark` | Bearer | Bookmark → `{ bookmarked: true }` |
 | DELETE | `/posts/:id/bookmark` | Bearer | Unbookmark → `{ bookmarked: false }` |
 
+### Comments
+
+| Method | Route | Auth | Body | Response |
+|---|---|---|---|---|
+| GET | `/posts/:id/comments` | Bearer | — | `{ comments, total }` — threaded |
+| POST | `/posts/:id/comments` | Bearer | `{ content, parentCommentId? }` | Created comment |
+| PATCH | `/comments/:id` | Bearer | `{ content }` | Updated comment |
+| DELETE | `/comments/:id` | Bearer | — | `{ deleted: true, id }` |
+
+**Comment rules:**
+- `parentCommentId` is optional — omit for top-level, include for replies
+- Cannot reply to a deleted comment (400)
+- Soft delete: sets `isDeleted = true`; content masked as `"[deleted]"`, author as `null`
+- Only comment owner can edit or delete (403 otherwise)
+- `commentCount` on posts counts all non-deleted comments
+
 ---
 
 ## 6. Authentication Flow
 
-1. **Register** — `POST /auth/register` with `{ name, email, password, role }`. Password is bcrypt-hashed (10 rounds). Returns JWT + full user object.
-2. **Login** — `POST /auth/login` with `{ email, password }`. Compares bcrypt hash. Returns JWT + full user object.
-3. **Authenticated requests** — Add `Authorization: Bearer <token>` header. The `requireAuth` middleware validates the JWT and attaches `req.userId`.
-4. **Logout** — Client deletes the token. Server-side: `POST /auth/logout` returns success (stateless).
-5. **Token expiry** — 7 days. User must re-login after expiry.
+1. **Register** → bcrypt-hashed password, returns JWT (7-day expiry) + full user object
+2. **Login** → verifies bcrypt hash, returns JWT + full user object
+3. **Authenticated requests** → `Authorization: Bearer <token>` header
+4. **Logout** → client deletes the token (stateless)
 
 ---
 
@@ -273,19 +265,10 @@ workspace/
 ## 8. Running the Project
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Push DB schema (first time + after schema changes)
 pnpm --filter @workspace/db run push
-
-# Run API server in dev mode
 pnpm --filter @workspace/api-server run dev
-
-# Typecheck
 pnpm run typecheck
-
-# Regenerate API types after spec changes
 pnpm --filter @workspace/api-spec run codegen
 ```
 
@@ -295,13 +278,11 @@ pnpm --filter @workspace/api-spec run codegen
 
 | Phase | Module | Status |
 |---|---|---|
-| Phase 4 | Comments & Replies | Planned |
-| Phase 4 | Admin endpoints (verify/reject MDs) | Planned |
+| Phase 5 | Admin endpoints (verify/reject MDs, moderate comments) | Planned |
 | Phase 5 | Groups (create, join, group feed) | Planned |
-| Phase 5 | Direct Messages | Planned |
+| Phase 6 | Direct Messages | Planned |
 | Phase 6 | Notifications (real-time) | Planned |
-| Phase 6 | Cognie AI integration | Planned |
+| Phase 7 | Cognie AI integration | Planned |
 | Phase 7 | File uploads (OCI Object Storage) | Planned |
-| Phase 7 | Admin Dashboard APIs | Planned |
 | Phase 8 | Events & RSVPs | Planned |
 | Phase 8 | Survivor Stories | Planned |

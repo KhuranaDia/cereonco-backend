@@ -1,6 +1,6 @@
 # CereOnco Community API
 
-A modular REST API backend for the CereOnco Community platform — supporting cancer patients, caregivers, and medical professionals. Phase 1 (Auth/Users) + Phase 2 (Posts/Likes/Bookmarks) are complete.
+A modular REST API backend for the CereOnco Community platform — supporting cancer patients, caregivers, and medical professionals. Phase 1–4 complete.
 
 ## Run & Operate
 
@@ -27,36 +27,39 @@ A modular REST API backend for the CereOnco Community platform — supporting ca
 ## Where things live
 
 - **API contract**: `lib/api-spec/openapi.yaml` — source of truth, edit here first
-- **DB schema**: `lib/db/src/schema/` — users.ts, posts.ts (postsTable, likesTable, bookmarksTable)
-- **Routes**: `artifacts/api-server/src/routes/` — auth, users, posts, docs, health
+- **DB schema**: `lib/db/src/schema/` — users.ts, posts.ts, comments.ts
+- **Routes**: `artifacts/api-server/src/routes/` — auth, users, posts, comments, docs, health
 - **Middlewares**: `artifacts/api-server/src/middlewares/` — auth.ts (requireAuth), optionalAuth.ts
-- **Utils**: `artifacts/api-server/src/utils/` — response.ts (success/error), token.ts (JWT)
-- **Swagger spec object**: `artifacts/api-server/src/openapi-spec.ts`
+- **Utils**: `artifacts/api-server/src/utils/` — response.ts, token.ts
 - **Docs**: `docs/` — README.md, PROJECT_STATUS.md, postman-collection.json
 
 ## Architecture decisions
 
 - **OpenAPI-first**: `lib/api-spec/openapi.yaml` is the single source of truth. Zod schemas generated via `pnpm --filter @workspace/api-spec run codegen` — never hand-write types that codegen produces.
-- **Response envelope**: Every endpoint returns `{ success, message, data }` for consistent client handling. Spec defines just the `data` payload shape; the server wraps with the envelope using `utils/response.ts`.
-- **Optional auth on feed**: `GET /posts` and `GET /posts/:id` accept optional Bearer tokens. Authenticated clients get per-post `isLiked`/`isBookmarked` state; unauthenticated clients get counts but false for state.
-- **Idempotent likes/bookmarks**: Double-liking is silently ignored via `onConflictDoNothing()`. Unlike/unbookmark on non-existent records also succeeds silently.
-- **JWT via SESSION_SECRET**: Uses the existing `SESSION_SECRET` env var as the JWT signing key — no extra secret needed.
+- **Response envelope**: Every endpoint returns `{ success, message, data }`. Spec defines just the `data` shape; server wraps via `utils/response.ts`.
+- **Optional auth on feed**: `GET /posts` and `GET /posts/:id` accept optional Bearer tokens for per-user `isLiked`/`isBookmarked` state.
+- **Idempotent likes/bookmarks**: Double-liking silently ignored via `onConflictDoNothing()`.
+- **Auto-pending verification**: Submitting `medicalLicenseNumber` when `verificationStatus = none` auto-sets it to `pending`.
+- **Soft delete on comments**: Comments are never hard-deleted — `isDeleted = true`, content masked as `[deleted]`, author nulled. Threads never break.
+- **commentCount via FILTER**: `COUNT(...) FILTER (WHERE NOT is_deleted)` in the same feed JOIN — no extra query.
+- **JWT via SESSION_SECRET**: 7-day expiry; logout is client-side.
 
 ## Product
 
-Phase 1 & 2 complete:
+Phase 1–4 complete:
 - User registration/login with JWT + bcrypt
-- Role-based user profiles (patient, caregiver, medical_professional, admin)
-- Posts with CRUD, feed (paginated, newest-first), per-post author info
-- Like/unlike toggle with live counts
-- Bookmark/unbookmark toggle
-- Per-user `isLiked`/`isBookmarked` state in feed responses
+- Role-based profiles (patient, caregiver, medical_professional, admin)
+- Extended profile fields: cancerType, treatmentStage, interests (patient/caregiver); specialty, hospitalAffiliation, medicalLicenseNumber (medical professionals)
+- Medical professional verification: none → pending → approved/rejected
+- Posts with CRUD, paginated feed, like/unlike, bookmark/unbookmark
+- `commentCount` on all post responses
+- Comments & Replies: threaded structure, edit, soft delete, auth-gated
 - Swagger UI at `/api/docs`
 
 ## User preferences
 
 - **Backend only** — no frontend code, React components, or UI
-- Build Phase 1 + 2 together, stop and wait for approval before Phase 3+ (Comments, Roles Extension)
+- Stop and wait for explicit approval before building each new phase
 - Response format: `{ success: bool, message: string, data: {} }`
 - Modular folder structure
 - Every endpoint testable in Postman
@@ -65,9 +68,10 @@ Phase 1 & 2 complete:
 
 - Always run codegen after changing `openapi.yaml`
 - Always run `pnpm --filter @workspace/db run push` after changing any schema file in `lib/db/src/schema/`
-- Express 5: `req.params.id` is `string | string[]` — the generated `GetXParams` Zod schemas handle coercion automatically
+- Express 5: `req.params.id` is `string | string[]` — use generated Zod `GetXParams` for coercion
 - `zod/v4` requires `zod` in each package's own `dependencies`
 - Body schema names in the spec must be entity-shaped (not `<OperationIdPascal>Body`) to avoid TS2308 codegen collisions
+- Self-referencing FK in Drizzle requires `(): AnyPgColumn =>` arrow wrapper
 
 ## Pointers
 

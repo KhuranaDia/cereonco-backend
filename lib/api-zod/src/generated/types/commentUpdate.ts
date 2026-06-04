@@ -6,7 +6,7 @@
  * OpenAPI spec version: 0.4.0
  */
 
-export type GetFeedParams = {
-limit?: number;
-offset?: number;
-};
+export interface CommentUpdate {
+  /** @minLength 1 */
+  content: string;
+}

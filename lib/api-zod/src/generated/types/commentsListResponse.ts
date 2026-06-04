@@ -5,8 +5,9 @@
  * CereOnco Community API — Phase 1-4
  * OpenAPI spec version: 0.4.0
  */
+import type { Comment } from './comment';
 
-export type GetFeedParams = {
-limit?: number;
-offset?: number;
-};
+export interface CommentsListResponse {
+  comments: Comment[];
+  total: number;
+}

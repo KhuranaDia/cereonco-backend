@@ -70,8 +70,6 @@ pnpm --filter @workspace/db run push
 pnpm --filter @workspace/api-server run dev
 ```
 
-The server starts on `$PORT` (default 5000 in dev).
-
 ---
 
 ## API Endpoints
@@ -102,15 +100,24 @@ The server starts on `$PORT` (default 5000 in dev).
 
 | Method | Route | Auth | Description |
 |---|---|---|---|
-| GET | `/api/posts` | Optional | Get feed (newest first) |
+| GET | `/api/posts` | Optional | Get feed (newest first, includes `commentCount`) |
 | POST | `/api/posts` | Bearer | Create a post |
-| GET | `/api/posts/:id` | Optional | Get a single post |
+| GET | `/api/posts/:id` | Optional | Get a single post (includes `commentCount`) |
 | PATCH | `/api/posts/:id` | Bearer | Update own post |
 | DELETE | `/api/posts/:id` | Bearer | Delete own post |
 | POST | `/api/posts/:id/like` | Bearer | Like a post |
 | DELETE | `/api/posts/:id/like` | Bearer | Unlike a post |
 | POST | `/api/posts/:id/bookmark` | Bearer | Bookmark a post |
 | DELETE | `/api/posts/:id/bookmark` | Bearer | Remove bookmark |
+
+### Comments
+
+| Method | Route | Auth | Description |
+|---|---|---|---|
+| GET | `/api/posts/:id/comments` | Bearer | Get threaded comments for a post |
+| POST | `/api/posts/:id/comments` | Bearer | Add a comment or reply |
+| PATCH | `/api/comments/:id` | Bearer | Edit own comment |
+| DELETE | `/api/comments/:id` | Bearer | Soft-delete own comment |
 
 ---
 
@@ -157,46 +164,82 @@ All responses follow a consistent envelope:
 | `approved` | Verified medical professional |
 | `rejected` | Verification denied |
 
-> **Auto-pending rule:** When a `medical_professional` submits their `medicalLicenseNumber` for the first time (and `verificationStatus` is currently `none`), the server automatically transitions status to `pending`.
+> **Auto-pending rule:** When a `medical_professional` submits `medicalLicenseNumber` for the first time (status = `none`), the server automatically transitions status to `pending`.
 
 ---
 
-## User Profile Fields
+## Comments — Design
 
-### Common (all roles)
+### POST /api/posts/:id/comments
 
-| Field | Type | Updatable | Description |
-|---|---|---|---|
-| `name` | string | Yes | Display name |
-| `bio` | string \| null | Yes | Short bio |
-| `location` | string \| null | Yes | City / country |
-| `avatarUrl` | string \| null | Yes | Legacy avatar URL |
-| `profilePhotoUrl` | string \| null | Yes | Profile photo URL |
-| `onboardingCompleted` | boolean | Yes | Onboarding flow flag |
-| `role` | UserRole | No (set at register) | User role |
-| `verificationStatus` | VerificationStatus | Auto / admin | MD verification state |
+**Top-level comment:**
+```json
+{ "content": "My comment" }
+```
 
-### Patient / Caregiver
+**Reply to a comment:**
+```json
+{ "content": "Reply text", "parentCommentId": 123 }
+```
 
-| Field | Type | Updatable | Description |
-|---|---|---|---|
-| `cancerType` | string \| null | Yes | Cancer type / diagnosis |
-| `treatmentStage` | string \| null | Yes | e.g. `remission`, `active_treatment` |
-| `interests` | string[] \| null | Yes | Topic interests array |
+### GET /api/posts/:id/comments — Response
 
-### Medical Professional
+Returns top-level comments with nested replies:
 
-| Field | Type | Updatable | Description |
-|---|---|---|---|
-| `specialty` | string \| null | Yes | Medical specialty |
-| `hospitalAffiliation` | string \| null | Yes | Hospital or institution |
-| `medicalLicenseNumber` | string \| null | Yes | License number (triggers auto-pending) |
+```json
+{
+  "comments": [
+    {
+      "id": 1,
+      "postId": 5,
+      "userId": 3,
+      "content": "Great post!",
+      "parentCommentId": null,
+      "isDeleted": false,
+      "author": { "id": 3, "name": "Ananya", "role": "patient", "avatarUrl": null },
+      "replyCount": 2,
+      "replies": [
+        {
+          "id": 2,
+          "content": "[deleted]",
+          "parentCommentId": 1,
+          "isDeleted": true,
+          "author": null,
+          ...
+        },
+        {
+          "id": 3,
+          "content": "Thanks for the support!",
+          "parentCommentId": 1,
+          "isDeleted": false,
+          "author": { ... },
+          ...
+        }
+      ],
+      ...
+    }
+  ],
+  "total": 1
+}
+```
+
+### Soft Delete
+
+Deleting a comment sets `isDeleted = true`. The comment row is kept so reply threads are never broken. In responses:
+- `content` → `"[deleted]"`
+- `author` → `null`
+- `userId` → `null`
+- `replyCount` and `replies` still reflect the thread correctly
+
+### commentCount on Posts
+
+Feed (`GET /api/posts`) and single post (`GET /api/posts/:id`) both include `commentCount` — the count of all non-deleted comments (top-level + replies).
 
 ---
 
 ## PATCH /api/users/me — Request Body
 
-All fields are optional. Send only what you want to change.
+All fields optional. Send only what you want to change.
 
 ```json
 {
@@ -234,102 +277,55 @@ In the collection variables, set:
 ```
 GET {{base_url}}/healthz
 ```
-Expected: `{ "status": "ok" }`
 
 **Step 2 — Register (patient)**
 ```
 POST {{base_url}}/auth/register
 Body: { "name": "Ananya Sharma", "email": "ananya@example.com", "password": "password123", "role": "patient" }
 ```
-Copy `data.token` — collection auto-saves to `token` variable.
+Token auto-saves to `token`.
 
-**Step 3 — Register (medical professional)**
+**Step 3 — Register (second user)**
 ```
 POST {{base_url}}/auth/register
-Body: { "name": "Dr. Priya Nair", "email": "priya@example.com", "password": "password123", "role": "medical_professional" }
+Body: { "name": "Ravi Mehta", "email": "ravi@example.com", "password": "password123", "role": "caregiver" }
 ```
-Copy `data.token` — save as `token_md`.
+Token auto-saves to `token2`.
 
-**Step 4 — Update patient profile (onboarding)**
-```
-PATCH {{base_url}}/users/me
-Authorization: Bearer {{token}}
-Body: {
-  "cancerType": "Breast Cancer",
-  "treatmentStage": "remission",
-  "interests": ["support_groups", "nutrition"],
-  "onboardingCompleted": true
-}
-```
+**Step 4 — Create Post** (uses `token`) → `post_id` auto-saved
 
-**Step 5 — Update MD profile (triggers auto-pending)**
-```
-PATCH {{base_url}}/users/me
-Authorization: Bearer {{token_md}}
-Body: {
-  "specialty": "Oncology",
-  "hospitalAffiliation": "AIIMS Delhi",
-  "medicalLicenseNumber": "MH-2024-ON-7831",
-  "onboardingCompleted": true
-}
-```
-Expected: `verificationStatus` = `"pending"` in response.
+**Step 5 — POST comment** (uses `token`) → `comment_id` auto-saved
 
-**Step 6 — Get profile (GET /users/me)**
-```
-GET {{base_url}}/users/me
-Authorization: Bearer {{token}}
-```
+**Step 6 — POST reply** (uses `token2`, sends `parentCommentId: {{comment_id}}`)
 
-**Step 7 — Get user by ID**
-```
-GET {{base_url}}/users/1
-```
+**Step 7 — GET comments** — verify threaded structure
 
-**Step 8 — Create Post**
-```
-POST {{base_url}}/posts
-Authorization: Bearer {{token}}
-Body: { "content": "Hello CereOnco community!" }
-```
-Collection auto-saves `data.id` to `post_id`.
+**Step 8 — PATCH comment** (uses `token`) — edit own comment
 
-**Step 9 — Like the Post**
-```
-POST {{base_url}}/posts/{{post_id}}/like
-Authorization: Bearer {{token}}
-```
+**Step 9 — DELETE comment** (uses `token2`) — soft delete reply
 
-**Step 10 — Bookmark the Post**
-```
-POST {{base_url}}/posts/{{post_id}}/bookmark
-Authorization: Bearer {{token}}
-```
+**Step 10 — GET comments again** — verify deleted reply shows `[deleted]`, thread intact
 
-**Step 11 — Get Feed**
-```
-GET {{base_url}}/posts
-Authorization: Bearer {{token}}
-```
-Expected: posts with `isLiked: true`, `isBookmarked: true`.
+**Step 11 — GET single post** — verify `commentCount` is correct
 
 ---
 
 ## Architecture Decisions
 
-- **OpenAPI-first**: The `lib/api-spec/openapi.yaml` is the single source of truth. Zod validation schemas are code-generated from it — never hand-written.
+- **OpenAPI-first**: `lib/api-spec/openapi.yaml` is the single source of truth. Zod schemas are code-generated — never hand-written.
 - **Response envelope**: All routes return `{ success, message, data }` for consistent client handling.
-- **Optional auth on feed**: The feed and single-post endpoints accept optional Bearer tokens to return per-user `isLiked` / `isBookmarked` state when authenticated.
-- **Auto-pending verification**: When a `medical_professional` submits `medicalLicenseNumber` for the first time, `verificationStatus` is automatically set to `pending` — no separate submission endpoint needed.
-- **Cascade deletes**: Deleting a user removes all their posts, likes, and bookmarks. Deleting a post removes all its likes and bookmarks.
-- **JWT expiry**: Tokens expire after 7 days. Logout is client-side (delete the token).
+- **Optional auth on feed**: Feed and single-post endpoints accept optional Bearer tokens for per-user `isLiked`/`isBookmarked` state.
+- **Auto-pending verification**: Submitting `medicalLicenseNumber` when status is `none` automatically sets it to `pending`.
+- **Soft delete on comments**: Comments are never hard-deleted so reply threads are preserved. Deleted content is masked in all responses.
+- **commentCount via FILTER**: Uses PostgreSQL `COUNT(...) FILTER (WHERE NOT is_deleted)` for efficient per-post comment counts in the same feed query.
+- **Cascade deletes**: Deleting a user removes all their posts + comments. Deleting a post removes all its comments (CASCADE). Deleting a parent comment sets child `parentCommentId` to NULL (SET NULL).
+- **JWT expiry**: 7 days. Logout is client-side.
 
-## Future Modules (Phase 4+)
+## Future Modules (Phase 5+)
 
-- Comments & Replies
+- Admin endpoints (verify/reject MDs, moderate content)
 - Groups
 - Direct Messages
-- Notifications
-- Admin Dashboard (verification approval/rejection)
+- Notifications (real-time)
 - Cognie AI integration
-- File uploads (OCI Object Storage)
+- File uploads
