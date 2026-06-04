@@ -1,6 +1,6 @@
 # CereOnco Community API
 
-A modular REST API backend for the CereOnco Community platform — supporting cancer patients, caregivers, and medical professionals. Phase 1–4 complete.
+A modular REST API backend for the CereOnco Community platform — supporting cancer patients, caregivers, and medical professionals. Phase 1–5 complete.
 
 ## Run & Operate
 
@@ -27,8 +27,8 @@ A modular REST API backend for the CereOnco Community platform — supporting ca
 ## Where things live
 
 - **API contract**: `lib/api-spec/openapi.yaml` — source of truth, edit here first
-- **DB schema**: `lib/db/src/schema/` — users.ts, posts.ts, comments.ts
-- **Routes**: `artifacts/api-server/src/routes/` — auth, users, posts, comments, docs, health
+- **DB schema**: `lib/db/src/schema/` — users.ts, posts.ts, comments.ts, groups.ts
+- **Routes**: `artifacts/api-server/src/routes/` — auth, users, posts, comments, groups, docs, health
 - **Middlewares**: `artifacts/api-server/src/middlewares/` — auth.ts (requireAuth), optionalAuth.ts
 - **Utils**: `artifacts/api-server/src/utils/` — response.ts, token.ts
 - **Docs**: `docs/` — README.md, PROJECT_STATUS.md, postman-collection.json
@@ -38,15 +38,16 @@ A modular REST API backend for the CereOnco Community platform — supporting ca
 - **OpenAPI-first**: `lib/api-spec/openapi.yaml` is the single source of truth. Zod schemas generated via `pnpm --filter @workspace/api-spec run codegen` — never hand-write types that codegen produces.
 - **Response envelope**: Every endpoint returns `{ success, message, data }`. Spec defines just the `data` shape; server wraps via `utils/response.ts`.
 - **Optional auth on feed**: `GET /posts` and `GET /posts/:id` accept optional Bearer tokens for per-user `isLiked`/`isBookmarked` state.
-- **Idempotent likes/bookmarks**: Double-liking silently ignored via `onConflictDoNothing()`.
+- **Idempotent likes/bookmarks/joins**: Double-joining silently ignored via `onConflictDoNothing()`.
 - **Auto-pending verification**: Submitting `medicalLicenseNumber` when `verificationStatus = none` auto-sets it to `pending`.
 - **Soft delete on comments**: Comments are never hard-deleted — `isDeleted = true`, content masked as `[deleted]`, author nulled. Threads never break.
 - **commentCount via FILTER**: `COUNT(...) FILTER (WHERE NOT is_deleted)` in the same feed JOIN — no extra query.
 - **JWT via SESSION_SECRET**: 7-day expiry; logout is client-side.
+- **api-zod barrel**: `lib/api-zod/src/index.ts` exports only `generated/api` (Zod schemas). The `generated/types` barrel is NOT re-exported to avoid TS2308 collisions when operations have both path params and query params.
 
 ## Product
 
-Phase 1–4 complete:
+Phase 1–5 complete:
 - User registration/login with JWT + bcrypt
 - Role-based profiles (patient, caregiver, medical_professional, admin)
 - Extended profile fields: cancerType, treatmentStage, interests (patient/caregiver); specialty, hospitalAffiliation, medicalLicenseNumber (medical professionals)
@@ -54,6 +55,7 @@ Phase 1–4 complete:
 - Posts with CRUD, paginated feed, like/unlike, bookmark/unbookmark
 - `commentCount` on all post responses
 - Comments & Replies: threaded structure, edit, soft delete, auth-gated
+- Community Groups: list/view groups with memberCount+isMember, join/leave (idempotent), group feed, group post CRUD with ownership checks
 - Swagger UI at `/api/docs`
 
 ## User preferences
@@ -72,6 +74,7 @@ Phase 1–4 complete:
 - `zod/v4` requires `zod` in each package's own `dependencies`
 - Body schema names in the spec must be entity-shaped (not `<OperationIdPascal>Body`) to avoid TS2308 codegen collisions
 - Self-referencing FK in Drizzle requires `(): AnyPgColumn =>` arrow wrapper
+- Operations with BOTH path params AND query params generate `XxxParams` in both `api.ts` (Zod) and `types/` (TS type), causing TS2308. Fix: do NOT re-export `generated/types` from `lib/api-zod/src/index.ts`
 
 ## Pointers
 

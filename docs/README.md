@@ -27,8 +27,6 @@ https://<your-domain>/api
 
 ## Interactive Docs
 
-Swagger UI is available at:
-
 ```
 https://<your-domain>/api/docs
 ```
@@ -37,14 +35,6 @@ https://<your-domain>/api/docs
 
 ## Setup & Running
 
-### Prerequisites
-
-- Node.js 24+
-- pnpm
-- PostgreSQL (or use Replit's managed database)
-
-### Environment Variables
-
 ```env
 DATABASE_URL=postgresql://user:pass@host:5432/dbname
 SESSION_SECRET=your-secret-key-here
@@ -52,21 +42,9 @@ PORT=5000
 NODE_ENV=development
 ```
 
-### Install Dependencies
-
 ```bash
 pnpm install
-```
-
-### Push Database Schema
-
-```bash
 pnpm --filter @workspace/db run push
-```
-
-### Start Development Server
-
-```bash
 pnpm --filter @workspace/api-server run dev
 ```
 
@@ -86,7 +64,7 @@ pnpm --filter @workspace/api-server run dev
 |---|---|---|---|
 | POST | `/api/auth/register` | No | Register a new user |
 | POST | `/api/auth/login` | No | Login and get JWT |
-| POST | `/api/auth/logout` | Optional Bearer | Logout (client deletes token) |
+| POST | `/api/auth/logout` | Optional | Logout (client deletes token) |
 
 ### Users
 
@@ -102,7 +80,7 @@ pnpm --filter @workspace/api-server run dev
 |---|---|---|---|
 | GET | `/api/posts` | Optional | Get feed (newest first, includes `commentCount`) |
 | POST | `/api/posts` | Bearer | Create a post |
-| GET | `/api/posts/:id` | Optional | Get a single post (includes `commentCount`) |
+| GET | `/api/posts/:id` | Optional | Get a single post |
 | PATCH | `/api/posts/:id` | Bearer | Update own post |
 | DELETE | `/api/posts/:id` | Bearer | Delete own post |
 | POST | `/api/posts/:id/like` | Bearer | Like a post |
@@ -114,16 +92,27 @@ pnpm --filter @workspace/api-server run dev
 
 | Method | Route | Auth | Description |
 |---|---|---|---|
-| GET | `/api/posts/:id/comments` | Bearer | Get threaded comments for a post |
-| POST | `/api/posts/:id/comments` | Bearer | Add a comment or reply |
+| GET | `/api/posts/:id/comments` | Bearer | Get threaded comments |
+| POST | `/api/posts/:id/comments` | Bearer | Add comment or reply |
 | PATCH | `/api/comments/:id` | Bearer | Edit own comment |
 | DELETE | `/api/comments/:id` | Bearer | Soft-delete own comment |
+
+### Groups
+
+| Method | Route | Auth | Description |
+|---|---|---|---|
+| GET | `/api/groups` | Bearer | List all groups with `memberCount` + `isMember` |
+| GET | `/api/groups/:id` | Bearer | Single group detail |
+| POST | `/api/groups/:id/join` | Bearer | Join a group |
+| DELETE | `/api/groups/:id/join` | Bearer | Leave a group |
+| GET | `/api/groups/:id/posts` | Bearer | Group feed (paginated, newest-first) |
+| POST | `/api/groups/:id/posts` | Bearer | Create a group post |
+| PATCH | `/api/groups/posts/:postId` | Bearer | Edit own group post |
+| DELETE | `/api/groups/posts/:postId` | Bearer | Delete own group post |
 
 ---
 
 ## Response Format
-
-All responses follow a consistent envelope:
 
 **Success:**
 ```json
@@ -168,164 +157,87 @@ All responses follow a consistent envelope:
 
 ---
 
-## Comments — Design
+## Groups — Design
 
-### POST /api/posts/:id/comments
-
-**Top-level comment:**
-```json
-{ "content": "My comment" }
-```
-
-**Reply to a comment:**
-```json
-{ "content": "Reply text", "parentCommentId": 123 }
-```
-
-### GET /api/posts/:id/comments — Response
-
-Returns top-level comments with nested replies:
+### Group Object
 
 ```json
 {
-  "comments": [
-    {
-      "id": 1,
-      "postId": 5,
-      "userId": 3,
-      "content": "Great post!",
-      "parentCommentId": null,
-      "isDeleted": false,
-      "author": { "id": 3, "name": "Ananya", "role": "patient", "avatarUrl": null },
-      "replyCount": 2,
-      "replies": [
-        {
-          "id": 2,
-          "content": "[deleted]",
-          "parentCommentId": 1,
-          "isDeleted": true,
-          "author": null,
-          ...
-        },
-        {
-          "id": 3,
-          "content": "Thanks for the support!",
-          "parentCommentId": 1,
-          "isDeleted": false,
-          "author": { ... },
-          ...
-        }
-      ],
-      ...
-    }
-  ],
-  "total": 1
+  "id": 1,
+  "name": "Breast Cancer Warriors",
+  "description": "A supportive community for breast cancer patients and survivors",
+  "category": "breast_cancer",
+  "imageUrl": null,
+  "memberCount": 42,
+  "isMember": true,
+  "createdAt": "...",
+  "updatedAt": "..."
 }
 ```
+
+`isMember` reflects the authenticated user's current membership status.
+
+### Join / Leave
+
+```
+POST /api/groups/:id/join     → { joined: true,  memberCount: 43 }
+DELETE /api/groups/:id/join   → { joined: false, memberCount: 42 }
+```
+
+Joining twice is idempotent — no duplicate rows created.
+
+### Group Feed
+
+```
+GET /api/groups/:id/posts?limit=20&offset=0
+```
+
+Returns `{ posts: [...], total: N }`. Each post includes full author info.
+
+### Group Post CRUD
+
+```
+POST   /api/groups/:id/posts          → 201 created post with author
+PATCH  /api/groups/posts/:postId      → updated post (owner only, else 403)
+DELETE /api/groups/posts/:postId      → 204 (owner only, else 403)
+```
+
+---
+
+## Comments — Design
+
+### Threading
+
+- Top-level comment: `parentCommentId` omitted
+- Reply: `parentCommentId: <id>`
+- `GET /posts/:id/comments` returns top-level comments with nested `replies[]`
 
 ### Soft Delete
 
-Deleting a comment sets `isDeleted = true`. The comment row is kept so reply threads are never broken. In responses:
-- `content` → `"[deleted]"`
-- `author` → `null`
-- `userId` → `null`
-- `replyCount` and `replies` still reflect the thread correctly
+Content → `"[deleted]"`, author → `null`. Thread structure preserved.
 
 ### commentCount on Posts
 
-Feed (`GET /api/posts`) and single post (`GET /api/posts/:id`) both include `commentCount` — the count of all non-deleted comments (top-level + replies).
-
----
-
-## PATCH /api/users/me — Request Body
-
-All fields optional. Send only what you want to change.
-
-```json
-{
-  "name": "string",
-  "bio": "string",
-  "location": "string",
-  "avatarUrl": "string",
-  "profilePhotoUrl": "string",
-  "onboardingCompleted": true,
-  "cancerType": "string",
-  "treatmentStage": "string",
-  "interests": ["string"],
-  "specialty": "string",
-  "hospitalAffiliation": "string",
-  "medicalLicenseNumber": "string"
-}
-```
-
----
-
-## Postman Testing Guide
-
-### 1. Import the Collection
-
-Import `docs/postman-collection.json` into Postman.
-
-### 2. Set the Base URL
-
-In the collection variables, set:
-- `base_url`: `https://<your-domain>/api`
-
-### 3. Test Sequence
-
-**Step 1 — Health check**
-```
-GET {{base_url}}/healthz
-```
-
-**Step 2 — Register (patient)**
-```
-POST {{base_url}}/auth/register
-Body: { "name": "Ananya Sharma", "email": "ananya@example.com", "password": "password123", "role": "patient" }
-```
-Token auto-saves to `token`.
-
-**Step 3 — Register (second user)**
-```
-POST {{base_url}}/auth/register
-Body: { "name": "Ravi Mehta", "email": "ravi@example.com", "password": "password123", "role": "caregiver" }
-```
-Token auto-saves to `token2`.
-
-**Step 4 — Create Post** (uses `token`) → `post_id` auto-saved
-
-**Step 5 — POST comment** (uses `token`) → `comment_id` auto-saved
-
-**Step 6 — POST reply** (uses `token2`, sends `parentCommentId: {{comment_id}}`)
-
-**Step 7 — GET comments** — verify threaded structure
-
-**Step 8 — PATCH comment** (uses `token`) — edit own comment
-
-**Step 9 — DELETE comment** (uses `token2`) — soft delete reply
-
-**Step 10 — GET comments again** — verify deleted reply shows `[deleted]`, thread intact
-
-**Step 11 — GET single post** — verify `commentCount` is correct
+`commentCount` on all post responses counts only non-deleted comments (top-level + replies).
 
 ---
 
 ## Architecture Decisions
 
 - **OpenAPI-first**: `lib/api-spec/openapi.yaml` is the single source of truth. Zod schemas are code-generated — never hand-written.
-- **Response envelope**: All routes return `{ success, message, data }` for consistent client handling.
+- **Response envelope**: All routes return `{ success, message, data }`.
 - **Optional auth on feed**: Feed and single-post endpoints accept optional Bearer tokens for per-user `isLiked`/`isBookmarked` state.
-- **Auto-pending verification**: Submitting `medicalLicenseNumber` when status is `none` automatically sets it to `pending`.
-- **Soft delete on comments**: Comments are never hard-deleted so reply threads are preserved. Deleted content is masked in all responses.
-- **commentCount via FILTER**: Uses PostgreSQL `COUNT(...) FILTER (WHERE NOT is_deleted)` for efficient per-post comment counts in the same feed query.
-- **Cascade deletes**: Deleting a user removes all their posts + comments. Deleting a post removes all its comments (CASCADE). Deleting a parent comment sets child `parentCommentId` to NULL (SET NULL).
-- **JWT expiry**: 7 days. Logout is client-side.
+- **Auto-pending verification**: Submitting `medicalLicenseNumber` when status is `none` auto-transitions to `pending`.
+- **Soft delete on comments**: Comments never hard-deleted; threads preserved.
+- **commentCount via FILTER**: Uses `COUNT(...) FILTER (WHERE NOT is_deleted)` in the same JOIN.
+- **Idempotent joins**: `onConflictDoNothing()` on group membership and post likes.
+- **JWT expiry**: 7 days. Logout is client-side (stateless).
 
-## Future Modules (Phase 5+)
+## Future Modules (Phase 6+)
 
 - Admin endpoints (verify/reject MDs, moderate content)
-- Groups
-- Direct Messages
 - Notifications (real-time)
+- Direct Messages
 - Cognie AI integration
 - File uploads
+- Events & RSVPs

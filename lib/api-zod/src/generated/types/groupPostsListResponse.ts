@@ -5,9 +5,9 @@
  * CereOnco Community API — Phase 1-5
  * OpenAPI spec version: 0.5.0
  */
+import type { GroupPost } from './groupPost';
 
-export interface CommentInput {
-  /** @minLength 1 */
-  content: string;
-  parentCommentId?: number;
+export interface GroupPostsListResponse {
+  posts: GroupPost[];
+  total: number;
 }

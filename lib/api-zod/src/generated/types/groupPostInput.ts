@@ -6,8 +6,8 @@
  * OpenAPI spec version: 0.5.0
  */
 
-export interface CommentInput {
+export interface GroupPostInput {
   /** @minLength 1 */
   content: string;
-  parentCommentId?: number;
+  imageUrl?: string;
 }

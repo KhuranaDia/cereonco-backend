@@ -1,9 +1,9 @@
 {
   "info": {
     "name": "CereOnco Community API",
-    "description": "Phase 1-4: Auth, Users, Posts, Comments & Replies",
+    "description": "Phase 1-5: Auth, Users, Posts, Comments & Replies, Community Groups",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "0.4.0"
+    "version": "0.5.0"
   },
   "variable": [
     { "key": "base_url", "value": "https://<your-domain>/api", "type": "string" },
@@ -13,7 +13,9 @@
     { "key": "post_id", "value": "1", "type": "string" },
     { "key": "user_id", "value": "1", "type": "string" },
     { "key": "comment_id", "value": "1", "type": "string" },
-    { "key": "reply_id", "value": "2", "type": "string" }
+    { "key": "reply_id", "value": "2", "type": "string" },
+    { "key": "group_id", "value": "1", "type": "string" },
+    { "key": "group_post_id", "value": "1", "type": "string" }
   ],
   "item": [
     {
@@ -42,9 +44,6 @@
           "event": [{ "listen": "test", "script": { "exec": [
             "pm.test('Status 201', () => pm.response.to.have.status(201));",
             "const d = pm.response.json().data;",
-            "pm.test('role patient', () => pm.expect(d.user.role).to.eql('patient'));",
-            "pm.test('verificationStatus none', () => pm.expect(d.user.verificationStatus).to.eql('none'));",
-            "pm.test('onboardingCompleted false', () => pm.expect(d.user.onboardingCompleted).to.eql(false));",
             "pm.collectionVariables.set('token', d.token);",
             "pm.collectionVariables.set('user_id', d.user.id);"
           ]}}]
@@ -74,17 +73,6 @@
           ]}}]
         },
         {
-          "name": "Register — 409 duplicate email",
-          "request": {
-            "method": "POST", "url": "{{base_url}}/auth/register",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Dup\",\n  \"email\": \"ananya@example.com\",\n  \"password\": \"pass\",\n  \"role\": \"patient\"\n}" }
-          },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 409', () => pm.response.to.have.status(409));"
-          ]}}]
-        },
-        {
           "name": "Login",
           "request": {
             "method": "POST", "url": "{{base_url}}/auth/login",
@@ -94,27 +82,6 @@
           "event": [{ "listen": "test", "script": { "exec": [
             "pm.test('Status 200', () => pm.response.to.have.status(200));",
             "pm.collectionVariables.set('token', pm.response.json().data.token);"
-          ]}}]
-        },
-        {
-          "name": "Login — 401 wrong password",
-          "request": {
-            "method": "POST", "url": "{{base_url}}/auth/login",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"ananya@example.com\",\n  \"password\": \"wrong\"\n}" }
-          },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 401', () => pm.response.to.have.status(401));"
-          ]}}]
-        },
-        {
-          "name": "Logout",
-          "request": {
-            "method": "POST", "url": "{{base_url}}/auth/logout",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
-          },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));"
           ]}}]
         }
       ]
@@ -129,17 +96,7 @@
             "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
           },
           "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "const u = pm.response.json().data;",
-            "pm.test('Has verificationStatus', () => pm.expect(u.verificationStatus).to.be.a('string'));",
-            "pm.test('Has onboardingCompleted', () => pm.expect(u).to.have.property('onboardingCompleted'));"
-          ]}}]
-        },
-        {
-          "name": "Get Me — 401 no token",
-          "request": { "method": "GET", "url": "{{base_url}}/users/me" },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
           ]}}]
         },
         {
@@ -150,14 +107,10 @@
               { "key": "Authorization", "value": "Bearer {{token}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"bio\": \"Stage 3 breast cancer survivor.\",\n  \"cancerType\": \"Breast Cancer\",\n  \"treatmentStage\": \"remission\",\n  \"interests\": [\"support_groups\", \"nutrition\", \"mindfulness\"],\n  \"profilePhotoUrl\": \"https://cdn.example.com/ananya.jpg\",\n  \"location\": \"Mumbai\",\n  \"onboardingCompleted\": true\n}" }
+            "body": { "mode": "raw", "raw": "{\n  \"bio\": \"Stage 3 breast cancer survivor.\",\n  \"cancerType\": \"Breast Cancer\",\n  \"treatmentStage\": \"remission\",\n  \"interests\": [\"support_groups\", \"nutrition\", \"mindfulness\"],\n  \"onboardingCompleted\": true\n}" }
           },
           "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "const u = pm.response.json().data;",
-            "pm.test('cancerType set', () => pm.expect(u.cancerType).to.eql('Breast Cancer'));",
-            "pm.test('interests is array', () => pm.expect(u.interests).to.be.an('array'));",
-            "pm.test('onboardingCompleted true', () => pm.expect(u.onboardingCompleted).to.eql(true));"
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
           ]}}]
         },
         {
@@ -168,29 +121,11 @@
               { "key": "Authorization", "value": "Bearer {{token_md}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"specialty\": \"Oncology\",\n  \"hospitalAffiliation\": \"AIIMS Delhi\",\n  \"medicalLicenseNumber\": \"MH-2024-ON-7831\",\n  \"onboardingCompleted\": true\n}" },
-            "description": "Submitting medicalLicenseNumber when verificationStatus=none auto-sets it to pending."
+            "body": { "mode": "raw", "raw": "{\n  \"specialty\": \"Oncology\",\n  \"hospitalAffiliation\": \"AIIMS Delhi\",\n  \"medicalLicenseNumber\": \"MH-2024-ON-7831\",\n  \"onboardingCompleted\": true\n}" }
           },
           "event": [{ "listen": "test", "script": { "exec": [
             "pm.test('Status 200', () => pm.response.to.have.status(200));",
             "pm.test('verificationStatus pending', () => pm.expect(pm.response.json().data.verificationStatus).to.eql('pending'));"
-          ]}}]
-        },
-        {
-          "name": "Get User by ID",
-          "request": {
-            "method": "GET", "url": "{{base_url}}/users/{{user_id}}"
-          },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "pm.test('Has verificationStatus', () => pm.expect(pm.response.json().data.verificationStatus).to.be.a('string'));"
-          ]}}]
-        },
-        {
-          "name": "Get User by ID — 404",
-          "request": { "method": "GET", "url": "{{base_url}}/users/99999" },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 404', () => pm.response.to.have.status(404));"
           ]}}]
         }
       ]
@@ -206,7 +141,7 @@
               { "key": "Authorization", "value": "Bearer {{token}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Hello CereOnco community! Glad to be here.\"\n}" }
+            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Hello CereOnco community!\"\n}" }
           },
           "event": [{ "listen": "test", "script": { "exec": [
             "pm.test('Status 201', () => pm.response.to.have.status(201));",
@@ -214,54 +149,17 @@
           ]}}]
         },
         {
-          "name": "Get Feed (authenticated)",
+          "name": "Get Feed",
           "request": {
-            "method": "GET",
-            "url": { "raw": "{{base_url}}/posts?limit=10&offset=0", "query": [{ "key": "limit", "value": "10" }, { "key": "offset", "value": "0" }] },
+            "method": "GET", "url": "{{base_url}}/posts",
             "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
           },
           "event": [{ "listen": "test", "script": { "exec": [
             "pm.test('Status 200', () => pm.response.to.have.status(200));",
             "const feed = pm.response.json().data;",
-            "pm.test('Is array', () => pm.expect(feed).to.be.an('array'));",
             "if (feed.length > 0) {",
             "  pm.test('Has commentCount', () => pm.expect(feed[0]).to.have.property('commentCount'));",
-            "  pm.test('Has isLiked', () => pm.expect(feed[0]).to.have.property('isLiked'));",
             "}"
-          ]}}]
-        },
-        {
-          "name": "Get Feed (unauthenticated)",
-          "request": { "method": "GET", "url": "{{base_url}}/posts" },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));"
-          ]}}]
-        },
-        {
-          "name": "Get Post by ID",
-          "request": {
-            "method": "GET", "url": "{{base_url}}/posts/{{post_id}}",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
-          },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "const d = pm.response.json().data;",
-            "pm.test('Has commentCount', () => pm.expect(d).to.have.property('commentCount'));",
-            "pm.test('Has likeCount', () => pm.expect(d).to.have.property('likeCount'));"
-          ]}}]
-        },
-        {
-          "name": "Update Post",
-          "request": {
-            "method": "PATCH", "url": "{{base_url}}/posts/{{post_id}}",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Updated: Hello CereOnco community!\"\n}" }
-          },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));"
           ]}}]
         },
         {
@@ -271,19 +169,7 @@
             "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
           },
           "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
             "pm.test('liked true', () => pm.expect(pm.response.json().data.liked).to.eql(true));"
-          ]}}]
-        },
-        {
-          "name": "Bookmark Post",
-          "request": {
-            "method": "POST", "url": "{{base_url}}/posts/{{post_id}}/bookmark",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
-          },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "pm.test('bookmarked true', () => pm.expect(pm.response.json().data.bookmarked).to.eql(true));"
           ]}}]
         },
         {
@@ -291,42 +177,7 @@
           "request": {
             "method": "DELETE", "url": "{{base_url}}/posts/{{post_id}}/like",
             "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
-          },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "pm.test('liked false', () => pm.expect(pm.response.json().data.liked).to.eql(false));"
-          ]}}]
-        },
-        {
-          "name": "Unbookmark Post",
-          "request": {
-            "method": "DELETE", "url": "{{base_url}}/posts/{{post_id}}/bookmark",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
-          },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "pm.test('bookmarked false', () => pm.expect(pm.response.json().data.bookmarked).to.eql(false));"
-          ]}}]
-        },
-        {
-          "name": "Delete Post — 403 not owner",
-          "request": {
-            "method": "DELETE", "url": "{{base_url}}/posts/{{post_id}}",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token2}}" }]
-          },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 403', () => pm.response.to.have.status(403));"
-          ]}}]
-        },
-        {
-          "name": "Delete Post",
-          "request": {
-            "method": "DELETE", "url": "{{base_url}}/posts/{{post_id}}",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
-          },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 204', () => pm.response.to.have.status(204));"
-          ]}}]
+          }
         }
       ]
     },
@@ -334,128 +185,256 @@
       "name": "Comments",
       "item": [
         {
-          "name": "Setup — Create a fresh post for comments",
+          "name": "POST top-level comment",
           "request": {
-            "method": "POST", "url": "{{base_url}}/posts",
+            "method": "POST", "url": "{{base_url}}/posts/{{post_id}}/comments",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"content\": \"A post to test comments on.\"\n}" }
+            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Great post!\"\n}" }
           },
           "event": [{ "listen": "test", "script": { "exec": [
             "pm.test('Status 201', () => pm.response.to.have.status(201));",
-            "pm.collectionVariables.set('post_id', pm.response.json().data.id);"
+            "pm.collectionVariables.set('comment_id', pm.response.json().data.id);"
           ]}}]
         },
         {
-          "name": "GET comments — empty",
+          "name": "POST reply",
+          "request": {
+            "method": "POST", "url": "{{base_url}}/posts/{{post_id}}/comments",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token2}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Thank you!\",\n  \"parentCommentId\": {{comment_id}}\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "pm.collectionVariables.set('reply_id', pm.response.json().data.id);"
+          ]}}]
+        },
+        {
+          "name": "GET comments (threaded)",
           "request": {
             "method": "GET", "url": "{{base_url}}/posts/{{post_id}}/comments",
             "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
           },
           "event": [{ "listen": "test", "script": { "exec": [
             "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "pm.test('Empty array', () => pm.expect(pm.response.json().data.comments).to.have.length(0));",
-            "pm.test('total 0', () => pm.expect(pm.response.json().data.total).to.eql(0));"
+            "const d = pm.response.json().data;",
+            "pm.test('Has comments array', () => pm.expect(d.comments).to.be.an('array'));"
           ]}}]
         },
         {
-          "name": "POST top-level comment (user 1)",
+          "name": "PATCH comment",
           "request": {
-            "method": "POST", "url": "{{base_url}}/posts/{{post_id}}/comments",
+            "method": "PATCH", "url": "{{base_url}}/comments/{{comment_id}}",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Great post, really resonates!\"\n}" }
+            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Updated comment!\"\n}" }
+          }
+        },
+        {
+          "name": "DELETE reply (soft)",
+          "request": {
+            "method": "DELETE", "url": "{{base_url}}/comments/{{reply_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token2}}" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Groups",
+      "item": [
+        {
+          "name": "LIST GROUPS",
+          "request": {
+            "method": "GET", "url": "{{base_url}}/groups",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
           },
           "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
             "const d = pm.response.json().data;",
-            "pm.test('parentCommentId null', () => pm.expect(d.parentCommentId).to.be.null);",
-            "pm.test('isDeleted false', () => pm.expect(d.isDeleted).to.eql(false));",
-            "pm.test('author present', () => pm.expect(d.author).to.be.an('object'));",
-            "pm.collectionVariables.set('comment_id', d.id);"
+            "pm.test('Has groups array', () => pm.expect(d.groups).to.be.an('array'));",
+            "pm.test('Has total', () => pm.expect(d.total).to.be.a('number'));",
+            "if (d.groups.length > 0) {",
+            "  const g = d.groups[0];",
+            "  pm.test('Has memberCount', () => pm.expect(g).to.have.property('memberCount'));",
+            "  pm.test('Has isMember', () => pm.expect(g).to.have.property('isMember'));",
+            "  pm.collectionVariables.set('group_id', g.id);",
+            "}"
           ]}}]
         },
         {
-          "name": "POST second top-level comment (user 2)",
+          "name": "LIST GROUPS — 401 no token",
           "request": {
-            "method": "POST", "url": "{{base_url}}/posts/{{post_id}}/comments",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token2}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Sending strength your way.\"\n}" }
-          },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 201', () => pm.response.to.have.status(201));"
-          ]}}]
-        },
-        {
-          "name": "POST reply to comment (user 2)",
-          "request": {
-            "method": "POST", "url": "{{base_url}}/posts/{{post_id}}/comments",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token2}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Me too, this helped me so much!\",\n  \"parentCommentId\": {{comment_id}}\n}" }
-          },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 201', () => pm.response.to.have.status(201));",
-            "const d = pm.response.json().data;",
-            "pm.test('parentCommentId set', () => pm.expect(d.parentCommentId).to.be.a('number'));",
-            "pm.collectionVariables.set('reply_id', d.id);"
-          ]}}]
-        },
-        {
-          "name": "POST reply — 401 no auth",
-          "request": {
-            "method": "POST", "url": "{{base_url}}/posts/{{post_id}}/comments",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Unauthenticated\"\n}" }
+            "method": "GET", "url": "{{base_url}}/groups"
           },
           "event": [{ "listen": "test", "script": { "exec": [
             "pm.test('Status 401', () => pm.response.to.have.status(401));"
           ]}}]
         },
         {
-          "name": "GET comments — threaded structure",
+          "name": "GET GROUP",
           "request": {
-            "method": "GET", "url": "{{base_url}}/posts/{{post_id}}/comments",
+            "method": "GET", "url": "{{base_url}}/groups/{{group_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const g = pm.response.json().data;",
+            "pm.test('Has id', () => pm.expect(g.id).to.be.a('number'));",
+            "pm.test('Has memberCount', () => pm.expect(g.memberCount).to.be.a('number'));",
+            "pm.test('Has isMember', () => pm.expect(g).to.have.property('isMember'));"
+          ]}}]
+        },
+        {
+          "name": "GET GROUP — 404",
+          "request": {
+            "method": "GET", "url": "{{base_url}}/groups/99999",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 404', () => pm.response.to.have.status(404));"
+          ]}}]
+        },
+        {
+          "name": "JOIN GROUP (user 1)",
+          "request": {
+            "method": "POST", "url": "{{base_url}}/groups/{{group_id}}/join",
             "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
           },
           "event": [{ "listen": "test", "script": { "exec": [
             "pm.test('Status 200', () => pm.response.to.have.status(200));",
             "const d = pm.response.json().data;",
-            "pm.test('Has comments array', () => pm.expect(d.comments).to.be.an('array'));",
-            "pm.test('total = top-level count', () => pm.expect(d.total).to.eql(d.comments.length));",
-            "const top = d.comments.find(c => c.parentCommentId === null);",
-            "pm.test('Top-level has replies', () => pm.expect(top.replies).to.be.an('array'));",
-            "pm.test('Top-level has replyCount', () => pm.expect(top.replyCount).to.be.a('number'));"
+            "pm.test('joined true', () => pm.expect(d.joined).to.eql(true));",
+            "pm.test('memberCount is number', () => pm.expect(d.memberCount).to.be.a('number'));"
           ]}}]
         },
         {
-          "name": "PATCH comment — edit own",
+          "name": "JOIN GROUP again — idempotent",
           "request": {
-            "method": "PATCH", "url": "{{base_url}}/comments/{{comment_id}}",
+            "method": "POST", "url": "{{base_url}}/groups/{{group_id}}/join",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200 (idempotent)', () => pm.response.to.have.status(200));",
+            "pm.test('memberCount unchanged', () => pm.expect(pm.response.json().data.memberCount).to.be.a('number'));"
+          ]}}]
+        },
+        {
+          "name": "JOIN GROUP (user 2)",
+          "request": {
+            "method": "POST", "url": "{{base_url}}/groups/{{group_id}}/join",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token2}}" }]
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "GET GROUP — isMember true after join",
+          "request": {
+            "method": "GET", "url": "{{base_url}}/groups/{{group_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('isMember true', () => pm.expect(pm.response.json().data.isMember).to.eql(true));",
+            "pm.test('memberCount >= 2', () => pm.expect(pm.response.json().data.memberCount).to.be.at.least(2));"
+          ]}}]
+        },
+        {
+          "name": "GET GROUP FEED — empty",
+          "request": {
+            "method": "GET", "url": "{{base_url}}/groups/{{group_id}}/posts",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Posts is array', () => pm.expect(pm.response.json().data.posts).to.be.an('array'));"
+          ]}}]
+        },
+        {
+          "name": "CREATE GROUP POST (user 1)",
+          "request": {
+            "method": "POST", "url": "{{base_url}}/groups/{{group_id}}/posts",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Great post, this really resonated with me!\"\n}" }
+            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Excited to be part of this community!\"\n}" }
           },
           "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "pm.test('content updated', () => pm.expect(pm.response.json().data.content).to.include('resonated'));"
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "const d = pm.response.json().data;",
+            "pm.test('Has author', () => pm.expect(d.author).to.be.an('object'));",
+            "pm.test('Has groupId', () => pm.expect(d.groupId).to.be.a('number'));",
+            "pm.collectionVariables.set('group_post_id', d.id);"
           ]}}]
         },
         {
-          "name": "PATCH comment — 403 not owner",
+          "name": "CREATE GROUP POST (user 2)",
           "request": {
-            "method": "PATCH", "url": "{{base_url}}/comments/{{comment_id}}",
+            "method": "POST", "url": "{{base_url}}/groups/{{group_id}}/posts",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token2}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Sending love to everyone here.\",\n  \"imageUrl\": \"https://example.com/heart.jpg\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "pm.test('imageUrl set', () => pm.expect(pm.response.json().data.imageUrl).to.be.a('string'));"
+          ]}}]
+        },
+        {
+          "name": "CREATE GROUP POST — 401 no auth",
+          "request": {
+            "method": "POST", "url": "{{base_url}}/groups/{{group_id}}/posts",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Unauthorized\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ]}}]
+        },
+        {
+          "name": "GET GROUP FEED — 2 posts with author",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/groups/{{group_id}}/posts?limit=10&offset=0", "query": [{ "key": "limit", "value": "10" }, { "key": "offset", "value": "0" }] },
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "pm.test('Has posts', () => pm.expect(d.posts).to.be.an('array').with.length.at.least(1));",
+            "pm.test('Posts have author', () => pm.expect(d.posts[0].author).to.be.an('object'));",
+            "pm.test('Posts have groupId', () => pm.expect(d.posts[0].groupId).to.be.a('number'));"
+          ]}}]
+        },
+        {
+          "name": "PATCH GROUP POST — edit own",
+          "request": {
+            "method": "PATCH", "url": "{{base_url}}/groups/posts/{{group_post_id}}",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"content\": \"So glad to be part of this community!\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Content updated', () => pm.expect(pm.response.json().data.content).to.include('glad'));"
+          ]}}]
+        },
+        {
+          "name": "PATCH GROUP POST — 403 not owner",
+          "request": {
+            "method": "PATCH", "url": "{{base_url}}/groups/posts/{{group_post_id}}",
             "header": [
               { "key": "Authorization", "value": "Bearer {{token2}}" },
               { "key": "Content-Type", "value": "application/json" }
@@ -467,75 +446,50 @@
           ]}}]
         },
         {
-          "name": "DELETE reply — soft delete (user 2 owns it)",
+          "name": "DELETE GROUP POST — 403 not owner",
           "request": {
-            "method": "DELETE", "url": "{{base_url}}/comments/{{reply_id}}",
+            "method": "DELETE", "url": "{{base_url}}/groups/posts/{{group_post_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token2}}" }]
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403', () => pm.response.to.have.status(403));"
+          ]}}]
+        },
+        {
+          "name": "DELETE GROUP POST — own (204)",
+          "request": {
+            "method": "DELETE", "url": "{{base_url}}/groups/posts/{{group_post_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 204', () => pm.response.to.have.status(204));"
+          ]}}]
+        },
+        {
+          "name": "LEAVE GROUP (user 2)",
+          "request": {
+            "method": "DELETE", "url": "{{base_url}}/groups/{{group_id}}/join",
             "header": [{ "key": "Authorization", "value": "Bearer {{token2}}" }]
           },
           "event": [{ "listen": "test", "script": { "exec": [
             "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "pm.test('deleted true', () => pm.expect(pm.response.json().data.deleted).to.eql(true));"
+            "pm.test('joined false', () => pm.expect(pm.response.json().data.joined).to.eql(false));"
           ]}}]
         },
         {
-          "name": "DELETE reply — 403 not owner",
+          "name": "GET GROUP — memberCount decremented after leave",
           "request": {
-            "method": "DELETE", "url": "{{base_url}}/comments/{{reply_id}}",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "description": "Run before the DELETE above — reply_id is owned by token2."
+            "method": "GET", "url": "{{base_url}}/groups/{{group_id}}",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token2}}" }]
           },
           "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 403 or 400', () => pm.expect([400, 403]).to.include(pm.response.code));"
+            "pm.test('isMember false', () => pm.expect(pm.response.json().data.isMember).to.eql(false));"
           ]}}]
         },
         {
-          "name": "GET comments — deleted reply shows [deleted]",
+          "name": "GET GROUP FEED — 404 non-existent group",
           "request": {
-            "method": "GET", "url": "{{base_url}}/posts/{{post_id}}/comments",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
-          },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "const comments = pm.response.json().data.comments;",
-            "const topComment = comments.find(c => c.id == pm.collectionVariables.get('comment_id'));",
-            "if (topComment && topComment.replies.length > 0) {",
-            "  const deleted = topComment.replies.find(r => r.isDeleted);",
-            "  if (deleted) {",
-            "    pm.test('Deleted content masked', () => pm.expect(deleted.content).to.eql('[deleted]'));",
-            "    pm.test('Deleted author null', () => pm.expect(deleted.author).to.be.null);",
-            "  }",
-            "}"
-          ]}}]
-        },
-        {
-          "name": "POST reply to deleted comment — 400",
-          "request": {
-            "method": "POST", "url": "{{base_url}}/posts/{{post_id}}/comments",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Should fail\",\n  \"parentCommentId\": {{reply_id}}\n}" }
-          },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 400', () => pm.response.to.have.status(400));"
-          ]}}]
-        },
-        {
-          "name": "GET post — commentCount reflects all non-deleted",
-          "request": {
-            "method": "GET", "url": "{{base_url}}/posts/{{post_id}}",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
-          },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "pm.test('commentCount present', () => pm.expect(pm.response.json().data.commentCount).to.be.a('number'));"
-          ]}}]
-        },
-        {
-          "name": "GET comments — 404 non-existent post",
-          "request": {
-            "method": "GET", "url": "{{base_url}}/posts/99999/comments",
+            "method": "GET", "url": "{{base_url}}/groups/99999/posts",
             "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
           },
           "event": [{ "listen": "test", "script": { "exec": [

@@ -1,7 +1,7 @@
 # CereOnco Community API — Project Status
 
-**Last updated:** 4 June 2026  
-**Status:** Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase 4 ✅ · Phase 5+ Planned
+**Last updated:** 4 June 2026
+**Status:** Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase 4 ✅ · Phase 5 ✅ · Phase 6+ Planned
 
 ---
 
@@ -38,7 +38,13 @@ A modular REST API backend for the CereOnco Community platform. Built API-first 
 - `commentCount` on all post responses
 - Soft delete on comments — threads never broken
 - Edit own comment, delete own comment
-- Authorization on all write endpoints
+- **Community Groups (Phase 5)**:
+  - List all groups with membership count and `isMember` flag
+  - Get single group detail
+  - Join / leave groups (idempotent join — no duplicate memberships)
+  - Group feed: paginated posts newest-first with author info
+  - Create group post, edit own post, delete own post
+  - 401/403/404 auth guards on all write endpoints
 - Swagger UI at `/api/docs`
 - Postman collection in `docs/`
 
@@ -81,6 +87,7 @@ workspace/
 │           │   ├── users.ts           # User profile endpoints
 │           │   ├── posts.ts           # Posts + likes + bookmarks
 │           │   ├── comments.ts        # Comments + replies (Phase 4)
+│           │   ├── groups.ts          # Community groups (Phase 5)
 │           │   └── docs.ts            # Swagger UI
 │           └── utils/
 │               ├── response.ts        # success() / error()
@@ -91,7 +98,8 @@ workspace/
 │   └── db/src/schema/
 │       ├── users.ts                   # usersTable
 │       ├── posts.ts                   # postsTable, likesTable, bookmarksTable
-│       └── comments.ts                # commentsTable (Phase 4)
+│       ├── comments.ts                # commentsTable (Phase 4)
+│       └── groups.ts                  # groupsTable, groupMembersTable, groupPostsTable (Phase 5)
 │
 └── docs/
     ├── PROJECT_STATUS.md
@@ -171,6 +179,40 @@ workspace/
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | NOT NULL, DEFAULT now() |
 
+### groups
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | serial | PRIMARY KEY |
+| name | text | NOT NULL |
+| description | text | NOT NULL |
+| category | text | NOT NULL |
+| image_url | text | nullable |
+| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | NOT NULL, DEFAULT now() |
+
+### group_members
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | serial | PRIMARY KEY |
+| group_id | integer | NOT NULL, FK → groups.id CASCADE |
+| user_id | integer | NOT NULL, FK → users.id CASCADE |
+| joined_at | timestamptz | NOT NULL, DEFAULT now() |
+| — | — | UNIQUE (group_id, user_id) |
+
+### group_posts
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | serial | PRIMARY KEY |
+| group_id | integer | NOT NULL, FK → groups.id CASCADE |
+| user_id | integer | NOT NULL, FK → users.id CASCADE |
+| content | text | NOT NULL |
+| image_url | text | nullable |
+| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | NOT NULL, DEFAULT now() |
+
 **Relationships:**
 - `users` ──< `posts` (CASCADE delete)
 - `users` ──< `likes` (CASCADE delete)
@@ -180,12 +222,16 @@ workspace/
 - `posts` ──< `bookmarks` (CASCADE delete)
 - `posts` ──< `comments` (CASCADE delete)
 - `comments` ──< `comments` (self-ref: parent → child; SET NULL on parent delete)
+- `groups` ──< `group_members` (CASCADE delete)
+- `groups` ──< `group_posts` (CASCADE delete)
+- `users` ──< `group_members` (CASCADE delete)
+- `users` ──< `group_posts` (CASCADE delete)
 
 ---
 
 ## 5. Completed APIs
 
-**Base URL:** `https://<your-domain>/api`  
+**Base URL:** `https://<your-domain>/api`
 **Response format:** `{ success: bool, message: string, data: any }`
 
 ### Health
@@ -233,12 +279,26 @@ workspace/
 | PATCH | `/comments/:id` | Bearer | `{ content }` | Updated comment |
 | DELETE | `/comments/:id` | Bearer | — | `{ deleted: true, id }` |
 
-**Comment rules:**
-- `parentCommentId` is optional — omit for top-level, include for replies
-- Cannot reply to a deleted comment (400)
-- Soft delete: sets `isDeleted = true`; content masked as `"[deleted]"`, author as `null`
-- Only comment owner can edit or delete (403 otherwise)
-- `commentCount` on posts counts all non-deleted comments
+### Groups (Phase 5)
+
+| Method | Route | Auth | Description |
+|---|---|---|---|
+| GET | `/groups` | Bearer | List all groups with `memberCount` and `isMember` |
+| GET | `/groups/:id` | Bearer | Single group detail |
+| POST | `/groups/:id/join` | Bearer | Join group → `{ joined: true, memberCount }` |
+| DELETE | `/groups/:id/join` | Bearer | Leave group → `{ joined: false, memberCount }` |
+| GET | `/groups/:id/posts` | Bearer | Group feed (paginated, newest-first, with author) |
+| POST | `/groups/:id/posts` | Bearer | Create group post → 201 |
+| PATCH | `/groups/posts/:postId` | Bearer | Edit own group post |
+| DELETE | `/groups/posts/:postId` | Bearer | Delete own group post → 204 |
+
+**Group rules:**
+- All group endpoints require authentication (Bearer token)
+- Joining twice is idempotent — no duplicate memberships (`onConflictDoNothing`)
+- Leaving a group you haven't joined is a no-op (safe)
+- Only post owner can edit or delete their group post (403 otherwise)
+- `memberCount` is computed via efficient LEFT JOIN + COUNT in the same query
+- `isMember` is computed via a batched membership lookup for list endpoints
 
 ---
 
@@ -278,11 +338,10 @@ pnpm --filter @workspace/api-spec run codegen
 
 | Phase | Module | Status |
 |---|---|---|
-| Phase 5 | Admin endpoints (verify/reject MDs, moderate comments) | Planned |
-| Phase 5 | Groups (create, join, group feed) | Planned |
-| Phase 6 | Direct Messages | Planned |
+| Phase 6 | Admin endpoints (verify/reject MDs, moderate content) | Planned |
 | Phase 6 | Notifications (real-time) | Planned |
+| Phase 7 | Direct Messages | Planned |
 | Phase 7 | Cognie AI integration | Planned |
-| Phase 7 | File uploads (OCI Object Storage) | Planned |
+| Phase 8 | File uploads (Object Storage) | Planned |
 | Phase 8 | Events & RSVPs | Planned |
 | Phase 8 | Survivor Stories | Planned |

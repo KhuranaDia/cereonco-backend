@@ -5,12 +5,16 @@
  * CereOnco Community API — Phase 1-5
  * OpenAPI spec version: 0.5.0
  */
-import type { UserRole } from './userRole';
 
-export interface PostAuthor {
+export interface Group {
   id: number;
   name: string;
-  role: UserRole;
+  description: string;
+  category: string;
   /** @nullable */
-  avatarUrl?: string | null;
+  imageUrl?: string | null;
+  memberCount: number;
+  isMember: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }

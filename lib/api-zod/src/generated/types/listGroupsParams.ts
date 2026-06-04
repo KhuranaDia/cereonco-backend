@@ -6,8 +6,7 @@
  * OpenAPI spec version: 0.5.0
  */
 
-export interface CommentInput {
-  /** @minLength 1 */
-  content: string;
-  parentCommentId?: number;
-}
+export type ListGroupsParams = {
+limit?: number;
+offset?: number;
+};

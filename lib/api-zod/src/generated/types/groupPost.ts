@@ -5,13 +5,16 @@
  * CereOnco Community API — Phase 1-5
  * OpenAPI spec version: 0.5.0
  */
+import type { PostAuthor } from './postAuthor';
 
-export interface Post {
+export interface GroupPost {
   id: number;
+  groupId: number;
   userId: number;
   content: string;
   /** @nullable */
   imageUrl?: string | null;
+  author: PostAuthor;
   createdAt: Date;
   updatedAt: Date;
 }

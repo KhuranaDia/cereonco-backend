@@ -2,8 +2,8 @@ openapi: 3.1.0
 info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.4.0
-  description: CereOnco Community API — Phase 1-4
+  version: 0.5.0
+  description: CereOnco Community API — Phase 1-5
 servers:
   - url: /api
     description: Base API path
@@ -18,6 +18,8 @@ tags:
     description: Posts, likes, bookmarks
   - name: comments
     description: Comments and replies
+  - name: groups
+    description: Community groups, membership, group posts
 
 components:
   securitySchemes:
@@ -358,6 +360,105 @@ components:
         content:
           type: string
           minLength: 1
+
+    # Group schemas
+    Group:
+      type: object
+      required: [id, name, description, category, memberCount, isMember, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        imageUrl:
+          type: ["string", "null"]
+        memberCount:
+          type: integer
+        isMember:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    GroupsListResponse:
+      type: object
+      required: [groups, total]
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/Group"
+        total:
+          type: integer
+
+    GroupPost:
+      type: object
+      required: [id, groupId, userId, content, createdAt, updatedAt, author]
+      properties:
+        id:
+          type: integer
+        groupId:
+          type: integer
+        userId:
+          type: integer
+        content:
+          type: string
+        imageUrl:
+          type: ["string", "null"]
+        author:
+          $ref: "#/components/schemas/PostAuthor"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    GroupPostsListResponse:
+      type: object
+      required: [posts, total]
+      properties:
+        posts:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupPost"
+        total:
+          type: integer
+
+    GroupPostInput:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+        imageUrl:
+          type: string
+
+    GroupPostUpdate:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+        imageUrl:
+          type: string
+
+    MembershipToggle:
+      type: object
+      required: [joined, memberCount]
+      properties:
+        joined:
+          type: boolean
+        memberCount:
+          type: integer
 
 paths:
   /healthz:
@@ -796,3 +897,228 @@ paths:
           description: Forbidden
         "404":
           description: Comment not found
+
+  # ── Groups ────────────────────────────────────────────────────────────────
+
+  /groups:
+    get:
+      operationId: listGroups
+      tags: [groups]
+      summary: List all groups
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Groups list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupsListResponse"
+        "401":
+          description: Unauthorized
+
+  /groups/{id}:
+    get:
+      operationId: getGroup
+      tags: [groups]
+      summary: Get a single group with membership info
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Group detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Group not found
+
+  /groups/{id}/join:
+    post:
+      operationId: joinGroup
+      tags: [groups]
+      summary: Join a group
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Joined group (or already a member)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MembershipToggle"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Group not found
+    delete:
+      operationId: leaveGroup
+      tags: [groups]
+      summary: Leave a group
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Left group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MembershipToggle"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Group not found
+
+  /groups/{id}/posts:
+    get:
+      operationId: getGroupFeed
+      tags: [groups]
+      summary: Get posts in a group
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Group feed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupPostsListResponse"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Group not found
+    post:
+      operationId: createGroupPost
+      tags: [groups]
+      summary: Create a post in a group
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupPostInput"
+      responses:
+        "201":
+          description: Post created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupPost"
+        "400":
+          description: Validation error
+        "401":
+          description: Unauthorized
+        "404":
+          description: Group not found
+
+  /groups/posts/{postId}:
+    patch:
+      operationId: updateGroupPost
+      tags: [groups]
+      summary: Edit own group post
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupPostUpdate"
+      responses:
+        "200":
+          description: Updated group post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupPost"
+        "400":
+          description: Validation error
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Post not found
+    delete:
+      operationId: deleteGroupPost
+      tags: [groups]
+      summary: Delete own group post
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Post not found
