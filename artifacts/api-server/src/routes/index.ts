@@ -5,6 +5,7 @@ import usersRouter from "./users";
 import postsRouter from "./posts";
 import commentsRouter from "./comments";
 import groupsRouter from "./groups";
+import notificationsRouter from "./notifications";
 import docsRouter from "./docs";
 
 const router: IRouter = Router();
@@ -15,6 +16,7 @@ router.use(usersRouter);
 router.use(postsRouter);
 router.use(commentsRouter);
 router.use(groupsRouter);
+router.use(notificationsRouter);
 router.use(docsRouter);
 
 export default router;

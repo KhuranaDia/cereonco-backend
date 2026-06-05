@@ -583,3 +583,77 @@ export const DeleteGroupPostParams = zod.object({
 })
 
 
+/**
+ * @summary Get current user notifications (newest first)
+ */
+export const listNotificationsQueryLimitDefault = 20;
+export const listNotificationsQueryOffsetDefault = 0;
+
+export const ListNotificationsQueryParams = zod.object({
+  "limit": zod.coerce.number().default(listNotificationsQueryLimitDefault),
+  "offset": zod.coerce.number().default(listNotificationsQueryOffsetDefault)
+})
+
+export const ListNotificationsResponse = zod.object({
+  "notifications": zod.array(zod.object({
+  "id": zod.number(),
+  "type": zod.enum(['post_liked', 'post_commented', 'comment_replied', 'group_joined', 'group_post_created', 'verification_updated']),
+  "entityType": zod.enum(['post', 'comment', 'group', 'group_post', 'user']),
+  "entityId": zod.number(),
+  "message": zod.string(),
+  "isRead": zod.boolean(),
+  "actor": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
+  "profilePhotoUrl": zod.string().nullish()
+}),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "total": zod.number(),
+  "unreadCount": zod.number()
+})
+
+
+/**
+ * @summary Get count of unread notifications
+ */
+export const GetUnreadCountResponse = zod.object({
+  "unreadCount": zod.number()
+})
+
+
+/**
+ * @summary Mark a single notification as read
+ */
+export const MarkNotificationReadParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const MarkNotificationReadResponse = zod.object({
+  "id": zod.number(),
+  "type": zod.enum(['post_liked', 'post_commented', 'comment_replied', 'group_joined', 'group_post_created', 'verification_updated']),
+  "entityType": zod.enum(['post', 'comment', 'group', 'group_post', 'user']),
+  "entityId": zod.number(),
+  "message": zod.string(),
+  "isRead": zod.boolean(),
+  "actor": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
+  "profilePhotoUrl": zod.string().nullish()
+}),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Mark all unread notifications as read
+ */
+export const MarkAllReadResponse = zod.object({
+  "updatedCount": zod.number()
+})
+
+

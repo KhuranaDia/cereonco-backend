@@ -1,0 +1,123 @@
+Phase 1–5 are complete and tested.
+
+Proceed with Phase 6 only: Notifications.
+
+Build a notification system based on the existing backend modules:
+
+* likes
+* comments
+* replies
+* group activity
+* future admin/verification events
+
+Do NOT build messages, admin, Cognie, events, stories, research, or file uploads yet.
+
+Database:
+
+notifications table:
+
+* id
+* userId
+* actorId
+* type
+* entityType
+* entityId
+* message
+* isRead
+* createdAt
+* updatedAt
+
+Notification types:
+
+* post_liked
+* post_commented
+* comment_replied
+* group_joined
+* group_post_created
+* verification_updated
+
+Entity types:
+
+* post
+* comment
+* group
+* group_post
+* user
+
+Features:
+
+1. Create notification when someone likes another user's post.
+2. Create notification when someone comments on another user's post.
+3. Create notification when someone replies to another user's comment.
+4. Create notification when someone creates a post in a group.
+5. Do not notify users for their own actions.
+6. Fetch all notifications for current user.
+7. Fetch unread notification count.
+8. Mark single notification as read.
+9. Mark all notifications as read.
+10. Return actor info with each notification.
+
+APIs:
+
+GET /api/notifications
+
+GET /api/notifications/unread-count
+
+PATCH /api/notifications/:id/read
+
+PATCH /api/notifications/read-all
+
+Rules:
+
+* All notification APIs require JWT auth.
+* Users can only read/update their own notifications.
+* Notifications should be ordered newest first.
+* Do not create duplicate spam notifications for repeated same actions if unnecessary.
+* Keep response format consistent.
+
+Success:
+{
+"success": true,
+"message": "...",
+"data": {}
+}
+
+Error:
+{
+"success": false,
+"message": "..."
+}
+
+Also update existing logic so notifications are generated from:
+
+* Like post
+* Add comment
+* Reply to comment
+* Create group post
+
+Update:
+
+* Database schema
+* Swagger/OpenAPI docs
+* Postman collection
+* README
+* docs/PROJECT_STATUS.md
+
+Testing:
+
+* Run migrations
+* Test all existing endpoints to ensure no regressions
+* Test notification creation flow with two users
+* Test unread count
+* Test mark one as read
+* Test mark all as read
+
+After completion, provide:
+
+1. New database table
+2. New endpoints
+3. Where notifications are triggered
+4. Exact Postman testing steps
+5. What remains for next phase
+
+Stop after Phase 6 and wait before building Messages.

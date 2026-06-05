@@ -1,7 +1,7 @@
 # CereOnco Community API — Project Status
 
-**Last updated:** 4 June 2026
-**Status:** Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase 4 ✅ · Phase 5 ✅ · Phase 6+ Planned
+**Last updated:** 5 June 2026
+**Status:** Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase 4 ✅ · Phase 5 ✅ · Phase 6 ✅ · Phase 7 Planned
 
 ---
 
@@ -45,6 +45,15 @@ A modular REST API backend for the CereOnco Community platform. Built API-first 
   - Group feed: paginated posts newest-first with author info
   - Create group post, edit own post, delete own post
   - 401/403/404 auth guards on all write endpoints
+- **Notifications (Phase 6)**:
+  - Automatic notifications on: post liked, post commented, comment replied, group joined, group post created
+  - Never notifies users about their own actions
+  - Actor info (id, name, role, profilePhotoUrl) returned with every notification
+  - Paginated notification feed, newest-first
+  - Unread count endpoint
+  - Mark single notification as read (idempotent)
+  - Mark all as read
+  - 403 guard: users can only act on their own notifications
 - Swagger UI at `/api/docs`
 - Postman collection in `docs/`
 
@@ -81,17 +90,19 @@ workspace/
 │           │   ├── auth.ts            # requireAuth
 │           │   └── optionalAuth.ts    # optionalAuth
 │           ├── routes/
-│           │   ├── index.ts           # Mounts all routers
-│           │   ├── health.ts          # GET /api/healthz
-│           │   ├── auth.ts            # Auth endpoints
-│           │   ├── users.ts           # User profile endpoints
-│           │   ├── posts.ts           # Posts + likes + bookmarks
-│           │   ├── comments.ts        # Comments + replies (Phase 4)
-│           │   ├── groups.ts          # Community groups (Phase 5)
-│           │   └── docs.ts            # Swagger UI
+│           │   ├── index.ts              # Mounts all routers
+│           │   ├── health.ts             # GET /api/healthz
+│           │   ├── auth.ts               # Auth endpoints
+│           │   ├── users.ts              # User profile endpoints
+│           │   ├── posts.ts              # Posts + likes + bookmarks
+│           │   ├── comments.ts           # Comments + replies (Phase 4)
+│           │   ├── groups.ts             # Community groups (Phase 5)
+│           │   ├── notifications.ts      # Notifications (Phase 6)
+│           │   └── docs.ts               # Swagger UI
 │           └── utils/
-│               ├── response.ts        # success() / error()
-│               └── token.ts           # generateToken() / verifyToken()
+│               ├── response.ts           # success() / error()
+│               ├── token.ts              # generateToken() / verifyToken()
+│               └── notify.ts             # createNotification() / createNotifications()
 │
 ├── lib/
 │   ├── api-spec/openapi.yaml          # OpenAPI contract (source of truth)
@@ -99,7 +110,8 @@ workspace/
 │       ├── users.ts                   # usersTable
 │       ├── posts.ts                   # postsTable, likesTable, bookmarksTable
 │       ├── comments.ts                # commentsTable (Phase 4)
-│       └── groups.ts                  # groupsTable, groupMembersTable, groupPostsTable (Phase 5)
+│       ├── groups.ts                  # groupsTable, groupMembersTable, groupPostsTable (Phase 5)
+│       └── notifications.ts           # notificationsTable (Phase 6)
 │
 └── docs/
     ├── PROJECT_STATUS.md
@@ -213,6 +225,23 @@ workspace/
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | NOT NULL, DEFAULT now() |
 
+### notifications
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | serial | PRIMARY KEY |
+| user_id | integer | NOT NULL, FK → users.id CASCADE |
+| actor_id | integer | NOT NULL, FK → users.id CASCADE |
+| type | text | NOT NULL (enum: see NotificationType) |
+| entity_type | text | NOT NULL (enum: post, comment, group, group_post, user) |
+| entity_id | integer | NOT NULL |
+| message | text | NOT NULL |
+| is_read | boolean | NOT NULL, DEFAULT false |
+| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | NOT NULL, DEFAULT now() |
+
+**NotificationType values:** `post_liked` · `post_commented` · `comment_replied` · `group_joined` · `group_post_created` · `verification_updated`
+
 **Relationships:**
 - `users` ──< `posts` (CASCADE delete)
 - `users` ──< `likes` (CASCADE delete)
@@ -226,6 +255,8 @@ workspace/
 - `groups` ──< `group_posts` (CASCADE delete)
 - `users` ──< `group_members` (CASCADE delete)
 - `users` ──< `group_posts` (CASCADE delete)
+- `users` ──< `notifications` as recipient (CASCADE delete)
+- `users` ──< `notifications` as actor (CASCADE delete)
 
 ---
 
@@ -300,6 +331,52 @@ workspace/
 - `memberCount` is computed via efficient LEFT JOIN + COUNT in the same query
 - `isMember` is computed via a batched membership lookup for list endpoints
 
+### Notifications (Phase 6)
+
+| Method | Route | Auth | Description |
+|---|---|---|---|
+| GET | `/notifications` | Bearer | Paginated list (newest-first) with actor info. Query: `?limit=20&offset=0` |
+| GET | `/notifications/unread-count` | Bearer | `{ unreadCount }` |
+| PATCH | `/notifications/:id/read` | Bearer | Mark single as read (idempotent) → returns updated notification |
+| PATCH | `/notifications/read-all` | Bearer | Mark all unread as read → `{ updatedCount }` |
+
+**Notification triggers:**
+
+| Action | Recipient | Type |
+|---|---|---|
+| User A likes User B's post | User B | `post_liked` |
+| User A comments on User B's post (top-level) | User B | `post_commented` |
+| User A replies to User B's comment | User B | `comment_replied` |
+| User A joins a group | All existing group members | `group_joined` |
+| User A creates a group post | All group members (excl. poster) | `group_post_created` |
+
+**Notification rules:**
+- Never notifies users about their own actions
+- Notifications are fire-and-forget (`void`) — they don't block the primary response
+- Users can only read and mark their own notifications (403 otherwise)
+- Marking an already-read notification is idempotent (no error)
+- `read-all` returns `{ updatedCount }` — number of notifications actually updated
+
+**Notification response shape:**
+```json
+{
+  "id": 1,
+  "type": "post_liked",
+  "entityType": "post",
+  "entityId": 5,
+  "message": "liked your post",
+  "isRead": false,
+  "actor": {
+    "id": 3,
+    "name": "Ravi Mehta",
+    "role": "caregiver",
+    "profilePhotoUrl": null
+  },
+  "createdAt": "2026-06-05T...",
+  "updatedAt": "2026-06-05T..."
+}
+```
+
 ---
 
 ## 6. Authentication Flow
@@ -338,10 +415,10 @@ pnpm --filter @workspace/api-spec run codegen
 
 | Phase | Module | Status |
 |---|---|---|
-| Phase 6 | Admin endpoints (verify/reject MDs, moderate content) | Planned |
-| Phase 6 | Notifications (real-time) | Planned |
+| Phase 6 | Notifications | ✅ Complete |
 | Phase 7 | Direct Messages | Planned |
 | Phase 7 | Cognie AI integration | Planned |
+| Phase 8 | Admin endpoints (verify/reject MDs, moderate content) | Planned |
 | Phase 8 | File uploads (Object Storage) | Planned |
 | Phase 8 | Events & RSVPs | Planned |
 | Phase 8 | Survivor Stories | Planned |

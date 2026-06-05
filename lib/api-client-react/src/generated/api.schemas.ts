@@ -256,6 +256,59 @@ export interface MembershipToggle {
   memberCount: number;
 }
 
+export type NotificationType = typeof NotificationType[keyof typeof NotificationType];
+
+
+export const NotificationType = {
+  post_liked: 'post_liked',
+  post_commented: 'post_commented',
+  comment_replied: 'comment_replied',
+  group_joined: 'group_joined',
+  group_post_created: 'group_post_created',
+  verification_updated: 'verification_updated',
+} as const;
+
+export type EntityType = typeof EntityType[keyof typeof EntityType];
+
+
+export const EntityType = {
+  post: 'post',
+  comment: 'comment',
+  group: 'group',
+  group_post: 'group_post',
+  user: 'user',
+} as const;
+
+export interface NotificationActor {
+  id: number;
+  name: string;
+  role: UserRole;
+  /** @nullable */
+  profilePhotoUrl?: string | null;
+}
+
+export interface Notification {
+  id: number;
+  type: NotificationType;
+  entityType: EntityType;
+  entityId: number;
+  message: string;
+  isRead: boolean;
+  actor: NotificationActor;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NotificationsListResponse {
+  notifications: Notification[];
+  total: number;
+  unreadCount: number;
+}
+
+export interface UnreadCountResponse {
+  unreadCount: number;
+}
+
 export type GetFeedParams = {
 limit?: number;
 offset?: number;
@@ -269,5 +322,14 @@ offset?: number;
 export type GetGroupFeedParams = {
 limit?: number;
 offset?: number;
+};
+
+export type ListNotificationsParams = {
+limit?: number;
+offset?: number;
+};
+
+export type MarkAllRead200 = {
+  updatedCount: number;
 };
 

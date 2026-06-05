@@ -1,0 +1,139 @@
+Phase 1–5 are complete and tested.
+
+Proceed with Phase 6 only: Notifications.
+
+Build a complete notification system integrated with existing modules.
+
+Scope:
+
+Notification triggers:
+
+* Post liked
+* Post commented
+* Comment replied to
+* Group joined
+* Group post created
+* Medical verification status updated (future support)
+
+Database:
+
+notifications
+
+* id
+* userId
+* actorId
+* type
+* entityType
+* entityId
+* message
+* isRead
+* createdAt
+* updatedAt
+
+Enums:
+
+NotificationType:
+
+* post_liked
+* post_commented
+* comment_replied
+* group_joined
+* group_post_created
+* verification_updated
+
+EntityType:
+
+* post
+* comment
+* group
+* group_post
+* user
+
+Requirements:
+
+1. Create notifications automatically when:
+
+   * User A likes User B's post
+   * User A comments on User B's post
+   * User A replies to User B's comment
+   * User A joins a group
+   * User A creates a group post
+
+2. Never notify users about their own actions.
+
+3. Return actor information with notifications:
+
+   * id
+   * name
+   * role
+   * profilePhotoUrl
+
+4. Notifications should be sorted newest first.
+
+5. Add unread count support.
+
+APIs:
+
+GET /api/notifications
+
+GET /api/notifications/unread-count
+
+PATCH /api/notifications/:id/read
+
+PATCH /api/notifications/read-all
+
+Rules:
+
+* JWT authentication required.
+* Users can only access their own notifications.
+* Marking an already-read notification should be idempotent.
+* read-all should update all unread notifications for the current user.
+
+Response format:
+
+Success:
+{
+"success": true,
+"message": "...",
+"data": {}
+}
+
+Error:
+{
+"success": false,
+"message": "..."
+}
+
+Documentation:
+
+Update:
+
+* Swagger/OpenAPI
+* Postman Collection
+* README
+* PROJECT_STATUS.md
+
+Testing:
+
+* Run migrations
+* Verify no regressions in existing APIs
+* Test with two users
+* Verify notification creation
+* Verify unread count
+* Verify mark single as read
+* Verify mark all as read
+
+Deliverables:
+
+1. Database changes
+2. Notification trigger points
+3. Endpoint list
+4. Sample requests/responses
+5. Postman testing guide
+6. Updated documentation
+
+After completion:
+
+* Run full test suite
+* Confirm all previous phases still pass
+* Stop and wait before building Phase 7 (Messages).

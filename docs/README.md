@@ -233,11 +233,60 @@ Content → `"[deleted]"`, author → `null`. Thread structure preserved.
 - **Idempotent joins**: `onConflictDoNothing()` on group membership and post likes.
 - **JWT expiry**: 7 days. Logout is client-side (stateless).
 
-## Future Modules (Phase 6+)
+## Notifications (Phase 6)
 
-- Admin endpoints (verify/reject MDs, moderate content)
-- Notifications (real-time)
+### Fetch notifications
+
+```
+GET /api/notifications?limit=20&offset=0
+Authorization: Bearer <token>
+```
+
+Returns `{ notifications: [...], total: N, unreadCount: N }`.
+
+### Unread count
+
+```
+GET /api/notifications/unread-count
+Authorization: Bearer <token>
+```
+
+### Mark single as read
+
+```
+PATCH /api/notifications/:id/read
+Authorization: Bearer <token>
+```
+
+Idempotent. Returns updated notification object.
+
+### Mark all as read
+
+```
+PATCH /api/notifications/read-all
+Authorization: Bearer <token>
+```
+
+Returns `{ updatedCount: N }`.
+
+### Triggers
+
+| Action | Recipient | Type |
+|---|---|---|
+| Like a post | Post author | `post_liked` |
+| Comment on a post | Post author | `post_commented` |
+| Reply to a comment | Comment author | `comment_replied` |
+| Join a group | Existing group members | `group_joined` |
+| Create a group post | Group members (excl. poster) | `group_post_created` |
+
+Users are never notified about their own actions.
+
+---
+
+## Future Modules (Phase 7+)
+
 - Direct Messages
 - Cognie AI integration
+- Admin endpoints (verify/reject MDs, moderate content)
 - File uploads
 - Events & RSVPs

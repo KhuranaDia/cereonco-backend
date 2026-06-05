@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc, ne } from "drizzle-orm";
 import {
   db,
   groupsTable,
@@ -7,6 +7,7 @@ import {
   groupPostsTable,
   usersTable,
 } from "@workspace/db";
+import { createNotifications } from "../utils/notify";
 import {
   ListGroupsQueryParams,
   GetGroupParams,
@@ -148,7 +149,7 @@ router.post("/groups/:id/join", requireAuth, async (req, res): Promise<void> => 
   }
 
   const [group] = await db
-    .select({ id: groupsTable.id })
+    .select({ id: groupsTable.id, name: groupsTable.name })
     .from(groupsTable)
     .where(eq(groupsTable.id, params.data.id));
 
@@ -157,10 +158,33 @@ router.post("/groups/:id/join", requireAuth, async (req, res): Promise<void> => 
     return;
   }
 
+  const existingMembers = await db
+    .select({ userId: groupMembersTable.userId })
+    .from(groupMembersTable)
+    .where(
+      and(
+        eq(groupMembersTable.groupId, params.data.id),
+        ne(groupMembersTable.userId, req.userId!),
+      ),
+    );
+
   await db
     .insert(groupMembersTable)
     .values({ groupId: params.data.id, userId: req.userId! })
     .onConflictDoNothing();
+
+  if (existingMembers.length > 0) {
+    void createNotifications(
+      existingMembers.map((m) => ({
+        userId: m.userId,
+        actorId: req.userId!,
+        type: "group_joined" as const,
+        entityType: "group" as const,
+        entityId: group.id,
+        message: `joined the group "${group.name}"`,
+      })),
+    );
+  }
 
   const memberCount = await getMemberCount(params.data.id);
   success(res, "Joined group", { joined: true, memberCount });
@@ -274,7 +298,7 @@ router.post("/groups/:id/posts", requireAuth, async (req, res): Promise<void> =>
   }
 
   const [group] = await db
-    .select({ id: groupsTable.id })
+    .select({ id: groupsTable.id, name: groupsTable.name })
     .from(groupsTable)
     .where(eq(groupsTable.id, params.data.id));
 
@@ -297,6 +321,29 @@ router.post("/groups/:id/posts", requireAuth, async (req, res): Promise<void> =>
     .select({ id: usersTable.id, name: usersTable.name, role: usersTable.role, avatarUrl: usersTable.avatarUrl })
     .from(usersTable)
     .where(eq(usersTable.id, req.userId!));
+
+  const groupMembers = await db
+    .select({ userId: groupMembersTable.userId })
+    .from(groupMembersTable)
+    .where(
+      and(
+        eq(groupMembersTable.groupId, params.data.id),
+        ne(groupMembersTable.userId, req.userId!),
+      ),
+    );
+
+  if (groupMembers.length > 0) {
+    void createNotifications(
+      groupMembers.map((m) => ({
+        userId: m.userId,
+        actorId: req.userId!,
+        type: "group_post_created" as const,
+        entityType: "group_post" as const,
+        entityId: inserted.id,
+        message: `posted in "${group.name}"`,
+      })),
+    );
+  }
 
   success(
     res,

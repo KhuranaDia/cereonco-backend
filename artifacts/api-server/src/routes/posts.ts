@@ -8,6 +8,7 @@ import {
   bookmarksTable,
   commentsTable,
 } from "@workspace/db";
+import { createNotification } from "../utils/notify";
 import {
   CreatePostBody,
   UpdatePostBody,
@@ -263,7 +264,7 @@ router.post("/posts/:id/like", requireAuth, async (req, res): Promise<void> => {
   }
 
   const [post] = await db
-    .select({ id: postsTable.id })
+    .select({ id: postsTable.id, userId: postsTable.userId })
     .from(postsTable)
     .where(eq(postsTable.id, params.data.id));
 
@@ -281,6 +282,15 @@ router.post("/posts/:id/like", requireAuth, async (req, res): Promise<void> => {
     .select({ likeCount: sql<number>`cast(count(*) as integer)` })
     .from(likesTable)
     .where(eq(likesTable.postId, params.data.id));
+
+  void createNotification({
+    userId: post.userId,
+    actorId: req.userId!,
+    type: "post_liked",
+    entityType: "post",
+    entityId: post.id,
+    message: "liked your post",
+  });
 
   success(res, "Post liked", { liked: true, likeCount });
 });

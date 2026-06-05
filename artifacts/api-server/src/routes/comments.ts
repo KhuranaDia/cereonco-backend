@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, isNull, sql } from "drizzle-orm";
 import { db, commentsTable, postsTable, usersTable } from "@workspace/db";
+import { createNotification } from "../utils/notify";
 import {
   GetPostCommentsParams,
   CreateCommentParams,
@@ -136,7 +137,7 @@ router.post("/posts/:id/comments", requireAuth, async (req, res): Promise<void> 
   const postId = params.data.id;
 
   const [post] = await db
-    .select({ id: postsTable.id })
+    .select({ id: postsTable.id, userId: postsTable.userId })
     .from(postsTable)
     .where(eq(postsTable.id, postId));
 
@@ -145,9 +146,16 @@ router.post("/posts/:id/comments", requireAuth, async (req, res): Promise<void> 
     return;
   }
 
+  let parentAuthorId: number | null = null;
+
   if (parentCommentId !== undefined) {
     const [parent] = await db
-      .select({ id: commentsTable.id, postId: commentsTable.postId, isDeleted: commentsTable.isDeleted })
+      .select({
+        id: commentsTable.id,
+        postId: commentsTable.postId,
+        userId: commentsTable.userId,
+        isDeleted: commentsTable.isDeleted,
+      })
       .from(commentsTable)
       .where(eq(commentsTable.id, parentCommentId));
 
@@ -159,6 +167,7 @@ router.post("/posts/:id/comments", requireAuth, async (req, res): Promise<void> 
       error(res, "Cannot reply to a deleted comment", 400);
       return;
     }
+    parentAuthorId = parent.userId;
   }
 
   const [inserted] = await db
@@ -175,6 +184,26 @@ router.post("/posts/:id/comments", requireAuth, async (req, res): Promise<void> 
     .select({ id: usersTable.id, name: usersTable.name, role: usersTable.role, avatarUrl: usersTable.avatarUrl })
     .from(usersTable)
     .where(eq(usersTable.id, req.userId!));
+
+  if (parentCommentId !== undefined && parentAuthorId !== null) {
+    void createNotification({
+      userId: parentAuthorId,
+      actorId: req.userId!,
+      type: "comment_replied",
+      entityType: "comment",
+      entityId: inserted.id,
+      message: "replied to your comment",
+    });
+  } else {
+    void createNotification({
+      userId: post.userId,
+      actorId: req.userId!,
+      type: "post_commented",
+      entityType: "post",
+      entityId: post.id,
+      message: "commented on your post",
+    });
+  }
 
   const responseComment = {
     id: inserted.id,

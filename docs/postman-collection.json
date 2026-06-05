@@ -6,16 +6,56 @@
     "version": "0.5.0"
   },
   "variable": [
-    { "key": "base_url", "value": "https://<your-domain>/api", "type": "string" },
-    { "key": "token", "value": "", "type": "string" },
-    { "key": "token2", "value": "", "type": "string" },
-    { "key": "token_md", "value": "", "type": "string" },
-    { "key": "post_id", "value": "1", "type": "string" },
-    { "key": "user_id", "value": "1", "type": "string" },
-    { "key": "comment_id", "value": "1", "type": "string" },
-    { "key": "reply_id", "value": "2", "type": "string" },
-    { "key": "group_id", "value": "1", "type": "string" },
-    { "key": "group_post_id", "value": "1", "type": "string" }
+    {
+      "key": "base_url",
+      "value": "https://<your-domain>/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "token2",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "token_md",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "post_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "comment_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "reply_id",
+      "value": "2",
+      "type": "string"
+    },
+    {
+      "key": "group_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "group_post_id",
+      "value": "1",
+      "type": "string"
+    }
   ],
   "item": [
     {
@@ -23,11 +63,21 @@
       "item": [
         {
           "name": "Health Check",
-          "request": { "method": "GET", "url": "{{base_url}}/healthz" },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "pm.test('ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
-          ]}}]
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/healthz"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -37,52 +87,116 @@
         {
           "name": "Register (patient)",
           "request": {
-            "method": "POST", "url": "{{base_url}}/auth/register",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Ananya Sharma\",\n  \"email\": \"ananya@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"patient\"\n}" }
+            "method": "POST",
+            "url": "{{base_url}}/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ananya Sharma\",\n  \"email\": \"ananya@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"patient\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 201', () => pm.response.to.have.status(201));",
-            "const d = pm.response.json().data;",
-            "pm.collectionVariables.set('token', d.token);",
-            "pm.collectionVariables.set('user_id', d.user.id);"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const d = pm.response.json().data;",
+                  "pm.collectionVariables.set('token', d.token);",
+                  "pm.collectionVariables.set('user_id', d.user.id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Register (second user — caregiver)",
           "request": {
-            "method": "POST", "url": "{{base_url}}/auth/register",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Ravi Mehta\",\n  \"email\": \"ravi@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"caregiver\"\n}" }
+            "method": "POST",
+            "url": "{{base_url}}/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ravi Mehta\",\n  \"email\": \"ravi@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"caregiver\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 201', () => pm.response.to.have.status(201));",
-            "pm.collectionVariables.set('token2', pm.response.json().data.token);"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('token2', pm.response.json().data.token);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Register (medical_professional)",
           "request": {
-            "method": "POST", "url": "{{base_url}}/auth/register",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Dr. Priya Nair\",\n  \"email\": \"priya@cereoncomed.com\",\n  \"password\": \"password123\",\n  \"role\": \"medical_professional\"\n}" }
+            "method": "POST",
+            "url": "{{base_url}}/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dr. Priya Nair\",\n  \"email\": \"priya@cereoncomed.com\",\n  \"password\": \"password123\",\n  \"role\": \"medical_professional\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 201', () => pm.response.to.have.status(201));",
-            "pm.collectionVariables.set('token_md', pm.response.json().data.token);"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('token_md', pm.response.json().data.token);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Login",
           "request": {
-            "method": "POST", "url": "{{base_url}}/auth/login",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"ananya@example.com\",\n  \"password\": \"password123\"\n}" }
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ananya@example.com\",\n  \"password\": \"password123\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "pm.collectionVariables.set('token', pm.response.json().data.token);"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('token', pm.response.json().data.token);"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -92,41 +206,88 @@
         {
           "name": "Get Me",
           "request": {
-            "method": "GET", "url": "{{base_url}}/users/me",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+            "method": "GET",
+            "url": "{{base_url}}/users/me",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Update Me — patient onboarding",
           "request": {
-            "method": "PATCH", "url": "{{base_url}}/users/me",
+            "method": "PATCH",
+            "url": "{{base_url}}/users/me",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"bio\": \"Stage 3 breast cancer survivor.\",\n  \"cancerType\": \"Breast Cancer\",\n  \"treatmentStage\": \"remission\",\n  \"interests\": [\"support_groups\", \"nutrition\", \"mindfulness\"],\n  \"onboardingCompleted\": true\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bio\": \"Stage 3 breast cancer survivor.\",\n  \"cancerType\": \"Breast Cancer\",\n  \"treatmentStage\": \"remission\",\n  \"interests\": [\"support_groups\", \"nutrition\", \"mindfulness\"],\n  \"onboardingCompleted\": true\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Update Me — MD onboarding (auto-pending)",
           "request": {
-            "method": "PATCH", "url": "{{base_url}}/users/me",
+            "method": "PATCH",
+            "url": "{{base_url}}/users/me",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token_md}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_md}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"specialty\": \"Oncology\",\n  \"hospitalAffiliation\": \"AIIMS Delhi\",\n  \"medicalLicenseNumber\": \"MH-2024-ON-7831\",\n  \"onboardingCompleted\": true\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"specialty\": \"Oncology\",\n  \"hospitalAffiliation\": \"AIIMS Delhi\",\n  \"medicalLicenseNumber\": \"MH-2024-ON-7831\",\n  \"onboardingCompleted\": true\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "pm.test('verificationStatus pending', () => pm.expect(pm.response.json().data.verificationStatus).to.eql('pending'));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('verificationStatus pending', () => pm.expect(pm.response.json().data.verificationStatus).to.eql('pending'));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -136,47 +297,96 @@
         {
           "name": "Create Post",
           "request": {
-            "method": "POST", "url": "{{base_url}}/posts",
+            "method": "POST",
+            "url": "{{base_url}}/posts",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Hello CereOnco community!\"\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Hello CereOnco community!\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 201', () => pm.response.to.have.status(201));",
-            "pm.collectionVariables.set('post_id', pm.response.json().data.id);"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('post_id', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Get Feed",
           "request": {
-            "method": "GET", "url": "{{base_url}}/posts",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+            "method": "GET",
+            "url": "{{base_url}}/posts",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "const feed = pm.response.json().data;",
-            "if (feed.length > 0) {",
-            "  pm.test('Has commentCount', () => pm.expect(feed[0]).to.have.property('commentCount'));",
-            "}"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const feed = pm.response.json().data;",
+                  "if (feed.length > 0) {",
+                  "  pm.test('Has commentCount', () => pm.expect(feed[0]).to.have.property('commentCount'));",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Like Post",
           "request": {
-            "method": "POST", "url": "{{base_url}}/posts/{{post_id}}/like",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+            "method": "POST",
+            "url": "{{base_url}}/posts/{{post_id}}/like",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('liked true', () => pm.expect(pm.response.json().data.liked).to.eql(true));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('liked true', () => pm.expect(pm.response.json().data.liked).to.eql(true));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Unlike Post",
           "request": {
-            "method": "DELETE", "url": "{{base_url}}/posts/{{post_id}}/like",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+            "method": "DELETE",
+            "url": "{{base_url}}/posts/{{post_id}}/like",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           }
         }
       ]
@@ -187,61 +397,124 @@
         {
           "name": "POST top-level comment",
           "request": {
-            "method": "POST", "url": "{{base_url}}/posts/{{post_id}}/comments",
+            "method": "POST",
+            "url": "{{base_url}}/posts/{{post_id}}/comments",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Great post!\"\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Great post!\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 201', () => pm.response.to.have.status(201));",
-            "pm.collectionVariables.set('comment_id', pm.response.json().data.id);"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('comment_id', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "POST reply",
           "request": {
-            "method": "POST", "url": "{{base_url}}/posts/{{post_id}}/comments",
+            "method": "POST",
+            "url": "{{base_url}}/posts/{{post_id}}/comments",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token2}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Thank you!\",\n  \"parentCommentId\": {{comment_id}}\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Thank you!\",\n  \"parentCommentId\": {{comment_id}}\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 201', () => pm.response.to.have.status(201));",
-            "pm.collectionVariables.set('reply_id', pm.response.json().data.id);"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('reply_id', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET comments (threaded)",
           "request": {
-            "method": "GET", "url": "{{base_url}}/posts/{{post_id}}/comments",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+            "method": "GET",
+            "url": "{{base_url}}/posts/{{post_id}}/comments",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "const d = pm.response.json().data;",
-            "pm.test('Has comments array', () => pm.expect(d.comments).to.be.an('array'));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Has comments array', () => pm.expect(d.comments).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "PATCH comment",
           "request": {
-            "method": "PATCH", "url": "{{base_url}}/comments/{{comment_id}}",
+            "method": "PATCH",
+            "url": "{{base_url}}/comments/{{comment_id}}",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Updated comment!\"\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Updated comment!\"\n}"
+            }
           }
         },
         {
           "name": "DELETE reply (soft)",
           "request": {
-            "method": "DELETE", "url": "{{base_url}}/comments/{{reply_id}}",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token2}}" }]
+            "method": "DELETE",
+            "url": "{{base_url}}/comments/{{reply_id}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ]
           }
         }
       ]
@@ -252,249 +525,735 @@
         {
           "name": "LIST GROUPS",
           "request": {
-            "method": "GET", "url": "{{base_url}}/groups",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+            "method": "GET",
+            "url": "{{base_url}}/groups",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "const d = pm.response.json().data;",
-            "pm.test('Has groups array', () => pm.expect(d.groups).to.be.an('array'));",
-            "pm.test('Has total', () => pm.expect(d.total).to.be.a('number'));",
-            "if (d.groups.length > 0) {",
-            "  const g = d.groups[0];",
-            "  pm.test('Has memberCount', () => pm.expect(g).to.have.property('memberCount'));",
-            "  pm.test('Has isMember', () => pm.expect(g).to.have.property('isMember'));",
-            "  pm.collectionVariables.set('group_id', g.id);",
-            "}"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Has groups array', () => pm.expect(d.groups).to.be.an('array'));",
+                  "pm.test('Has total', () => pm.expect(d.total).to.be.a('number'));",
+                  "if (d.groups.length > 0) {",
+                  "  const g = d.groups[0];",
+                  "  pm.test('Has memberCount', () => pm.expect(g).to.have.property('memberCount'));",
+                  "  pm.test('Has isMember', () => pm.expect(g).to.have.property('isMember'));",
+                  "  pm.collectionVariables.set('group_id', g.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "LIST GROUPS — 401 no token",
           "request": {
-            "method": "GET", "url": "{{base_url}}/groups"
+            "method": "GET",
+            "url": "{{base_url}}/groups"
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 401', () => pm.response.to.have.status(401));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET GROUP",
           "request": {
-            "method": "GET", "url": "{{base_url}}/groups/{{group_id}}",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+            "method": "GET",
+            "url": "{{base_url}}/groups/{{group_id}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "const g = pm.response.json().data;",
-            "pm.test('Has id', () => pm.expect(g.id).to.be.a('number'));",
-            "pm.test('Has memberCount', () => pm.expect(g.memberCount).to.be.a('number'));",
-            "pm.test('Has isMember', () => pm.expect(g).to.have.property('isMember'));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const g = pm.response.json().data;",
+                  "pm.test('Has id', () => pm.expect(g.id).to.be.a('number'));",
+                  "pm.test('Has memberCount', () => pm.expect(g.memberCount).to.be.a('number'));",
+                  "pm.test('Has isMember', () => pm.expect(g).to.have.property('isMember'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET GROUP — 404",
           "request": {
-            "method": "GET", "url": "{{base_url}}/groups/99999",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+            "method": "GET",
+            "url": "{{base_url}}/groups/99999",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 404', () => pm.response.to.have.status(404));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "JOIN GROUP (user 1)",
           "request": {
-            "method": "POST", "url": "{{base_url}}/groups/{{group_id}}/join",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+            "method": "POST",
+            "url": "{{base_url}}/groups/{{group_id}}/join",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "const d = pm.response.json().data;",
-            "pm.test('joined true', () => pm.expect(d.joined).to.eql(true));",
-            "pm.test('memberCount is number', () => pm.expect(d.memberCount).to.be.a('number'));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('joined true', () => pm.expect(d.joined).to.eql(true));",
+                  "pm.test('memberCount is number', () => pm.expect(d.memberCount).to.be.a('number'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "JOIN GROUP again — idempotent",
           "request": {
-            "method": "POST", "url": "{{base_url}}/groups/{{group_id}}/join",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+            "method": "POST",
+            "url": "{{base_url}}/groups/{{group_id}}/join",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200 (idempotent)', () => pm.response.to.have.status(200));",
-            "pm.test('memberCount unchanged', () => pm.expect(pm.response.json().data.memberCount).to.be.a('number'));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 (idempotent)', () => pm.response.to.have.status(200));",
+                  "pm.test('memberCount unchanged', () => pm.expect(pm.response.json().data.memberCount).to.be.a('number'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "JOIN GROUP (user 2)",
           "request": {
-            "method": "POST", "url": "{{base_url}}/groups/{{group_id}}/join",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token2}}" }]
+            "method": "POST",
+            "url": "{{base_url}}/groups/{{group_id}}/join",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ]
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET GROUP — isMember true after join",
           "request": {
-            "method": "GET", "url": "{{base_url}}/groups/{{group_id}}",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+            "method": "GET",
+            "url": "{{base_url}}/groups/{{group_id}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('isMember true', () => pm.expect(pm.response.json().data.isMember).to.eql(true));",
-            "pm.test('memberCount >= 2', () => pm.expect(pm.response.json().data.memberCount).to.be.at.least(2));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('isMember true', () => pm.expect(pm.response.json().data.isMember).to.eql(true));",
+                  "pm.test('memberCount >= 2', () => pm.expect(pm.response.json().data.memberCount).to.be.at.least(2));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET GROUP FEED — empty",
           "request": {
-            "method": "GET", "url": "{{base_url}}/groups/{{group_id}}/posts",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+            "method": "GET",
+            "url": "{{base_url}}/groups/{{group_id}}/posts",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "pm.test('Posts is array', () => pm.expect(pm.response.json().data.posts).to.be.an('array'));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Posts is array', () => pm.expect(pm.response.json().data.posts).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "CREATE GROUP POST (user 1)",
           "request": {
-            "method": "POST", "url": "{{base_url}}/groups/{{group_id}}/posts",
+            "method": "POST",
+            "url": "{{base_url}}/groups/{{group_id}}/posts",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Excited to be part of this community!\"\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Excited to be part of this community!\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 201', () => pm.response.to.have.status(201));",
-            "const d = pm.response.json().data;",
-            "pm.test('Has author', () => pm.expect(d.author).to.be.an('object'));",
-            "pm.test('Has groupId', () => pm.expect(d.groupId).to.be.a('number'));",
-            "pm.collectionVariables.set('group_post_id', d.id);"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Has author', () => pm.expect(d.author).to.be.an('object'));",
+                  "pm.test('Has groupId', () => pm.expect(d.groupId).to.be.a('number'));",
+                  "pm.collectionVariables.set('group_post_id', d.id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "CREATE GROUP POST (user 2)",
           "request": {
-            "method": "POST", "url": "{{base_url}}/groups/{{group_id}}/posts",
+            "method": "POST",
+            "url": "{{base_url}}/groups/{{group_id}}/posts",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token2}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Sending love to everyone here.\",\n  \"imageUrl\": \"https://example.com/heart.jpg\"\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Sending love to everyone here.\",\n  \"imageUrl\": \"https://example.com/heart.jpg\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 201', () => pm.response.to.have.status(201));",
-            "pm.test('imageUrl set', () => pm.expect(pm.response.json().data.imageUrl).to.be.a('string'));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('imageUrl set', () => pm.expect(pm.response.json().data.imageUrl).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "CREATE GROUP POST — 401 no auth",
           "request": {
-            "method": "POST", "url": "{{base_url}}/groups/{{group_id}}/posts",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Unauthorized\"\n}" }
+            "method": "POST",
+            "url": "{{base_url}}/groups/{{group_id}}/posts",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Unauthorized\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 401', () => pm.response.to.have.status(401));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET GROUP FEED — 2 posts with author",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/groups/{{group_id}}/posts?limit=10&offset=0", "query": [{ "key": "limit", "value": "10" }, { "key": "offset", "value": "0" }] },
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+            "url": {
+              "raw": "{{base_url}}/groups/{{group_id}}/posts?limit=10&offset=0",
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "const d = pm.response.json().data;",
-            "pm.test('Has posts', () => pm.expect(d.posts).to.be.an('array').with.length.at.least(1));",
-            "pm.test('Posts have author', () => pm.expect(d.posts[0].author).to.be.an('object'));",
-            "pm.test('Posts have groupId', () => pm.expect(d.posts[0].groupId).to.be.a('number'));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Has posts', () => pm.expect(d.posts).to.be.an('array').with.length.at.least(1));",
+                  "pm.test('Posts have author', () => pm.expect(d.posts[0].author).to.be.an('object'));",
+                  "pm.test('Posts have groupId', () => pm.expect(d.posts[0].groupId).to.be.a('number'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "PATCH GROUP POST — edit own",
           "request": {
-            "method": "PATCH", "url": "{{base_url}}/groups/posts/{{group_post_id}}",
+            "method": "PATCH",
+            "url": "{{base_url}}/groups/posts/{{group_post_id}}",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"content\": \"So glad to be part of this community!\"\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"So glad to be part of this community!\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "pm.test('Content updated', () => pm.expect(pm.response.json().data.content).to.include('glad'));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Content updated', () => pm.expect(pm.response.json().data.content).to.include('glad'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "PATCH GROUP POST — 403 not owner",
           "request": {
-            "method": "PATCH", "url": "{{base_url}}/groups/posts/{{group_post_id}}",
+            "method": "PATCH",
+            "url": "{{base_url}}/groups/posts/{{group_post_id}}",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token2}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Hacked!\"\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Hacked!\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 403', () => pm.response.to.have.status(403));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "DELETE GROUP POST — 403 not owner",
           "request": {
-            "method": "DELETE", "url": "{{base_url}}/groups/posts/{{group_post_id}}",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token2}}" }]
+            "method": "DELETE",
+            "url": "{{base_url}}/groups/posts/{{group_post_id}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ]
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 403', () => pm.response.to.have.status(403));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "DELETE GROUP POST — own (204)",
           "request": {
-            "method": "DELETE", "url": "{{base_url}}/groups/posts/{{group_post_id}}",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+            "method": "DELETE",
+            "url": "{{base_url}}/groups/posts/{{group_post_id}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 204', () => pm.response.to.have.status(204));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "LEAVE GROUP (user 2)",
           "request": {
-            "method": "DELETE", "url": "{{base_url}}/groups/{{group_id}}/join",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token2}}" }]
+            "method": "DELETE",
+            "url": "{{base_url}}/groups/{{group_id}}/join",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ]
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "pm.test('joined false', () => pm.expect(pm.response.json().data.joined).to.eql(false));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('joined false', () => pm.expect(pm.response.json().data.joined).to.eql(false));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET GROUP — memberCount decremented after leave",
           "request": {
-            "method": "GET", "url": "{{base_url}}/groups/{{group_id}}",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token2}}" }]
+            "method": "GET",
+            "url": "{{base_url}}/groups/{{group_id}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ]
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('isMember false', () => pm.expect(pm.response.json().data.isMember).to.eql(false));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('isMember false', () => pm.expect(pm.response.json().data.isMember).to.eql(false));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "GET GROUP FEED — 404 non-existent group",
           "request": {
-            "method": "GET", "url": "{{base_url}}/groups/99999/posts",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+            "method": "GET",
+            "url": "{{base_url}}/groups/99999/posts",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('Status 404', () => pm.response.to.have.status(404));"
-          ]}}]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "GET notifications (all)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/notifications?limit=20&offset=0",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Has notifications array', () => pm.expect(d.notifications).to.be.an('array'));",
+                  "pm.test('Has total', () => pm.expect(d.total).to.be.a('number'));",
+                  "pm.test('Has unreadCount', () => pm.expect(d.unreadCount).to.be.a('number'));",
+                  "if (d.notifications.length > 0) {",
+                  "  const n = d.notifications[0];",
+                  "  pm.test('Notification has type', () => pm.expect(n).to.have.property('type'));",
+                  "  pm.test('Notification has actor', () => pm.expect(n.actor).to.have.property('name'));",
+                  "  pm.collectionVariables.set('notification_id', n.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET unread-count",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/notifications/unread-count",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Has unreadCount', () => pm.expect(d.unreadCount).to.be.a('number'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH mark single as read",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/notifications/{{notification_id}}/read",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('isRead is true', () => pm.expect(d.isRead).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH mark single — idempotent (already read)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/notifications/{{notification_id}}/read",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 — idempotent', () => pm.response.to.have.status(200));",
+                  "pm.test('isRead still true', () => pm.expect(pm.response.json().data.isRead).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH mark single — 403 (wrong user)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/notifications/{{notification_id}}/read",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH read-all",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/notifications/read-all",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Has updatedCount', () => pm.expect(d.updatedCount).to.be.a('number'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET unread-count — 0 after read-all",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/notifications/unread-count",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Unread count is 0', () => pm.expect(pm.response.json().data.unreadCount).to.equal(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET notifications — 401 no token",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/notifications"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
         }
       ]
     }
