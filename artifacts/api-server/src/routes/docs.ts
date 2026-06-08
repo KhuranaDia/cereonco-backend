@@ -8,16 +8,19 @@ router.get("/openapi.json", (_req, res) => {
   res.json(openApiSpec);
 });
 
-router.use(
-  "/docs",
-  swaggerUi.serve,
-  swaggerUi.setup(openApiSpec, {
-    customSiteTitle: "CereOnco API Docs",
-    swaggerOptions: {
-      persistAuthorization: true,
-      displayRequestDuration: true,
-    },
-  }),
-);
+router.use("/docs", swaggerUi.serve);
+
+router.get("/docs", (_req, res) => {
+  res.send(
+    swaggerUi.generateHTML(openApiSpec, {
+      customSiteTitle: "CereOnco API Docs",
+      swaggerOptions: {
+        url: "/api/openapi.json",
+        persistAuthorization: true,
+        displayRequestDuration: true,
+      },
+    }),
+  );
+});
 
 export default router;
