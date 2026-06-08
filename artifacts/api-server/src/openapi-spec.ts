@@ -1,9 +1,10 @@
 export const openApiSpec = {
-  openapi: "3.1.0",
+  openapi: "3.0.0",
   info: {
     title: "CereOnco Community API",
     version: "0.2.0",
-    description: "CereOnco Community API — Phase 1 (Auth/Users) + Phase 2 (Posts/Likes/Bookmarks)",
+    description:
+      "CereOnco Community API — Phase 1 (Auth/Users) + Phase 2 (Posts/Likes/Bookmarks)",
   },
   servers: [{ url: "/api", description: "Base API path" }],
   tags: [
@@ -63,7 +64,18 @@ export const openApiSpec = {
       },
       FeedPost: {
         type: "object",
-        required: ["id", "userId", "content", "createdAt", "updatedAt", "author", "likeCount", "bookmarkCount", "isLiked", "isBookmarked"],
+        required: [
+          "id",
+          "userId",
+          "content",
+          "createdAt",
+          "updatedAt",
+          "author",
+          "likeCount",
+          "bookmarkCount",
+          "isLiked",
+          "isBookmarked",
+        ],
         properties: {
           id: { type: "integer" },
           userId: { type: "integer" },
@@ -140,7 +152,11 @@ export const openApiSpec = {
         responses: {
           "200": {
             description: "Healthy",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/HealthStatus" } } },
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/HealthStatus" },
+              },
+            },
           },
         },
       },
@@ -152,10 +168,21 @@ export const openApiSpec = {
         summary: "Register a new user",
         requestBody: {
           required: true,
-          content: { "application/json": { schema: { $ref: "#/components/schemas/UserRegisterInput" } } },
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/UserRegisterInput" },
+            },
+          },
         },
         responses: {
-          "201": { description: "Registered", content: { "application/json": { schema: { $ref: "#/components/schemas/AuthResponse" } } } },
+          "201": {
+            description: "Registered",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/AuthResponse" },
+              },
+            },
+          },
           "400": { description: "Validation error" },
           "409": { description: "Email already in use" },
         },
@@ -168,10 +195,21 @@ export const openApiSpec = {
         summary: "Login",
         requestBody: {
           required: true,
-          content: { "application/json": { schema: { $ref: "#/components/schemas/LoginInput" } } },
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/LoginInput" },
+            },
+          },
         },
         responses: {
-          "200": { description: "Logged in", content: { "application/json": { schema: { $ref: "#/components/schemas/AuthResponse" } } } },
+          "200": {
+            description: "Logged in",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/AuthResponse" },
+              },
+            },
+          },
           "401": { description: "Invalid credentials" },
         },
       },
@@ -191,7 +229,14 @@ export const openApiSpec = {
         summary: "Get current user profile",
         security: [{ bearerAuth: [] }],
         responses: {
-          "200": { description: "User", content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } } },
+          "200": {
+            description: "User",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/User" },
+              },
+            },
+          },
           "401": { description: "Unauthorized" },
         },
       },
@@ -202,10 +247,21 @@ export const openApiSpec = {
         security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,
-          content: { "application/json": { schema: { $ref: "#/components/schemas/UserProfileUpdate" } } },
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/UserProfileUpdate" },
+            },
+          },
         },
         responses: {
-          "200": { description: "Updated", content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } } },
+          "200": {
+            description: "Updated",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/User" },
+              },
+            },
+          },
           "401": { description: "Unauthorized" },
         },
       },
@@ -215,9 +271,23 @@ export const openApiSpec = {
         operationId: "getUser",
         tags: ["users"],
         summary: "Get a user's public profile",
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "integer" },
+          },
+        ],
         responses: {
-          "200": { description: "User", content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } } },
+          "200": {
+            description: "User",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/User" },
+              },
+            },
+          },
           "404": { description: "Not found" },
         },
       },
@@ -229,13 +299,28 @@ export const openApiSpec = {
         summary: "Get feed (all posts, newest first)",
         security: [{ bearerAuth: [] }],
         parameters: [
-          { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
-          { name: "offset", in: "query", schema: { type: "integer", default: 0 } },
+          {
+            name: "limit",
+            in: "query",
+            schema: { type: "integer", default: 20 },
+          },
+          {
+            name: "offset",
+            in: "query",
+            schema: { type: "integer", default: 0 },
+          },
         ],
         responses: {
           "200": {
             description: "Feed",
-            content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/FeedPost" } } } },
+            content: {
+              "application/json": {
+                schema: {
+                  type: "array",
+                  items: { $ref: "#/components/schemas/FeedPost" },
+                },
+              },
+            },
           },
         },
       },
@@ -246,10 +331,21 @@ export const openApiSpec = {
         security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,
-          content: { "application/json": { schema: { $ref: "#/components/schemas/PostInput" } } },
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/PostInput" },
+            },
+          },
         },
         responses: {
-          "201": { description: "Created", content: { "application/json": { schema: { $ref: "#/components/schemas/Post" } } } },
+          "201": {
+            description: "Created",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/Post" },
+              },
+            },
+          },
           "401": { description: "Unauthorized" },
         },
       },
@@ -260,9 +356,23 @@ export const openApiSpec = {
         tags: ["posts"],
         summary: "Get a single post",
         security: [{ bearerAuth: [] }],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "integer" },
+          },
+        ],
         responses: {
-          "200": { description: "Post", content: { "application/json": { schema: { $ref: "#/components/schemas/FeedPost" } } } },
+          "200": {
+            description: "Post",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/FeedPost" },
+              },
+            },
+          },
           "404": { description: "Not found" },
         },
       },
@@ -271,13 +381,31 @@ export const openApiSpec = {
         tags: ["posts"],
         summary: "Update own post",
         security: [{ bearerAuth: [] }],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "integer" },
+          },
+        ],
         requestBody: {
           required: true,
-          content: { "application/json": { schema: { $ref: "#/components/schemas/PostUpdate" } } },
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/PostUpdate" },
+            },
+          },
         },
         responses: {
-          "200": { description: "Updated", content: { "application/json": { schema: { $ref: "#/components/schemas/Post" } } } },
+          "200": {
+            description: "Updated",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/Post" },
+              },
+            },
+          },
           "403": { description: "Forbidden" },
           "404": { description: "Not found" },
         },
@@ -287,7 +415,14 @@ export const openApiSpec = {
         tags: ["posts"],
         summary: "Delete own post",
         security: [{ bearerAuth: [] }],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "integer" },
+          },
+        ],
         responses: {
           "204": { description: "Deleted" },
           "403": { description: "Forbidden" },
@@ -301,9 +436,29 @@ export const openApiSpec = {
         tags: ["posts"],
         summary: "Like a post",
         security: [{ bearerAuth: [] }],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "integer" },
+          },
+        ],
         responses: {
-          "200": { description: "Liked", content: { "application/json": { schema: { type: "object", properties: { liked: { type: "boolean" }, likeCount: { type: "integer" } } } } } },
+          "200": {
+            description: "Liked",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    liked: { type: "boolean" },
+                    likeCount: { type: "integer" },
+                  },
+                },
+              },
+            },
+          },
         },
       },
       delete: {
@@ -311,7 +466,14 @@ export const openApiSpec = {
         tags: ["posts"],
         summary: "Unlike a post",
         security: [{ bearerAuth: [] }],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "integer" },
+          },
+        ],
         responses: {
           "200": { description: "Unliked" },
         },
@@ -323,7 +485,14 @@ export const openApiSpec = {
         tags: ["posts"],
         summary: "Bookmark a post",
         security: [{ bearerAuth: [] }],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "integer" },
+          },
+        ],
         responses: {
           "200": { description: "Bookmarked" },
         },
@@ -333,7 +502,14 @@ export const openApiSpec = {
         tags: ["posts"],
         summary: "Remove bookmark",
         security: [{ bearerAuth: [] }],
-        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "integer" },
+          },
+        ],
         responses: {
           "200": { description: "Bookmark removed" },
         },
