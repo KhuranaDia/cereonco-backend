@@ -25,9 +25,23 @@ app.use(
     },
   }),
 );
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.get("/", (_req, res) => {
+  res.json({
+    success: true,
+    message: "CereOnco API is running",
+    data: {
+      version: "v1",
+      api: "/api",
+      health: "/api/healthz",
+      docs: "/api/docs",
+    },
+  });
+});
 
 app.use("/api", router);
 
