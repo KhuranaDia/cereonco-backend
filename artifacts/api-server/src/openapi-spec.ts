@@ -1,5 +1,5 @@
 export const openApiSpec = {
-  openapi: "3.0.0",
+  openapi: "3.0.3",
   info: {
     title: "CereOnco Community API",
     version: "0.2.0",
