@@ -1,70 +1,270 @@
 export const openApiSpec = {
-  openapi: "3.0.3",
-  info: {
-    title: "CereOnco Community API",
-    version: "0.2.0",
-    description:
-      "CereOnco Community API — Phase 1 (Auth/Users) + Phase 2 (Posts/Likes/Bookmarks)",
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Api",
+    "version": "0.5.0",
+    "description": "CereOnco Community API — Phase 1-5"
   },
-  servers: [{ url: "/api", description: "Base API path" }],
-  tags: [
-    { name: "health", description: "Health check" },
-    { name: "auth", description: "Authentication" },
-    { name: "users", description: "User profiles" },
-    { name: "posts", description: "Posts, likes, bookmarks" },
+  "servers": [
+    {
+      "url": "/api",
+      "description": "Base API path"
+    }
   ],
-  components: {
-    securitySchemes: {
-      bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
+  "tags": [
+    {
+      "name": "health",
+      "description": "Health check"
     },
-    schemas: {
-      HealthStatus: {
-        type: "object",
-        required: ["status"],
-        properties: { status: { type: "string" } },
+    {
+      "name": "auth",
+      "description": "Authentication"
+    },
+    {
+      "name": "users",
+      "description": "User profile"
+    },
+    {
+      "name": "posts",
+      "description": "Posts, likes, bookmarks"
+    },
+    {
+      "name": "comments",
+      "description": "Comments and replies"
+    },
+    {
+      "name": "groups",
+      "description": "Community groups, membership, group posts"
+    },
+    {
+      "name": "notifications",
+      "description": "User notifications"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "HealthStatus": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        }
       },
-      UserRole: {
-        type: "string",
-        enum: ["patient", "caregiver", "medical_professional", "admin"],
+      "UserRole": {
+        "type": "string",
+        "enum": [
+          "patient",
+          "caregiver",
+          "medical_professional",
+          "admin"
+        ]
       },
-      User: {
-        type: "object",
-        required: ["id", "name", "email", "role", "createdAt", "updatedAt"],
-        properties: {
-          id: { type: "integer" },
-          name: { type: "string" },
-          email: { type: "string" },
-          role: { $ref: "#/components/schemas/UserRole" },
-          bio: { type: ["string", "null"] },
-          location: { type: ["string", "null"] },
-          avatarUrl: { type: ["string", "null"] },
-          createdAt: { type: "string", format: "date-time" },
-          updatedAt: { type: "string", format: "date-time" },
-        },
+      "VerificationStatus": {
+        "type": "string",
+        "enum": [
+          "none",
+          "pending",
+          "approved",
+          "rejected"
+        ]
       },
-      AuthResponse: {
-        type: "object",
-        required: ["token", "user"],
-        properties: {
-          token: { type: "string" },
-          user: { $ref: "#/components/schemas/User" },
-        },
+      "User": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "email",
+          "role",
+          "onboardingCompleted",
+          "verificationStatus",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          },
+          "bio": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "avatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "profilePhotoUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "onboardingCompleted": {
+            "type": "boolean"
+          },
+          "cancerType": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "treatmentStage": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "interests": {
+            "oneOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "specialty": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hospitalAffiliation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "medicalLicenseNumber": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "verificationStatus": {
+            "$ref": "#/components/schemas/VerificationStatus"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       },
-      Post: {
-        type: "object",
-        required: ["id", "userId", "content", "createdAt", "updatedAt"],
-        properties: {
-          id: { type: "integer" },
-          userId: { type: "integer" },
-          content: { type: "string" },
-          imageUrl: { type: ["string", "null"] },
-          createdAt: { type: "string", format: "date-time" },
-          updatedAt: { type: "string", format: "date-time" },
-        },
+      "AuthResponse": {
+        "type": "object",
+        "required": [
+          "token",
+          "user"
+        ],
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
       },
-      FeedPost: {
-        type: "object",
-        required: [
+      "Post": {
+        "type": "object",
+        "required": [
+          "id",
+          "userId",
+          "content",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "userId": {
+            "type": "integer"
+          },
+          "content": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PostAuthor": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          },
+          "avatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "FeedPost": {
+        "type": "object",
+        "required": [
           "id",
           "userId",
           "content",
@@ -73,447 +273,1957 @@ export const openApiSpec = {
           "author",
           "likeCount",
           "bookmarkCount",
+          "commentCount",
           "isLiked",
-          "isBookmarked",
+          "isBookmarked"
         ],
-        properties: {
-          id: { type: "integer" },
-          userId: { type: "integer" },
-          content: { type: "string" },
-          imageUrl: { type: ["string", "null"] },
-          createdAt: { type: "string", format: "date-time" },
-          updatedAt: { type: "string", format: "date-time" },
-          author: {
-            type: "object",
-            required: ["id", "name", "role"],
-            properties: {
-              id: { type: "integer" },
-              name: { type: "string" },
-              role: { $ref: "#/components/schemas/UserRole" },
-              avatarUrl: { type: ["string", "null"] },
-            },
+        "properties": {
+          "id": {
+            "type": "integer"
           },
-          likeCount: { type: "integer" },
-          bookmarkCount: { type: "integer" },
-          isLiked: { type: "boolean" },
-          isBookmarked: { type: "boolean" },
-        },
+          "userId": {
+            "type": "integer"
+          },
+          "content": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "author": {
+            "$ref": "#/components/schemas/PostAuthor"
+          },
+          "likeCount": {
+            "type": "integer"
+          },
+          "bookmarkCount": {
+            "type": "integer"
+          },
+          "commentCount": {
+            "type": "integer"
+          },
+          "isLiked": {
+            "type": "boolean"
+          },
+          "isBookmarked": {
+            "type": "boolean"
+          }
+        }
       },
-      UserRegisterInput: {
-        type: "object",
-        required: ["name", "email", "password", "role"],
-        properties: {
-          name: { type: "string", minLength: 1 },
-          email: { type: "string", format: "email" },
-          password: { type: "string", minLength: 6 },
-          role: { $ref: "#/components/schemas/UserRole" },
-        },
+      "LikeToggle": {
+        "type": "object",
+        "required": [
+          "liked",
+          "likeCount"
+        ],
+        "properties": {
+          "liked": {
+            "type": "boolean"
+          },
+          "likeCount": {
+            "type": "integer"
+          }
+        }
       },
-      LoginInput: {
-        type: "object",
-        required: ["email", "password"],
-        properties: {
-          email: { type: "string", format: "email" },
-          password: { type: "string" },
-        },
+      "BookmarkToggle": {
+        "type": "object",
+        "required": [
+          "bookmarked"
+        ],
+        "properties": {
+          "bookmarked": {
+            "type": "boolean"
+          }
+        }
       },
-      UserProfileUpdate: {
-        type: "object",
-        properties: {
-          name: { type: "string", minLength: 1 },
-          bio: { type: "string" },
-          location: { type: "string" },
-          avatarUrl: { type: "string" },
-        },
+      "CommentAuthor": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          },
+          "avatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
       },
-      PostInput: {
-        type: "object",
-        required: ["content"],
-        properties: {
-          content: { type: "string", minLength: 1 },
-          imageUrl: { type: "string" },
-        },
-      },
-      PostUpdate: {
-        type: "object",
-        properties: {
-          content: { type: "string", minLength: 1 },
-          imageUrl: { type: "string" },
-        },
-      },
-    },
-  },
-  paths: {
-    "/healthz": {
-      get: {
-        operationId: "healthCheck",
-        tags: ["health"],
-        summary: "Health check",
-        responses: {
-          "200": {
-            description: "Healthy",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/HealthStatus" },
+      "CommentReply": {
+        "type": "object",
+        "required": [
+          "id",
+          "postId",
+          "userId",
+          "content",
+          "parentCommentId",
+          "isDeleted",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "postId": {
+            "type": "integer"
+          },
+          "userId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "description": "[deleted] when isDeleted is true"
+          },
+          "parentCommentId": {
+            "type": "integer"
+          },
+          "isDeleted": {
+            "type": "boolean"
+          },
+          "author": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CommentAuthor"
               },
-            },
+              {
+                "type": "null"
+              }
+            ]
           },
-        },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       },
+      "Comment": {
+        "type": "object",
+        "required": [
+          "id",
+          "postId",
+          "userId",
+          "content",
+          "isDeleted",
+          "createdAt",
+          "updatedAt",
+          "replyCount"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "postId": {
+            "type": "integer"
+          },
+          "userId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "description": "[deleted] when isDeleted is true"
+          },
+          "parentCommentId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "isDeleted": {
+            "type": "boolean"
+          },
+          "author": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CommentAuthor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "replyCount": {
+            "type": "integer"
+          },
+          "replies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommentReply"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CommentsListResponse": {
+        "type": "object",
+        "required": [
+          "comments",
+          "total"
+        ],
+        "properties": {
+          "comments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Comment"
+            }
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "UserRegisterInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "email",
+          "password",
+          "role"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          }
+        }
+      },
+      "LoginInput": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "UserProfileUpdate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "bio": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string"
+          },
+          "profilePhotoUrl": {
+            "type": "string"
+          },
+          "onboardingCompleted": {
+            "type": "boolean"
+          },
+          "cancerType": {
+            "type": "string"
+          },
+          "treatmentStage": {
+            "type": "string"
+          },
+          "interests": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "specialty": {
+            "type": "string"
+          },
+          "hospitalAffiliation": {
+            "type": "string"
+          },
+          "medicalLicenseNumber": {
+            "type": "string"
+          }
+        }
+      },
+      "PostInput": {
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1
+          },
+          "imageUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "PostUpdate": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1
+          },
+          "imageUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "CommentInput": {
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1
+          },
+          "parentCommentId": {
+            "type": "integer"
+          }
+        }
+      },
+      "CommentUpdate": {
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "Group": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "category",
+          "memberCount",
+          "isMember",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "memberCount": {
+            "type": "integer"
+          },
+          "isMember": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "GroupsListResponse": {
+        "type": "object",
+        "required": [
+          "groups",
+          "total"
+        ],
+        "properties": {
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Group"
+            }
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "GroupPost": {
+        "type": "object",
+        "required": [
+          "id",
+          "groupId",
+          "userId",
+          "content",
+          "createdAt",
+          "updatedAt",
+          "author"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "groupId": {
+            "type": "integer"
+          },
+          "userId": {
+            "type": "integer"
+          },
+          "content": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "author": {
+            "$ref": "#/components/schemas/PostAuthor"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "GroupPostsListResponse": {
+        "type": "object",
+        "required": [
+          "posts",
+          "total"
+        ],
+        "properties": {
+          "posts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupPost"
+            }
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "GroupPostInput": {
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1
+          },
+          "imageUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "GroupPostUpdate": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1
+          },
+          "imageUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "MembershipToggle": {
+        "type": "object",
+        "required": [
+          "joined",
+          "memberCount"
+        ],
+        "properties": {
+          "joined": {
+            "type": "boolean"
+          },
+          "memberCount": {
+            "type": "integer"
+          }
+        }
+      },
+      "NotificationType": {
+        "type": "string",
+        "enum": [
+          "post_liked",
+          "post_commented",
+          "comment_replied",
+          "group_joined",
+          "group_post_created",
+          "verification_updated"
+        ]
+      },
+      "EntityType": {
+        "type": "string",
+        "enum": [
+          "post",
+          "comment",
+          "group",
+          "group_post",
+          "user"
+        ]
+      },
+      "NotificationActor": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          },
+          "profilePhotoUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "Notification": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "entityType",
+          "entityId",
+          "message",
+          "isRead",
+          "actor",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "type": {
+            "$ref": "#/components/schemas/NotificationType"
+          },
+          "entityType": {
+            "$ref": "#/components/schemas/EntityType"
+          },
+          "entityId": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          },
+          "isRead": {
+            "type": "boolean"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/NotificationActor"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "NotificationsListResponse": {
+        "type": "object",
+        "required": [
+          "notifications",
+          "total",
+          "unreadCount"
+        ],
+        "properties": {
+          "notifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Notification"
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "unreadCount": {
+            "type": "integer"
+          }
+        }
+      },
+      "UnreadCountResponse": {
+        "type": "object",
+        "required": [
+          "unreadCount"
+        ],
+        "properties": {
+          "unreadCount": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "operationId": "healthCheck",
+        "tags": [
+          "health"
+        ],
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "Healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthStatus"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/auth/register": {
-      post: {
-        operationId: "register",
-        tags: ["auth"],
-        summary: "Register a new user",
-        requestBody: {
-          required: true,
-          content: {
+      "post": {
+        "operationId": "register",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Register a new user",
+        "requestBody": {
+          "required": true,
+          "content": {
             "application/json": {
-              schema: { $ref: "#/components/schemas/UserRegisterInput" },
-            },
-          },
+              "schema": {
+                "$ref": "#/components/schemas/UserRegisterInput"
+              }
+            }
+          }
         },
-        responses: {
+        "responses": {
           "201": {
-            description: "Registered",
-            content: {
+            "description": "Registered",
+            "content": {
               "application/json": {
-                schema: { $ref: "#/components/schemas/AuthResponse" },
-              },
-            },
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
           },
-          "400": { description: "Validation error" },
-          "409": { description: "Email already in use" },
-        },
-      },
+          "400": {
+            "description": "Validation error"
+          },
+          "409": {
+            "description": "Email already in use"
+          }
+        }
+      }
     },
     "/auth/login": {
-      post: {
-        operationId: "login",
-        tags: ["auth"],
-        summary: "Login",
-        requestBody: {
-          required: true,
-          content: {
+      "post": {
+        "operationId": "login",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login",
+        "requestBody": {
+          "required": true,
+          "content": {
             "application/json": {
-              schema: { $ref: "#/components/schemas/LoginInput" },
-            },
-          },
+              "schema": {
+                "$ref": "#/components/schemas/LoginInput"
+              }
+            }
+          }
         },
-        responses: {
+        "responses": {
           "200": {
-            description: "Logged in",
-            content: {
+            "description": "Logged in",
+            "content": {
               "application/json": {
-                schema: { $ref: "#/components/schemas/AuthResponse" },
-              },
-            },
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
           },
-          "401": { description: "Invalid credentials" },
-        },
-      },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
     },
     "/auth/logout": {
-      post: {
-        operationId: "logout",
-        tags: ["auth"],
-        summary: "Logout",
-        responses: { "200": { description: "Logged out" } },
-      },
+      "post": {
+        "operationId": "logout",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Logout (client-side token invalidation)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Logged out"
+          }
+        }
+      }
     },
     "/users/me": {
-      get: {
-        operationId: "getMe",
-        tags: ["users"],
-        summary: "Get current user profile",
-        security: [{ bearerAuth: [] }],
-        responses: {
+      "get": {
+        "operationId": "getMe",
+        "tags": [
+          "users"
+        ],
+        "summary": "Get current user profile",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
           "200": {
-            description: "User",
-            content: {
+            "description": "Current user",
+            "content": {
               "application/json": {
-                schema: { $ref: "#/components/schemas/User" },
-              },
-            },
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
           },
-          "401": { description: "Unauthorized" },
-        },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
       },
-      patch: {
-        operationId: "updateMe",
-        tags: ["users"],
-        summary: "Update current user profile",
-        security: [{ bearerAuth: [] }],
-        requestBody: {
-          required: true,
-          content: {
+      "patch": {
+        "operationId": "updateMe",
+        "tags": [
+          "users"
+        ],
+        "summary": "Update current user profile",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
             "application/json": {
-              schema: { $ref: "#/components/schemas/UserProfileUpdate" },
-            },
-          },
+              "schema": {
+                "$ref": "#/components/schemas/UserProfileUpdate"
+              }
+            }
+          }
         },
-        responses: {
+        "responses": {
           "200": {
-            description: "Updated",
-            content: {
+            "description": "Updated user",
+            "content": {
               "application/json": {
-                schema: { $ref: "#/components/schemas/User" },
-              },
-            },
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
           },
-          "401": { description: "Unauthorized" },
-        },
-      },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
     },
     "/users/{id}": {
-      get: {
-        operationId: "getUser",
-        tags: ["users"],
-        summary: "Get a user's public profile",
-        parameters: [
-          {
-            name: "id",
-            in: "path",
-            required: true,
-            schema: { type: "integer" },
-          },
+      "get": {
+        "operationId": "getUser",
+        "tags": [
+          "users"
         ],
-        responses: {
+        "summary": "Get a user's public profile",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
           "200": {
-            description: "User",
-            content: {
+            "description": "User profile",
+            "content": {
               "application/json": {
-                schema: { $ref: "#/components/schemas/User" },
-              },
-            },
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
           },
-          "404": { description: "Not found" },
-        },
-      },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
     },
     "/posts": {
-      get: {
-        operationId: "getFeed",
-        tags: ["posts"],
-        summary: "Get feed (all posts, newest first)",
-        security: [{ bearerAuth: [] }],
-        parameters: [
-          {
-            name: "limit",
-            in: "query",
-            schema: { type: "integer", default: 20 },
-          },
-          {
-            name: "offset",
-            in: "query",
-            schema: { type: "integer", default: 0 },
-          },
+      "get": {
+        "operationId": "getFeed",
+        "tags": [
+          "posts"
         ],
-        responses: {
+        "summary": "Get feed (all posts, newest first)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
           "200": {
-            description: "Feed",
-            content: {
+            "description": "Feed posts",
+            "content": {
               "application/json": {
-                schema: {
-                  type: "array",
-                  items: { $ref: "#/components/schemas/FeedPost" },
-                },
-              },
-            },
-          },
-        },
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FeedPost"
+                  }
+                }
+              }
+            }
+          }
+        }
       },
-      post: {
-        operationId: "createPost",
-        tags: ["posts"],
-        summary: "Create a post",
-        security: [{ bearerAuth: [] }],
-        requestBody: {
-          required: true,
-          content: {
+      "post": {
+        "operationId": "createPost",
+        "tags": [
+          "posts"
+        ],
+        "summary": "Create a post",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
             "application/json": {
-              schema: { $ref: "#/components/schemas/PostInput" },
-            },
-          },
+              "schema": {
+                "$ref": "#/components/schemas/PostInput"
+              }
+            }
+          }
         },
-        responses: {
+        "responses": {
           "201": {
-            description: "Created",
-            content: {
+            "description": "Created post",
+            "content": {
               "application/json": {
-                schema: { $ref: "#/components/schemas/Post" },
-              },
-            },
+                "schema": {
+                  "$ref": "#/components/schemas/Post"
+                }
+              }
+            }
           },
-          "401": { description: "Unauthorized" },
-        },
-      },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
     },
     "/posts/{id}": {
-      get: {
-        operationId: "getPost",
-        tags: ["posts"],
-        summary: "Get a single post",
-        security: [{ bearerAuth: [] }],
-        parameters: [
-          {
-            name: "id",
-            in: "path",
-            required: true,
-            schema: { type: "integer" },
-          },
+      "get": {
+        "operationId": "getPost",
+        "tags": [
+          "posts"
         ],
-        responses: {
+        "summary": "Get a single post",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
           "200": {
-            description: "Post",
-            content: {
+            "description": "Post",
+            "content": {
               "application/json": {
-                schema: { $ref: "#/components/schemas/FeedPost" },
-              },
-            },
+                "schema": {
+                  "$ref": "#/components/schemas/FeedPost"
+                }
+              }
+            }
           },
-          "404": { description: "Not found" },
-        },
+          "404": {
+            "description": "Post not found"
+          }
+        }
       },
-      patch: {
-        operationId: "updatePost",
-        tags: ["posts"],
-        summary: "Update own post",
-        security: [{ bearerAuth: [] }],
-        parameters: [
-          {
-            name: "id",
-            in: "path",
-            required: true,
-            schema: { type: "integer" },
-          },
+      "patch": {
+        "operationId": "updatePost",
+        "tags": [
+          "posts"
         ],
-        requestBody: {
-          required: true,
-          content: {
+        "summary": "Update own post",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
             "application/json": {
-              schema: { $ref: "#/components/schemas/PostUpdate" },
-            },
-          },
+              "schema": {
+                "$ref": "#/components/schemas/PostUpdate"
+              }
+            }
+          }
         },
-        responses: {
+        "responses": {
           "200": {
-            description: "Updated",
-            content: {
+            "description": "Updated post",
+            "content": {
               "application/json": {
-                schema: { $ref: "#/components/schemas/Post" },
-              },
-            },
+                "schema": {
+                  "$ref": "#/components/schemas/Post"
+                }
+              }
+            }
           },
-          "403": { description: "Forbidden" },
-          "404": { description: "Not found" },
-        },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
       },
-      delete: {
-        operationId: "deletePost",
-        tags: ["posts"],
-        summary: "Delete own post",
-        security: [{ bearerAuth: [] }],
-        parameters: [
-          {
-            name: "id",
-            in: "path",
-            required: true,
-            schema: { type: "integer" },
-          },
+      "delete": {
+        "operationId": "deletePost",
+        "tags": [
+          "posts"
         ],
-        responses: {
-          "204": { description: "Deleted" },
-          "403": { description: "Forbidden" },
-          "404": { description: "Not found" },
-        },
-      },
+        "summary": "Delete own post",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
     },
     "/posts/{id}/like": {
-      post: {
-        operationId: "likePost",
-        tags: ["posts"],
-        summary: "Like a post",
-        security: [{ bearerAuth: [] }],
-        parameters: [
-          {
-            name: "id",
-            in: "path",
-            required: true,
-            schema: { type: "integer" },
-          },
+      "post": {
+        "operationId": "likePost",
+        "tags": [
+          "posts"
         ],
-        responses: {
+        "summary": "Like a post",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
           "200": {
-            description: "Liked",
-            content: {
+            "description": "Like result",
+            "content": {
               "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    liked: { type: "boolean" },
-                    likeCount: { type: "integer" },
-                  },
-                },
-              },
-            },
-          },
-        },
+                "schema": {
+                  "$ref": "#/components/schemas/LikeToggle"
+                }
+              }
+            }
+          }
+        }
       },
-      delete: {
-        operationId: "unlikePost",
-        tags: ["posts"],
-        summary: "Unlike a post",
-        security: [{ bearerAuth: [] }],
-        parameters: [
-          {
-            name: "id",
-            in: "path",
-            required: true,
-            schema: { type: "integer" },
-          },
+      "delete": {
+        "operationId": "unlikePost",
+        "tags": [
+          "posts"
         ],
-        responses: {
-          "200": { description: "Unliked" },
-        },
-      },
+        "summary": "Unlike a post",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unlike result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LikeToggle"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/posts/{id}/bookmark": {
-      post: {
-        operationId: "bookmarkPost",
-        tags: ["posts"],
-        summary: "Bookmark a post",
-        security: [{ bearerAuth: [] }],
-        parameters: [
-          {
-            name: "id",
-            in: "path",
-            required: true,
-            schema: { type: "integer" },
-          },
+      "post": {
+        "operationId": "bookmarkPost",
+        "tags": [
+          "posts"
         ],
-        responses: {
-          "200": { description: "Bookmarked" },
-        },
-      },
-      delete: {
-        operationId: "unbookmarkPost",
-        tags: ["posts"],
-        summary: "Remove bookmark",
-        security: [{ bearerAuth: [] }],
-        parameters: [
+        "summary": "Bookmark a post",
+        "security": [
           {
-            name: "id",
-            in: "path",
-            required: true,
-            schema: { type: "integer" },
-          },
+            "bearerAuth": []
+          }
         ],
-        responses: {
-          "200": { description: "Bookmark removed" },
-        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bookmark result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookmarkToggle"
+                }
+              }
+            }
+          }
+        }
       },
+      "delete": {
+        "operationId": "unbookmarkPost",
+        "tags": [
+          "posts"
+        ],
+        "summary": "Remove bookmark from a post",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unbookmark result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookmarkToggle"
+                }
+              }
+            }
+          }
+        }
+      }
     },
-  },
-};
+    "/posts/{id}/comments": {
+      "get": {
+        "operationId": "getPostComments",
+        "tags": [
+          "comments"
+        ],
+        "summary": "Get comments for a post (threaded)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comments list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentsListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Post not found"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createComment",
+        "tags": [
+          "comments"
+        ],
+        "summary": "Add a comment or reply to a post",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Comment created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentReply"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Post or parent comment not found"
+          }
+        }
+      }
+    },
+    "/comments/{id}": {
+      "patch": {
+        "operationId": "updateComment",
+        "tags": [
+          "comments"
+        ],
+        "summary": "Edit own comment",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated comment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentReply"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Comment not found"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteComment",
+        "tags": [
+          "comments"
+        ],
+        "summary": "Soft-delete own comment",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comment deleted (soft)"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Comment not found"
+          }
+        }
+      }
+    },
+    "/groups": {
+      "get": {
+        "operationId": "listGroups",
+        "tags": [
+          "groups"
+        ],
+        "summary": "List all groups",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Groups list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupsListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/groups/{id}": {
+      "get": {
+        "operationId": "getGroup",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Get a single group with membership info",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Group detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Group not found"
+          }
+        }
+      }
+    },
+    "/groups/{id}/join": {
+      "post": {
+        "operationId": "joinGroup",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Join a group",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Joined group (or already a member)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MembershipToggle"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Group not found"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "leaveGroup",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Leave a group",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Left group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MembershipToggle"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Group not found"
+          }
+        }
+      }
+    },
+    "/groups/{id}/posts": {
+      "get": {
+        "operationId": "getGroupFeed",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Get posts in a group",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Group feed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupPostsListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Group not found"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createGroupPost",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Create a post in a group",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupPostInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Post created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupPost"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Group not found"
+          }
+        }
+      }
+    },
+    "/groups/posts/{postId}": {
+      "patch": {
+        "operationId": "updateGroupPost",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Edit own group post",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupPostUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated group post",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupPost"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Post not found"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteGroupPost",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Delete own group post",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Post not found"
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "operationId": "listNotifications",
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Get current user notifications (newest first)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notifications list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationsListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/notifications/unread-count": {
+      "get": {
+        "operationId": "getUnreadCount",
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Get count of unread notifications",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unread count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCountResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/notifications/{id}/read": {
+      "patch": {
+        "operationId": "markNotificationRead",
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Mark a single notification as read",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notification marked as read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Notification"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Notification not found"
+          }
+        }
+      }
+    },
+    "/notifications/read-all": {
+      "patch": {
+        "operationId": "markAllRead",
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Mark all unread notifications as read",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "All marked as read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "updatedCount"
+                  ],
+                  "properties": {
+                    "updatedCount": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    }
+  }
+} as const;
