@@ -35,6 +35,11 @@ export interface User {
   email: string;
   role: UserRole;
   /** @nullable */
+  countryCode?: string | null;
+  /** @nullable */
+  phoneNumber?: string | null;
+  emailVerified: boolean;
+  /** @nullable */
   bio?: string | null;
   /** @nullable */
   location?: string | null;
@@ -62,6 +67,12 @@ export interface User {
 export interface AuthResponse {
   token: string;
   user: User;
+}
+
+export interface RegisterResponse {
+  user: User;
+  /** Password-setup token. Returned ONLY in non-production (NODE_ENV !== 'production') for testing convenience. In production the token is delivered via the emailed setup link only. */
+  setupToken?: string;
 }
 
 export interface Post {
@@ -155,9 +166,17 @@ export interface UserRegisterInput {
   /** @minLength 1 */
   name: string;
   email: string;
+  country_code?: string;
+  phone_number?: string;
+  role: UserRole;
+  specialty?: string;
+}
+
+export interface SetPasswordInput {
+  /** @minLength 1 */
+  token: string;
   /** @minLength 6 */
   password: string;
-  role: UserRole;
 }
 
 export interface LoginInput {

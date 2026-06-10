@@ -62,9 +62,43 @@ pnpm --filter @workspace/api-server run dev
 
 | Method | Route | Auth | Description |
 |---|---|---|---|
-| POST | `/api/auth/register` | No | Register a new user |
+| POST | `/api/auth/register` | No | Register a new user (passwordless — sends setup email) |
+| POST | `/api/auth/set-password` | No | Set password via setup token, verifies account |
 | POST | `/api/auth/login` | No | Login and get JWT |
 | POST | `/api/auth/logout` | Optional | Logout (client deletes token) |
+
+#### Passwordless registration flow
+
+Registration no longer collects a password. The flow is:
+
+1. **Register** with profile fields only (no password):
+   ```json
+   POST /api/auth/register
+   {
+     "name": "Asha Rao",
+     "email": "asha@example.com",
+     "country_code": "+91",
+     "phone_number": "9876543210",
+     "role": "medical_professional",
+     "specialty": "Oncology"
+   }
+   ```
+   - `name`, `email`, `role` are required. `country_code`, `phone_number`, `specialty` are optional.
+   - A single-use, 24-hour password-setup token is generated. Only its SHA-256 hash is stored.
+   - A setup link is emailed to the user. **Until SMTP is configured, the link is logged** (via pino, never `console.log`).
+   - Response data: `{ user }`. In non-production (`NODE_ENV !== "production"`) the response also includes `setupToken` for testing convenience — never in production.
+
+2. **Set password** using the token from the email link:
+   ```json
+   POST /api/auth/set-password
+   { "token": "<token-from-link>", "password": "NewPass123" }
+   ```
+   - Validates token + expiry, bcrypt-hashes the password, sets `emailVerified = true`, clears token fields.
+   - Returns `{ token, user }` (auto-login JWT). Token is single-use — reusing it returns `400`.
+
+3. **Login** works normally once a password is set. Logging in before setting a password returns `403 Account not activated`.
+
+**Email/SMTP config (optional):** set `SMTP_HOST` + `SMTP_USER` to enable real delivery; `FRONTEND_URL` (or `APP_BASE_URL`) controls the link base (defaults to `http://localhost:5173`).
 
 ### Users
 

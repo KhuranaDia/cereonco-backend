@@ -12,8 +12,20 @@ export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
+  // Nullable: passwordless registration sets this only after /auth/set-password
+  passwordHash: text("password_hash"),
   role: text("role").$type<UserRole>().notNull().default("patient"),
+
+  // Contact
+  countryCode: text("country_code"),
+  phoneNumber: text("phone_number"),
+
+  // Email verification + passwordless setup flow
+  emailVerified: boolean("email_verified").notNull().default(false),
+  passwordSetupToken: text("password_setup_token"),
+  passwordSetupTokenExpiresAt: timestamp("password_setup_token_expires_at", {
+    withTimezone: true,
+  }),
 
   // Common profile fields
   bio: text("bio"),

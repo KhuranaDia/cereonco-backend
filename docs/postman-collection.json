@@ -55,6 +55,26 @@
       "key": "group_post_id",
       "value": "1",
       "type": "string"
+    },
+    {
+      "key": "setup_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "setup_token2",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "setup_token_md",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id2",
+      "value": "1",
+      "type": "string"
     }
   ],
   "item": [
@@ -85,7 +105,7 @@
       "name": "Auth",
       "item": [
         {
-          "name": "Register (patient)",
+          "name": "Register (patient) — passwordless",
           "request": {
             "method": "POST",
             "url": "{{base_url}}/auth/register",
@@ -97,7 +117,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Ananya Sharma\",\n  \"email\": \"ananya@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"patient\"\n}"
+              "raw": "{\n  \"name\": \"Ananya Sharma\",\n  \"email\": \"ananya@example.com\",\n  \"country_code\": \"+91\",\n  \"phone_number\": \"9876543210\",\n  \"role\": \"patient\"\n}"
             }
           },
           "event": [
@@ -107,8 +127,71 @@
                 "exec": [
                   "pm.test('Status 201', () => pm.response.to.have.status(201));",
                   "const d = pm.response.json().data;",
-                  "pm.collectionVariables.set('token', d.token);",
-                  "pm.collectionVariables.set('user_id', d.user.id);"
+                  "pm.test('No JWT returned at registration', () => pm.expect(d.token).to.be.undefined);",
+                  "pm.test('User is not yet verified', () => pm.expect(d.user.emailVerified).to.be.false);",
+                  "pm.collectionVariables.set('user_id', d.user.id);",
+                  "// setupToken is only present in non-production (NODE_ENV !== 'production').",
+                  "// In production, copy the token from the server logs / email link instead.",
+                  "if (d.setupToken) { pm.collectionVariables.set('setup_token', d.setupToken); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set Password (patient)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/set-password",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{setup_token}}\",\n  \"password\": \"password123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Account verified', () => pm.expect(d.user.emailVerified).to.be.true);",
+                  "pm.test('JWT returned (auto-login)', () => pm.expect(d.token).to.be.a('string'));",
+                  "pm.collectionVariables.set('token', d.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set Password — reuse token (400)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/set-password",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{setup_token}}\",\n  \"password\": \"password999\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400 — token is single-use', () => pm.response.to.have.status(400));",
+                  "pm.test('success false', () => pm.expect(pm.response.json().success).to.be.false);"
                 ]
               }
             }
@@ -127,7 +210,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Ravi Mehta\",\n  \"email\": \"ravi@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"caregiver\"\n}"
+              "raw": "{\n  \"name\": \"Ravi Mehta\",\n  \"email\": \"ravi@example.com\",\n  \"country_code\": \"+91\",\n  \"phone_number\": \"9123456780\",\n  \"role\": \"caregiver\"\n}"
             }
           },
           "event": [
@@ -136,6 +219,36 @@
               "script": {
                 "exec": [
                   "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const d = pm.response.json().data;",
+                  "pm.collectionVariables.set('user_id2', d.user.id);",
+                  "if (d.setupToken) { pm.collectionVariables.set('setup_token2', d.setupToken); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set Password (caregiver)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/set-password",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{setup_token2}}\",\n  \"password\": \"password123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "pm.collectionVariables.set('token2', pm.response.json().data.token);"
                 ]
               }
@@ -155,7 +268,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Dr. Priya Nair\",\n  \"email\": \"priya@cereoncomed.com\",\n  \"password\": \"password123\",\n  \"role\": \"medical_professional\"\n}"
+              "raw": "{\n  \"name\": \"Dr. Priya Nair\",\n  \"email\": \"priya@example.com\",\n  \"country_code\": \"+91\",\n  \"phone_number\": \"9988776655\",\n  \"role\": \"medical_professional\",\n  \"specialty\": \"Oncology\"\n}"
             }
           },
           "event": [
@@ -164,7 +277,65 @@
               "script": {
                 "exec": [
                   "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Specialty stored', () => pm.expect(d.user.specialty).to.eql('Oncology'));",
+                  "if (d.setupToken) { pm.collectionVariables.set('setup_token_md', d.setupToken); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set Password (medical_professional)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/set-password",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{setup_token_md}}\",\n  \"password\": \"password123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "pm.collectionVariables.set('token_md', pm.response.json().data.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login — before set-password (403)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"unactivated@example.com\",\n  \"password\": \"whatever\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Register this email first (without set-password) to see the 403.",
+                  "pm.test('Status 401 or 403', () => pm.expect([401,403]).to.include(pm.response.code));"
                 ]
               }
             }
@@ -192,7 +363,10 @@
               "script": {
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.collectionVariables.set('token', pm.response.json().data.token);"
+                  "const d = pm.response.json().data;",
+                  "pm.test('JWT returned', () => pm.expect(d.token).to.be.a('string'));",
+                  "pm.collectionVariables.set('token', d.token);",
+                  "pm.collectionVariables.set('user_id', d.user.id);"
                 ]
               }
             }

@@ -14,6 +14,11 @@ export interface User {
   email: string;
   role: UserRole;
   /** @nullable */
+  countryCode?: string | null;
+  /** @nullable */
+  phoneNumber?: string | null;
+  emailVerified: boolean;
+  /** @nullable */
   bio?: string | null;
   /** @nullable */
   location?: string | null;

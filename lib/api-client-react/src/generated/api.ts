@@ -47,6 +47,8 @@ import type {
   Post,
   PostInput,
   PostUpdate,
+  RegisterResponse,
+  SetPasswordInput,
   UnreadCountResponse,
   User,
   UserProfileUpdate,
@@ -153,9 +155,9 @@ export const getRegisterUrl = () => {
 /**
  * @summary Register a new user
  */
-export const register = async (userRegisterInput: UserRegisterInput, options?: RequestInit): Promise<AuthResponse> => {
+export const register = async (userRegisterInput: UserRegisterInput, options?: RequestInit): Promise<RegisterResponse> => {
 
-  return customFetch<AuthResponse>(getRegisterUrl(),
+  return customFetch<RegisterResponse>(getRegisterUrl(),
   {
     ...options,
     method: 'POST',
@@ -211,6 +213,77 @@ export const useRegister = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getRegisterMutationOptions(options));
+    }
+
+export const getSetPasswordUrl = () => {
+
+
+
+
+  return `/api/auth/set-password`
+}
+
+/**
+ * @summary Set password via setup token (completes passwordless registration)
+ */
+export const setPassword = async (setPasswordInput: SetPasswordInput, options?: RequestInit): Promise<AuthResponse> => {
+
+  return customFetch<AuthResponse>(getSetPasswordUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      setPasswordInput,)
+  }
+);}
+
+
+
+
+export const getSetPasswordMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setPassword>>, TError,{data: BodyType<SetPasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setPassword>>, TError,{data: BodyType<SetPasswordInput>}, TContext> => {
+
+const mutationKey = ['setPassword'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setPassword>>, {data: BodyType<SetPasswordInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  setPassword(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetPasswordMutationResult = NonNullable<Awaited<ReturnType<typeof setPassword>>>
+    export type SetPasswordMutationBody = BodyType<SetPasswordInput>
+    export type SetPasswordMutationError = ErrorType<void>
+
+    /**
+ * @summary Set password via setup token (completes passwordless registration)
+ */
+export const useSetPassword = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setPassword>>, TError,{data: BodyType<SetPasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setPassword>>,
+        TError,
+        {data: BodyType<SetPasswordInput>},
+        TContext
+      > => {
+      return useMutation(getSetPasswordMutationOptions(options));
     }
 
 export const getLoginUrl = () => {

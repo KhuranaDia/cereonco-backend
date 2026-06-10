@@ -48,7 +48,7 @@ components:
 
     User:
       type: object
-      required: [id, name, email, role, onboardingCompleted, verificationStatus, createdAt, updatedAt]
+      required: [id, name, email, role, emailVerified, onboardingCompleted, verificationStatus, createdAt, updatedAt]
       properties:
         id:
           type: integer
@@ -58,6 +58,12 @@ components:
           type: string
         role:
           $ref: "#/components/schemas/UserRole"
+        countryCode:
+          type: ["string", "null"]
+        phoneNumber:
+          type: ["string", "null"]
+        emailVerified:
+          type: boolean
         bio:
           type: ["string", "null"]
         location:
@@ -101,6 +107,19 @@ components:
           type: string
         user:
           $ref: "#/components/schemas/User"
+
+    RegisterResponse:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        setupToken:
+          type: string
+          description: >-
+            Password-setup token. Returned ONLY in non-production
+            (NODE_ENV !== 'production') for testing convenience. In production
+            the token is delivered via the emailed setup link only.
 
     Post:
       type: object
@@ -271,7 +290,7 @@ components:
     # Body schemas — entity-shaped names to avoid TS2308 collisions
     UserRegisterInput:
       type: object
-      required: [name, email, password, role]
+      required: [name, email, role]
       properties:
         name:
           type: string
@@ -279,11 +298,25 @@ components:
         email:
           type: string
           format: email
+        country_code:
+          type: string
+        phone_number:
+          type: string
+        role:
+          $ref: "#/components/schemas/UserRole"
+        specialty:
+          type: string
+
+    SetPasswordInput:
+      type: object
+      required: [token, password]
+      properties:
+        token:
+          type: string
+          minLength: 1
         password:
           type: string
           minLength: 6
-        role:
-          $ref: "#/components/schemas/UserRole"
 
     LoginInput:
       type: object
@@ -562,15 +595,36 @@ paths:
               $ref: "#/components/schemas/UserRegisterInput"
       responses:
         "201":
-          description: Registered
+          description: Registered; password-setup email sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterResponse"
+        "400":
+          description: Validation error
+        "409":
+          description: Email already in use
+
+  /auth/set-password:
+    post:
+      operationId: setPassword
+      tags: [auth]
+      summary: Set password via setup token (completes passwordless registration)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetPasswordInput"
+      responses:
+        "200":
+          description: Password set; account verified and logged in
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthResponse"
         "400":
-          description: Validation error
-        "409":
-          description: Email already in use
+          description: Invalid or expired token
 
   /auth/login:
     post:

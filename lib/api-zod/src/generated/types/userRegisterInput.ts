@@ -11,7 +11,8 @@ export interface UserRegisterInput {
   /** @minLength 1 */
   name: string;
   email: string;
-  /** @minLength 6 */
-  password: string;
+  country_code?: string;
+  phone_number?: string;
   role: UserRole;
+  specialty?: string;
 }

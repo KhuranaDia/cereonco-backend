@@ -130,8 +130,13 @@ workspace/
 | id | serial | PRIMARY KEY |
 | name | text | NOT NULL |
 | email | text | NOT NULL, UNIQUE |
-| password_hash | text | NOT NULL |
+| password_hash | text | nullable (set via /auth/set-password) |
 | role | text | NOT NULL, DEFAULT 'patient' |
+| country_code | text | nullable |
+| phone_number | text | nullable |
+| email_verified | boolean | NOT NULL, DEFAULT false |
+| password_setup_token | text | nullable (SHA-256 hash of setup token) |
+| password_setup_token_expires_at | timestamptz | nullable |
 | bio | text | nullable |
 | location | text | nullable |
 | avatar_url | text | nullable |
@@ -275,7 +280,8 @@ workspace/
 
 | Method | Route | Auth | Body | Response |
 |---|---|---|---|---|
-| POST | `/auth/register` | No | `{ name, email, password, role }` | `{ token, user }` |
+| POST | `/auth/register` | No | `{ name, email, role, country_code?, phone_number?, specialty? }` | `{ user }` (passwordless — emails setup link) |
+| POST | `/auth/set-password` | No | `{ token, password }` | `{ token, user }` (verifies + auto-login) |
 | POST | `/auth/login` | No | `{ email, password }` | `{ token, user }` |
 | POST | `/auth/logout` | Optional | — | success |
 
@@ -381,10 +387,15 @@ workspace/
 
 ## 6. Authentication Flow
 
-1. **Register** → bcrypt-hashed password, returns JWT (7-day expiry) + full user object
-2. **Login** → verifies bcrypt hash, returns JWT + full user object
-3. **Authenticated requests** → `Authorization: Bearer <token>` header
-4. **Logout** → client deletes the token (stateless)
+**Passwordless registration (Phase 7):**
+
+1. **Register** → no password collected. Stores a hashed, 24h single-use setup token; emails (or logs) a setup link. Returns `{ user }` only.
+2. **Set Password** → validates token + expiry, bcrypt-hashes password, sets `email_verified = true`, clears token fields, returns JWT (7-day) + user (auto-login).
+3. **Login** → verifies bcrypt hash, returns JWT + user. Login before set-password returns `403 Account not activated`.
+4. **Authenticated requests** → `Authorization: Bearer <token>` header
+5. **Logout** → client deletes the token (stateless)
+
+**Setup token security:** only the SHA-256 hash of the token is stored, so a DB leak cannot be replayed. The raw token lives only in the email link. SMTP is pluggable via `SMTP_HOST`/`SMTP_USER`; until configured the link is logged via pino (never `console.log`). In non-production, register also returns `setupToken` for testing.
 
 ---
 
@@ -396,6 +407,9 @@ workspace/
 | `SESSION_SECRET` | Yes | JWT signing secret |
 | `PORT` | Yes | Server port (set by Replit workflow) |
 | `NODE_ENV` | No | `development` / `production` |
+| `FRONTEND_URL` | No | Base URL for the password-setup link (default `http://localhost:5173`); `APP_BASE_URL` also accepted |
+| `SMTP_HOST` | No | SMTP host — enables real email delivery when set with `SMTP_USER` |
+| `SMTP_USER` | No | SMTP username/credential — enables real email delivery |
 
 ---
 

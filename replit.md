@@ -43,6 +43,7 @@ A modular REST API backend for the CereOnco Community platform — supporting ca
 - **Soft delete on comments**: Comments are never hard-deleted — `isDeleted = true`, content masked as `[deleted]`, author nulled. Threads never break.
 - **commentCount via FILTER**: `COUNT(...) FILTER (WHERE NOT is_deleted)` in the same feed JOIN — no extra query.
 - **JWT via SESSION_SECRET**: 7-day expiry; logout is client-side.
+- **Passwordless registration**: `POST /auth/register` collects no password — it stores a hashed, 24h single-use setup token and emails (or logs) a setup link. `POST /auth/set-password {token, password}` verifies the account, bcrypt-hashes the password, and auto-logs-in. `passwordHash` is nullable until then; login before setup returns 403. Only the SHA-256 hash of the setup token is persisted. SMTP is pluggable via `SMTP_HOST`/`SMTP_USER`; `FRONTEND_URL` sets the link base.
 - **api-zod barrel**: `lib/api-zod/src/index.ts` exports only `generated/api` (Zod schemas). The `generated/types` barrel is NOT re-exported to avoid TS2308 collisions when operations have both path params and query params.
 
 ## Product
@@ -52,6 +53,7 @@ Phase 1–5 complete:
 - Role-based profiles (patient, caregiver, medical_professional, admin)
 - Extended profile fields: cancerType, treatmentStage, interests (patient/caregiver); specialty, hospitalAffiliation, medicalLicenseNumber (medical professionals)
 - Medical professional verification: none → pending → approved/rejected
+- Passwordless registration: register without a password → email/log a setup-token link → `POST /auth/set-password` to verify + set password
 - Posts with CRUD, paginated feed, like/unlike, bookmark/unbookmark
 - `commentCount` on all post responses
 - Comments & Replies: threaded structure, edit, soft delete, auth-gated

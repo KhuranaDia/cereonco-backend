@@ -2,3 +2,4 @@
 - [Response envelope pattern](response-envelope.md) — All routes wrap with { success, message, data } via utils/response.ts; spec defines only the data payload shape, not the envelope.
 - [Optional auth on read routes](optional-auth-pattern.md) — Feed and single-post use optionalAuth middleware so unauthenticated clients get counts and authenticated clients get per-user isLiked/isBookmarked state.
 - [api-zod TS2308 collision](api-zod-collision.md) — operations with path params + query params cause name clash; never re-export generated/types barrel from lib/api-zod/src/index.ts.
+- [api-zod codegen barrel overwrite](codegen-barrel-overwrite.md) — codegen rewrites index.ts and re-adds types export; reset to api-only after every codegen to avoid TS2308

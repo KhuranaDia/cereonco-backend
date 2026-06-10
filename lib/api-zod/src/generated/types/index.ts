@@ -39,6 +39,8 @@ export * from './post';
 export * from './postAuthor';
 export * from './postInput';
 export * from './postUpdate';
+export * from './registerResponse';
+export * from './setPasswordInput';
 export * from './unreadCountResponse';
 export * from './user';
 export * from './userProfileUpdate';

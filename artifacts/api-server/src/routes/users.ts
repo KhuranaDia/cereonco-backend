@@ -3,14 +3,10 @@ import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { UpdateMeBody, GetUserParams } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
+import { safeUser } from "../utils/safeUser";
 import { success, error } from "../utils/response";
 
 const router: IRouter = Router();
-
-function safeUser(user: typeof usersTable.$inferSelect) {
-  const { passwordHash: _pw, ...pub } = user;
-  return pub;
-}
 
 router.get("/users/me", requireAuth, async (req, res): Promise<void> => {
   const [user] = await db

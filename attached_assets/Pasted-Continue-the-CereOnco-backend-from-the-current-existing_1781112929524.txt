@@ -1,0 +1,95 @@
+Continue the CereOnco backend from the current existing codebase. Do not rebuild or refactor completed modules.
+
+Task: Update registration flow as per frontend requirement.
+
+Current stack:
+Node.js, Express, TypeScript, PostgreSQL, Drizzle ORM, JWT, bcrypt, Swagger/OpenAPI, Postman, Render.
+
+Production backend:
+https://cereonco-backend-a21z.onrender.com
+
+Required change:
+
+Registration currently accepts name, email, password, role. Frontend now needs registration without password collection. Required registration fields should be:
+
+{
+"name": "string",
+"email": "[user@example.com](mailto:user@example.com)",
+"country_code": "string",
+"phone_number": "string",
+"role": "patient | caregiver | medical_professional | admin",
+"specialty": "string"
+}
+
+Notes:
+
+* Frontend earlier called `primary_objective`, but use existing backend field `specialty` instead.
+* Add two new user table columns:
+
+  * country_code
+  * phone_number
+* Keep existing `specialty` field.
+* Add/allow `admin` role if current role enum does not support it.
+* Password should NOT be required during registration anymore.
+* Backend should auto-generate a temporary random password or nullable password flow internally.
+* User should receive verification/setup email with a secure token link.
+* The link should allow user to verify account and create password manually.
+* Add required DB fields if not present:
+
+  * email_verified boolean default false
+  * password_setup_token text nullable
+  * password_setup_token_expires_at timestamp nullable
+* If similar fields already exist, reuse them instead of duplicating.
+
+Implementation requirements:
+
+1. Update Drizzle user schema.
+2. Generate/apply migration.
+3. Update register validation schema.
+4. Update register controller/service.
+5. Make password optional/removed from register request.
+6. Generate secure password setup token.
+7. Store hashed temporary password only if current system requires password_hash non-null.
+8. Add endpoint:
+   POST /auth/set-password
+   Body:
+   {
+   "token": "string",
+   "password": "string"
+   }
+9. On set-password:
+
+   * validate token
+   * check expiry
+   * hash password with bcrypt
+   * set email_verified true
+   * clear token fields
+10. Add email sending placeholder/service.
+    If SMTP is not configured yet, log the verification link in development/production logs safely for testing.
+11. Update OpenAPI/Swagger.
+12. Update Postman collection:
+
+    * Register User should be POST /auth/register
+    * Body should not include password
+    * Add Set Password request
+13. Keep response format unchanged:
+    Success:
+    {
+    "success": true,
+    "message": "",
+    "data": {}
+    }
+    Error:
+    {
+    "success": false,
+    "message": ""
+    }
+14. Run:
+    pnpm --filter @workspace/api-server build
+15. Deploy to Render.
+16. Test in Postman.
+
+Do not break existing login flow.
+Do not change existing response format.
+Do not remove existing fields.
+Maintain backward compatibility where reasonable.

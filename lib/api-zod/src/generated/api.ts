@@ -20,15 +20,56 @@ export const HealthCheckResponse = zod.object({
  * @summary Register a new user
  */
 
-export const registerBodyPasswordMin = 6;
-
 
 
 export const RegisterBody = zod.object({
   "name": zod.string().min(1),
   "email": zod.string().email(),
-  "password": zod.string().min(registerBodyPasswordMin),
-  "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin'])
+  "country_code": zod.string().optional(),
+  "phone_number": zod.string().optional(),
+  "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
+  "specialty": zod.string().optional()
+})
+
+
+/**
+ * @summary Set password via setup token (completes passwordless registration)
+ */
+
+export const setPasswordBodyPasswordMin = 6;
+
+
+
+export const SetPasswordBody = zod.object({
+  "token": zod.string().min(1),
+  "password": zod.string().min(setPasswordBodyPasswordMin)
+})
+
+export const SetPasswordResponse = zod.object({
+  "token": zod.string(),
+  "user": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
+  "countryCode": zod.string().nullish(),
+  "phoneNumber": zod.string().nullish(),
+  "emailVerified": zod.boolean(),
+  "bio": zod.string().nullish(),
+  "location": zod.string().nullish(),
+  "avatarUrl": zod.string().nullish(),
+  "profilePhotoUrl": zod.string().nullish(),
+  "onboardingCompleted": zod.boolean(),
+  "cancerType": zod.string().nullish(),
+  "treatmentStage": zod.string().nullish(),
+  "interests": zod.union([zod.array(zod.string()),zod.null()]).optional(),
+  "specialty": zod.string().nullish(),
+  "hospitalAffiliation": zod.string().nullish(),
+  "medicalLicenseNumber": zod.string().nullish(),
+  "verificationStatus": zod.enum(['none', 'pending', 'approved', 'rejected']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
 })
 
 
@@ -47,6 +88,9 @@ export const LoginResponse = zod.object({
   "name": zod.string(),
   "email": zod.string(),
   "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
+  "countryCode": zod.string().nullish(),
+  "phoneNumber": zod.string().nullish(),
+  "emailVerified": zod.boolean(),
   "bio": zod.string().nullish(),
   "location": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
@@ -73,6 +117,9 @@ export const GetMeResponse = zod.object({
   "name": zod.string(),
   "email": zod.string(),
   "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
+  "countryCode": zod.string().nullish(),
+  "phoneNumber": zod.string().nullish(),
+  "emailVerified": zod.boolean(),
   "bio": zod.string().nullish(),
   "location": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
@@ -116,6 +163,9 @@ export const UpdateMeResponse = zod.object({
   "name": zod.string(),
   "email": zod.string(),
   "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
+  "countryCode": zod.string().nullish(),
+  "phoneNumber": zod.string().nullish(),
+  "emailVerified": zod.boolean(),
   "bio": zod.string().nullish(),
   "location": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
@@ -145,6 +195,9 @@ export const GetUserResponse = zod.object({
   "name": zod.string(),
   "email": zod.string(),
   "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
+  "countryCode": zod.string().nullish(),
+  "phoneNumber": zod.string().nullish(),
+  "emailVerified": zod.boolean(),
   "bio": zod.string().nullish(),
   "location": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
