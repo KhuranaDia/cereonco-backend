@@ -31,3 +31,12 @@ export function generateSetupToken(): {
 export function hashSetupToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
+
+/**
+ * Generate a random throwaway password. Used as the temp password at
+ * registration so passwordHash is never null; the user replaces it via
+ * the setup-token flow. The raw value is never persisted or returned.
+ */
+export function generateTempPassword(): string {
+  return crypto.randomBytes(32).toString("hex");
+}

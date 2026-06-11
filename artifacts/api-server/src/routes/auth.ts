@@ -3,7 +3,12 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { RegisterBody, LoginBody, SetPasswordBody } from "@workspace/api-zod";
-import { generateToken, generateSetupToken, hashSetupToken } from "../utils/token";
+import {
+  generateToken,
+  generateSetupToken,
+  generateTempPassword,
+  hashSetupToken,
+} from "../utils/token";
 import { sendPasswordSetupEmail } from "../utils/email";
 import { safeUser } from "../utils/safeUser";
 import { success, error } from "../utils/response";
@@ -31,9 +36,11 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     return;
   }
 
-  // Passwordless registration: no password is collected here. We persist only a
-  // hashed, time-limited setup token; the user sets their password via email.
+  // No password is collected from the frontend. We internally generate a random
+  // temporary password so passwordHash is never null, and issue a setup token so
+  // the user can set their own password via the emailed link.
   const { token: setupToken, tokenHash, expiresAt } = generateSetupToken();
+  const tempPasswordHash = await bcrypt.hash(generateTempPassword(), 10);
 
   const [user] = await db
     .insert(usersTable)
@@ -44,7 +51,7 @@ router.post("/auth/register", async (req, res): Promise<void> => {
       specialty: specialty ?? null,
       countryCode,
       phoneNumber,
-      passwordHash: null,
+      passwordHash: tempPasswordHash,
       emailVerified: false,
       passwordSetupToken: tokenHash,
       passwordSetupTokenExpiresAt: expiresAt,
@@ -53,8 +60,16 @@ router.post("/auth/register", async (req, res): Promise<void> => {
 
   await sendPasswordSetupEmail({ req, to: email, name, token: setupToken });
 
-  const data: { user: ReturnType<typeof safeUser>; setupToken?: string } = {
+  // Log the user in immediately by issuing a JWT.
+  const token = generateToken({ userId: user.id });
+
+  const data: {
+    user: ReturnType<typeof safeUser>;
+    token: string;
+    setupToken?: string;
+  } = {
     user: safeUser(user),
+    token,
   };
   // Convenience for non-production testing only — lets Postman chain set-password
   // without reading server logs. Never exposed in production.
@@ -125,17 +140,8 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     .from(usersTable)
     .where(eq(usersTable.email, email));
 
-  if (!user) {
+  if (!user || !user.passwordHash) {
     error(res, "Invalid email or password", 401);
-    return;
-  }
-
-  if (!user.passwordHash) {
-    error(
-      res,
-      "Account not activated. Please set your password using the link sent to your email.",
-      403,
-    );
     return;
   }
 

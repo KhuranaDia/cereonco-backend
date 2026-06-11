@@ -389,9 +389,9 @@ workspace/
 
 **Passwordless registration (Phase 7):**
 
-1. **Register** → no password collected. Stores a hashed, 24h single-use setup token; emails (or logs) a setup link. Returns `{ user }` only.
-2. **Set Password** → validates token + expiry, bcrypt-hashes password, sets `email_verified = true`, clears token fields, returns JWT (7-day) + user (auto-login).
-3. **Login** → verifies bcrypt hash, returns JWT + user. Login before set-password returns `403 Account not activated`.
+1. **Register** → no password collected from the frontend. Backend generates a random temporary password hash, emails (or logs) a 24h single-use setup link, and **issues a JWT immediately** — returns `{ user, token }` (auto-login).
+2. **Set Password** → validates token + expiry, bcrypt-hashes password, sets `email_verified = true`, clears `password_setup_token` + `password_setup_token_expires_at`, returns JWT (7-day) + user (auto-login).
+3. **Login** → verifies bcrypt hash, returns JWT + user. Email verification is independent and does NOT block login.
 4. **Authenticated requests** → `Authorization: Bearer <token>` header
 5. **Logout** → client deletes the token (stateless)
 

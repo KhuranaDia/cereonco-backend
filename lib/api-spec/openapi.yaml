@@ -110,10 +110,13 @@ components:
 
     RegisterResponse:
       type: object
-      required: [user]
+      required: [user, token]
       properties:
         user:
           $ref: "#/components/schemas/User"
+        token:
+          type: string
+          description: JWT issued immediately on registration — the user is logged in.
         setupToken:
           type: string
           description: >-

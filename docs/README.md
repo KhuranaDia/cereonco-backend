@@ -84,19 +84,19 @@ Registration no longer collects a password. The flow is:
    }
    ```
    - `name`, `email`, `role` are required. `country_code`, `phone_number`, `specialty` are optional.
-   - A single-use, 24-hour password-setup token is generated. Only its SHA-256 hash is stored.
-   - A setup link is emailed to the user. **Until SMTP is configured, the link is logged** (via pino, never `console.log`).
-   - Response data: `{ user }`. In non-production (`NODE_ENV !== "production"`) the response also includes `setupToken` for testing convenience — never in production.
+   - No password is collected from the frontend. The backend internally generates a random temporary password hash so the account is always login-capable.
+   - The user is **logged in immediately**: response data is `{ user, token }` (JWT). In non-production (`NODE_ENV !== "production"`) the response also includes `setupToken` for testing convenience — never in production.
+   - A single-use, 24-hour password-setup token is also generated (only its SHA-256 hash is stored) and a setup link is emailed. **Until SMTP is configured, the link is logged** (via pino, never `console.log`).
 
 2. **Set password** using the token from the email link:
    ```json
    POST /api/auth/set-password
    { "token": "<token-from-link>", "password": "NewPass123" }
    ```
-   - Validates token + expiry, bcrypt-hashes the password, sets `emailVerified = true`, clears token fields.
+   - Validates token + expiry, bcrypt-hashes the password, sets `emailVerified = true`, clears `passwordSetupToken` + `passwordSetupTokenExpiresAt`.
    - Returns `{ token, user }` (auto-login JWT). Token is single-use — reusing it returns `400`.
 
-3. **Login** works normally once a password is set. Logging in before setting a password returns `403 Account not activated`.
+3. **Login** works for any registered user with a password — email verification is independent and does not block login.
 
 **Email/SMTP config (optional):** set `SMTP_HOST` + `SMTP_USER` to enable real delivery; `FRONTEND_URL` (or `APP_BASE_URL`) controls the link base (defaults to `http://localhost:5173`).
 

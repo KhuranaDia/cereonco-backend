@@ -9,6 +9,8 @@ import type { User } from './user';
 
 export interface RegisterResponse {
   user: User;
+  /** JWT issued immediately on registration — the user is logged in. */
+  token: string;
   /** Password-setup token. Returned ONLY in non-production (NODE_ENV !== 'production') for testing convenience. In production the token is delivered via the emailed setup link only. */
   setupToken?: string;
 }
