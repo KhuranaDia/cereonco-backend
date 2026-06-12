@@ -86,6 +86,7 @@ export const openApiSpec = {
           "name",
           "email",
           "role",
+          "emailVerified",
           "onboardingCompleted",
           "verificationStatus",
           "createdAt",
@@ -103,6 +104,21 @@ export const openApiSpec = {
           },
           "role": {
             "$ref": "#/components/schemas/UserRole"
+          },
+          "countryCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phoneNumber": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "emailVerified": {
+            "type": "boolean"
           },
           "bio": {
             "type": [
@@ -199,6 +215,26 @@ export const openApiSpec = {
           },
           "user": {
             "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "RegisterResponse": {
+        "type": "object",
+        "required": [
+          "token",
+          "user"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "JWT issued immediately on registration — the user is logged in."
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "setupToken": {
+            "type": "string",
+            "description": "Password-setup token. Returned ONLY in non-production (NODE_ENV !== 'production') for testing. In production it is delivered via the emailed setup link only."
           }
         }
       },
@@ -517,7 +553,6 @@ export const openApiSpec = {
         "required": [
           "name",
           "email",
-          "password",
           "role"
         ],
         "properties": {
@@ -529,12 +564,34 @@ export const openApiSpec = {
             "type": "string",
             "format": "email"
           },
-          "password": {
-            "type": "string",
-            "minLength": 6
+          "country_code": {
+            "type": "string"
+          },
+          "phone_number": {
+            "type": "string"
           },
           "role": {
             "$ref": "#/components/schemas/UserRole"
+          },
+          "specialty": {
+            "type": "string"
+          }
+        }
+      },
+      "SetPasswordInput": {
+        "type": "object",
+        "required": [
+          "token",
+          "password"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 1
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6
           }
         }
       },
@@ -988,11 +1045,11 @@ export const openApiSpec = {
         },
         "responses": {
           "201": {
-            "description": "Registered",
+            "description": "Registered; user is logged in and a password-setup email is sent",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthResponse"
+                  "$ref": "#/components/schemas/RegisterResponse"
                 }
               }
             }
@@ -1002,6 +1059,40 @@ export const openApiSpec = {
           },
           "409": {
             "description": "Email already in use"
+          }
+        }
+      }
+    },
+    "/auth/set-password": {
+      "post": {
+        "operationId": "setPassword",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Set password via the emailed setup token (verifies the account)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPasswordInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password set; account verified and logged in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or expired token"
           }
         }
       }

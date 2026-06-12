@@ -117,7 +117,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Ananya Sharma\",\n  \"email\": \"ananya@example.com\",\n  \"country_code\": \"+91\",\n  \"phone_number\": \"9876543210\",\n  \"role\": \"patient\"\n}"
+              "raw": "{\n  \"name\": \"Ananya Sharma\",\n  \"email\": \"ananya@example.com\",\n  \"country_code\": \"+91\",\n  \"phone_number\": \"9876543210\",\n  \"role\": \"patient\",\n  \"specialty\": \"general\"\n}"
             }
           },
           "event": [

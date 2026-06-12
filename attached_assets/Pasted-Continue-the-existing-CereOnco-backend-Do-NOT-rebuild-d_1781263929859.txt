@@ -1,0 +1,212 @@
+Continue the existing CereOnco backend. Do NOT rebuild, do NOT refactor completed modules, and do NOT break existing APIs.
+
+Main task: Fix registration + password setup flow exactly as per Sudip’s requirement.
+
+Current issue:
+Registration is working and returns 201, but the response does NOT return JWT token. This breaks frontend auto-login.
+
+Sudip’s required behavior:
+1. POST /auth/register must create the user.
+2. POST /auth/register must return JWT token immediately.
+3. User must be logged in immediately after registration.
+4. Password should NOT be collected from frontend during registration.
+5. Backend should generate a password setup/reset token separately.
+6. Backend should send/log password setup link:
+   http://localhost:5173/set-password?token={actionToken}
+7. FRONTEND_URL should control this base URL:
+   FRONTEND_URL=http://localhost:5173
+8. POST /auth/set-password should:
+   - validate token
+   - check expiry
+   - hash password
+   - update passwordHash
+   - set emailVerified = true
+   - clear passwordSetupToken
+   - clear passwordSetupTokenExpiresAt
+9. Login should continue working normally.
+10. Login must NOT block unverified users.
+11. Email verification is independent from authentication.
+12. SMTP is not required yet. If SMTP is missing, log setup link for testing.
+
+Register request body must be:
+{
+  "name": "string",
+  "email": "user@example.com",
+  "country_code": "string",
+  "phone_number": "string",
+  "role": "patient | caregiver | medical_professional | admin",
+  "specialty": "string"
+}
+
+Register response must be:
+{
+  "success": true,
+  "message": "Registration successful. Check your email to set your password.",
+  "data": {
+    "token": "JWT_TOKEN",
+    "user": {}
+  }
+}
+
+Important:
+- Keep existing response format.
+- Keep existing JWT auth.
+- Keep existing bcrypt.
+- Do not remove existing user fields.
+- Do not break posts/comments/groups/notifications.
+- Keep country_code and phone_number.
+- Keep specialty instead of primary_objective.
+- Do not expose passwordSetupToken in production response.
+- Do not expose password hash or setup token hash in any user response.
+
+Files to check/fix:
+1. artifacts/api-server/src/routes/auth.ts
+2. artifacts/api-server/src/utils/token.ts
+3. artifacts/api-server/src/utils/email.ts
+4. artifacts/api-server/src/utils/safeUser.ts
+5. lib/db/src/schema/users.ts
+6. lib/api-spec/openapi.yaml
+7. artifacts/api-server/src/openapi-spec.ts
+8. Postman collection JSON if present
+9. README.md
+10. PROJECT_STATUS.md
+
+Auth route requirements:
+- In /auth/register:
+  - normalize email with trim().toLowerCase()
+  - check duplicate email
+  - generate setup token
+  - hash temporary random password if passwordHash is required
+  - insert user with emailVerified false
+  - save hashed setup token and expiry
+  - call sendPasswordSetupEmail()
+  - generate JWT immediately
+  - return { token, user }
+
+- In /auth/set-password:
+  - hash incoming token before lookup
+  - find user by passwordSetupToken hash
+  - reject invalid/expired token
+  - bcrypt hash new password
+  - set emailVerified true
+  - clear setup token fields
+  - return { token, user }
+
+- In /auth/login:
+  - use normalized email
+  - compare password
+  - return { token, user }
+  - do not check emailVerified before login
+
+Email requirement:
+- sendPasswordSetupEmail should build URL using:
+  process.env.FRONTEND_URL || "http://localhost:5173"
+- Final link:
+  `${FRONTEND_URL}/set-password?token=${token}`
+- If SMTP env missing, log:
+  "[email:placeholder] SMTP not configured — password setup link logged for testing"
+- Make sure setupUrl is visible in Render logs for testing.
+
+OpenAPI/Swagger:
+- Update /auth/register request body to remove password.
+- Add country_code, phone_number, specialty.
+- Update /auth/register response to include token and user.
+- Add/verify /auth/set-password endpoint.
+- Update schemas:
+  UserRegisterInput
+  RegisterResponse
+  SetPasswordInput
+  AuthResponse
+  User
+- Generate OpenAPI artifacts if required.
+- Make Swagger show the correct body and response.
+
+Postman:
+- Register User must be POST {{baseURL}}/auth/register.
+- Register body:
+{
+  "name": "Test Patient Fresh",
+  "email": "testpatientfresh01@example.com",
+  "country_code": "+91",
+  "phone_number": "9876543210",
+  "role": "patient",
+  "specialty": "general"
+}
+- Register post-response script should save:
+  token = data.token
+  userId = data.user.id
+- Add Set Password request:
+  POST {{baseURL}}/auth/set-password
+  Body:
+  {
+    "token": "{{setupToken}}",
+    "password": "Password123!"
+  }
+- Set Password post-response should save token if returned.
+- Login post-response should save token.
+- Use environment variables only, not globals:
+  baseURL
+  frontendURL
+  token
+  setupToken
+  userId
+  postId
+  commentId
+  groupId
+  groupPostId
+  notificationId
+
+Environment:
+- Render env must include:
+  FRONTEND_URL=http://localhost:5173
+
+Testing required:
+1. Build:
+   pnpm --filter @workspace/api-server build
+
+2. Register:
+   POST /auth/register
+   Expected:
+   201
+   data.token present
+   data.user present
+   emailVerified false
+
+3. Use returned token:
+   GET /users/me
+   Expected:
+   200
+
+4. Check Render logs:
+   setupUrl should be:
+   http://localhost:5173/set-password?token={token}
+
+5. Set password:
+   POST /auth/set-password
+   Expected:
+   200
+   emailVerified true
+   token returned
+
+6. Login:
+   POST /auth/login
+   Expected:
+   200
+   token returned
+
+7. Token reuse:
+   POST /auth/set-password with same token again
+   Expected:
+   400 invalid or expired token
+
+After fixing:
+- Commit with:
+  git add .
+  git commit -m "Fix registration token response and password setup flow"
+  git push origin main
+
+- Deploy latest commit on Render.
+- Re-test on production:
+  https://cereonco-backend-a21z.onrender.com/api
+
+Do not proceed to posts feeling/mediaUrls until this registration flow is fully verified.
