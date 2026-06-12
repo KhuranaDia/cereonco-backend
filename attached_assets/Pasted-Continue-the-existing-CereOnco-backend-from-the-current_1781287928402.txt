@@ -1,0 +1,177 @@
+Continue the existing CereOnco backend from the current codebase. Do not rebuild or refactor completed modules.
+
+Task: Update Posts table and APIs to support `feeling` and multiple media uploads.
+
+Context:
+Frontend/Sudip requirement:
+
+* In the posts table, `text` can remain as existing `content`.
+* `author_id` can remain as existing `userId`.
+* Add a new column: `feeling`.
+* Replace/extend single `imageUrl` usage with `mediaUrls`.
+* Multiple uploads per post will be supported.
+* For now, do NOT implement actual file upload/S3/Cloudinary. Only store multiple media URLs as an array of strings.
+
+Current backend stack:
+Node.js, Express, TypeScript, PostgreSQL, Drizzle ORM, JWT, Swagger/OpenAPI, Postman, Render.
+
+Current production:
+https://cereonco-backend-a21z.onrender.com
+
+Required DB/API shape:
+
+Post should support:
+{
+"id": number,
+"userId": number,
+"content": "string",
+"feeling": "string | null",
+"mediaUrls": ["string"],
+"createdAt": "...",
+"updatedAt": "..."
+}
+
+Create post request should accept:
+{
+"content": "Testing post",
+"feeling": "hopeful",
+"mediaUrls": [
+"https://example.com/image1.jpg",
+"https://example.com/image2.jpg"
+]
+}
+
+Update post request should optionally accept:
+{
+"content": "Updated post",
+"feeling": "grateful",
+"mediaUrls": [
+"https://example.com/new-image.jpg"
+]
+}
+
+Implementation requirements:
+
+1. Inspect existing posts schema first:
+
+   * lib/db/src/schema/posts.ts
+   * artifacts/api-server/src/routes/posts.ts
+   * lib/api-spec/openapi.yaml
+   * artifacts/api-server/src/openapi-spec.ts
+
+2. DB schema:
+
+   * Add `feeling` column if missing:
+     feeling: text("feeling")
+   * Add `mediaUrls` field if missing.
+   * Prefer DB column name `media_urls`.
+   * API should expose camelCase `mediaUrls`.
+   * Store as text array if project already uses Postgres arrays:
+     mediaUrls: text("media_urls").array().notNull().default([])
+   * If array default causes Drizzle/Postgres issue, use nullable array and normalize to [] in responses.
+   * Do not remove `imageUrl` immediately if existing code depends on it. Preserve backward compatibility.
+   * If `imageUrl` exists, keep it but treat it as deprecated.
+
+3. Create post route:
+
+   * Accept `content`, optional `feeling`, optional `mediaUrls`.
+   * If `mediaUrls` is missing, default to [].
+   * Validate `mediaUrls` as an array of strings/URLs.
+   * Insert `feeling` and `mediaUrls`.
+
+4. Update post route:
+
+   * Allow updating `content`, `feeling`, and `mediaUrls`.
+   * Preserve ownership checks.
+   * Do not break existing update behavior.
+
+5. Feed/list posts:
+
+   * Include `feeling`.
+   * Include `mediaUrls`.
+   * If DB value is null, return [].
+   * Preserve existing fields:
+     likeCount
+     bookmarkCount
+     commentCount
+     author
+     isLiked
+     isBookmarked
+
+6. Get single post:
+
+   * Include `feeling`.
+   * Include `mediaUrls`.
+
+7. Group posts:
+
+   * If group posts use the same posts table/entity, ensure group post create/feed responses also include `feeling` and `mediaUrls`.
+   * If group posts are separate, inspect first and only update if relevant.
+
+8. OpenAPI/Swagger:
+
+   * Update Post schema.
+   * Update FeedPost schema.
+   * Update PostInput schema.
+   * Update PostUpdate schema.
+   * Add:
+     feeling:
+     type: string
+     nullable: true
+     mediaUrls:
+     type: array
+     items:
+     type: string
+   * Ensure Swagger UI served through artifacts/api-server/src/openapi-spec.ts is updated too.
+   * Important: This project has both lib/api-spec/openapi.yaml and artifacts/api-server/src/openapi-spec.ts. Keep both in sync.
+
+9. Postman:
+
+   * Update Create Post request body:
+     {
+     "content": "Testing new post fields",
+     "feeling": "hopeful",
+     "mediaUrls": [
+     "https://example.com/image1.jpg",
+     "https://example.com/image2.jpg"
+     ]
+     }
+   * Update Edit Post request body similarly.
+   * Keep Authorization as Bearer {{token}}.
+   * Save postId from create response if script exists.
+
+10. Testing:
+    Run:
+    pnpm --filter @workspace/api-server build
+
+Then test locally or production after deploy:
+
+* POST /posts with feeling and mediaUrls
+* GET /posts
+* GET /posts/:id
+* PATCH /posts/:id with new feeling/mediaUrls
+* Confirm response returns mediaUrls array
+* Confirm old posts without mediaUrls return mediaUrls: []
+
+11. Database migration:
+    After schema update, use Drizzle push:
+    DATABASE_URL="PRODUCTION_DB_URL?sslmode=require" npx drizzle-kit push --config drizzle.config.ts
+
+12. Commit:
+    git add .
+    git commit -m "Add feeling and media URLs to posts"
+    git push origin main
+
+Rules:
+
+* Do not implement real upload storage yet.
+* Do not rename `content` to `text`.
+* Do not rename `userId` to `author_id`.
+* Do not remove existing `imageUrl` unless safely deprecated and no code depends on it.
+* Do not break existing posts, likes, bookmarks, comments, groups, or notifications.
+* Maintain response format:
+  {
+  "success": true,
+  "message": "",
+  "data": {}
+  }

@@ -159,7 +159,7 @@ router.post("/posts", requireAuth, async (req, res): Promise<void> => {
     })
     .returning();
 
-  success(res, "Post created", post, 201);
+  success(res, "Post created", { ...post, mediaUrls: post.mediaUrls ?? [] }, 201);
 });
 
 router.get("/posts/:id", optionalAuth, async (req, res): Promise<void> => {
@@ -246,7 +246,7 @@ router.patch("/posts/:id", requireAuth, async (req, res): Promise<void> => {
     .where(eq(postsTable.id, params.data.id))
     .returning();
 
-  success(res, "Post updated", updated);
+  success(res, "Post updated", { ...updated, mediaUrls: updated.mediaUrls ?? [] });
 });
 
 router.delete("/posts/:id", requireAuth, async (req, res): Promise<void> => {

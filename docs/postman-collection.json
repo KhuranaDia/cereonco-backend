@@ -486,7 +486,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"content\": \"Hello CereOnco community!\"\n}"
+              "raw": "{\n  \"content\": \"Testing new post fields\",\n  \"feeling\": \"hopeful\",\n  \"mediaUrls\": [\n    \"https://example.com/image1.jpg\",\n    \"https://example.com/image2.jpg\"\n  ]\n}"
             }
           },
           "event": [
@@ -495,6 +495,7 @@
               "script": {
                 "exec": [
                   "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('mediaUrls array', () => pm.expect(pm.response.json().data.mediaUrls).to.be.an('array'));",
                   "pm.collectionVariables.set('post_id', pm.response.json().data.id);"
                 ]
               }

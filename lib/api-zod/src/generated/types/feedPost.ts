@@ -12,7 +12,10 @@ export interface FeedPost {
   userId: number;
   content: string;
   /** @nullable */
+  feeling: string | null;
+  /** @nullable */
   imageUrl?: string | null;
+  mediaUrls: string[];
   createdAt: Date;
   updatedAt: Date;
   author: PostAuthor;

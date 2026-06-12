@@ -244,6 +244,8 @@ export const openApiSpec = {
           "id",
           "userId",
           "content",
+          "feeling",
+          "mediaUrls",
           "createdAt",
           "updatedAt"
         ],
@@ -257,11 +259,23 @@ export const openApiSpec = {
           "content": {
             "type": "string"
           },
+          "feeling": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "imageUrl": {
             "type": [
               "string",
               "null"
             ]
+          },
+          "mediaUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "createdAt": {
             "type": "string",
@@ -304,6 +318,8 @@ export const openApiSpec = {
           "id",
           "userId",
           "content",
+          "feeling",
+          "mediaUrls",
           "createdAt",
           "updatedAt",
           "author",
@@ -323,11 +339,23 @@ export const openApiSpec = {
           "content": {
             "type": "string"
           },
+          "feeling": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "imageUrl": {
             "type": [
               "string",
               "null"
             ]
+          },
+          "mediaUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "createdAt": {
             "type": "string",
@@ -666,8 +694,20 @@ export const openApiSpec = {
             "type": "string",
             "minLength": 1
           },
+          "feeling": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "imageUrl": {
             "type": "string"
+          },
+          "mediaUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -678,8 +718,20 @@ export const openApiSpec = {
             "type": "string",
             "minLength": 1
           },
+          "feeling": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "imageUrl": {
             "type": "string"
+          },
+          "mediaUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },

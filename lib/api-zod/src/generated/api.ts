@@ -230,7 +230,9 @@ export const GetFeedResponseItem = zod.object({
   "id": zod.number(),
   "userId": zod.number(),
   "content": zod.string(),
+  "feeling": zod.string().nullable(),
   "imageUrl": zod.string().nullish(),
+  "mediaUrls": zod.array(zod.string()),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "author": zod.object({
@@ -256,7 +258,9 @@ export const GetFeedResponse = zod.array(GetFeedResponseItem)
 
 export const CreatePostBody = zod.object({
   "content": zod.string().min(1),
-  "imageUrl": zod.string().optional()
+  "feeling": zod.string().nullish(),
+  "imageUrl": zod.string().optional(),
+  "mediaUrls": zod.array(zod.string()).optional()
 })
 
 
@@ -271,7 +275,9 @@ export const GetPostResponse = zod.object({
   "id": zod.number(),
   "userId": zod.number(),
   "content": zod.string(),
+  "feeling": zod.string().nullable(),
   "imageUrl": zod.string().nullish(),
+  "mediaUrls": zod.array(zod.string()),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "author": zod.object({
@@ -300,14 +306,18 @@ export const UpdatePostParams = zod.object({
 
 export const UpdatePostBody = zod.object({
   "content": zod.string().min(1).optional(),
-  "imageUrl": zod.string().optional()
+  "feeling": zod.string().nullish(),
+  "imageUrl": zod.string().optional(),
+  "mediaUrls": zod.array(zod.string()).optional()
 })
 
 export const UpdatePostResponse = zod.object({
   "id": zod.number(),
   "userId": zod.number(),
   "content": zod.string(),
+  "feeling": zod.string().nullable(),
   "imageUrl": zod.string().nullish(),
+  "mediaUrls": zod.array(zod.string()),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })

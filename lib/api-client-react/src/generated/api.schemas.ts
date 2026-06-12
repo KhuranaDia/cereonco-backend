@@ -82,7 +82,10 @@ export interface Post {
   userId: number;
   content: string;
   /** @nullable */
+  feeling: string | null;
+  /** @nullable */
   imageUrl?: string | null;
+  mediaUrls: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -100,7 +103,10 @@ export interface FeedPost {
   userId: number;
   content: string;
   /** @nullable */
+  feeling: string | null;
+  /** @nullable */
   imageUrl?: string | null;
+  mediaUrls: string[];
   createdAt: string;
   updatedAt: string;
   author: PostAuthor;
@@ -205,13 +211,19 @@ export interface UserProfileUpdate {
 export interface PostInput {
   /** @minLength 1 */
   content: string;
+  /** @nullable */
+  feeling?: string | null;
   imageUrl?: string;
+  mediaUrls?: string[];
 }
 
 export interface PostUpdate {
   /** @minLength 1 */
   content?: string;
+  /** @nullable */
+  feeling?: string | null;
   imageUrl?: string;
+  mediaUrls?: string[];
 }
 
 export interface CommentInput {
