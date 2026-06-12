@@ -32,7 +32,9 @@ async function buildFeedPosts(
     id: number;
     userId: number;
     content: string;
+    feeling: string | null;
     imageUrl: string | null;
+    mediaUrls: string[] | null;
     createdAt: Date;
     updatedAt: Date;
     authorId: number;
@@ -50,6 +52,7 @@ async function buildFeedPosts(
 
   if (currentUserId && rawPosts.length > 0) {
     const postIds = rawPosts.map((p) => p.id);
+
     const [likes, bookmarks] = await Promise.all([
       db
         .select({ postId: likesTable.postId })
@@ -70,6 +73,7 @@ async function buildFeedPosts(
           ),
         ),
     ]);
+
     likedPostIds = new Set(likes.map((l) => l.postId));
     bookmarkedPostIds = new Set(bookmarks.map((b) => b.postId));
   }
@@ -78,7 +82,9 @@ async function buildFeedPosts(
     id: p.id,
     userId: p.userId,
     content: p.content,
+    feeling: p.feeling,
     imageUrl: p.imageUrl,
+    mediaUrls: p.mediaUrls ?? [],
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
     author: {
@@ -101,7 +107,9 @@ async function queryFeed(limit: number, offset: number) {
       id: postsTable.id,
       userId: postsTable.userId,
       content: postsTable.content,
+      feeling: postsTable.feeling,
       imageUrl: postsTable.imageUrl,
+      mediaUrls: postsTable.mediaUrls,
       createdAt: postsTable.createdAt,
       updatedAt: postsTable.updatedAt,
       authorId: usersTable.id,
@@ -130,11 +138,13 @@ router.get("/posts", optionalAuth, async (req, res): Promise<void> => {
 
   const rawPosts = await queryFeed(limit, offset);
   const posts = await buildFeedPosts(rawPosts, req.userId);
+
   success(res, "Feed retrieved", posts);
 });
 
 router.post("/posts", requireAuth, async (req, res): Promise<void> => {
   const parsed = CreatePostBody.safeParse(req.body);
+
   if (!parsed.success) {
     error(res, parsed.error.issues.map((i) => i.message).join(", "), 400);
     return;
@@ -142,7 +152,11 @@ router.post("/posts", requireAuth, async (req, res): Promise<void> => {
 
   const [post] = await db
     .insert(postsTable)
-    .values({ userId: req.userId!, ...parsed.data })
+    .values({
+      userId: req.userId!,
+      ...parsed.data,
+      mediaUrls: parsed.data.mediaUrls ?? [],
+    })
     .returning();
 
   success(res, "Post created", post, 201);
@@ -150,6 +164,7 @@ router.post("/posts", requireAuth, async (req, res): Promise<void> => {
 
 router.get("/posts/:id", optionalAuth, async (req, res): Promise<void> => {
   const params = GetPostParams.safeParse(req.params);
+
   if (!params.success) {
     error(res, "Invalid post ID", 400);
     return;
@@ -160,7 +175,9 @@ router.get("/posts/:id", optionalAuth, async (req, res): Promise<void> => {
       id: postsTable.id,
       userId: postsTable.userId,
       content: postsTable.content,
+      feeling: postsTable.feeling,
       imageUrl: postsTable.imageUrl,
+      mediaUrls: postsTable.mediaUrls,
       createdAt: postsTable.createdAt,
       updatedAt: postsTable.updatedAt,
       authorId: usersTable.id,
@@ -190,12 +207,14 @@ router.get("/posts/:id", optionalAuth, async (req, res): Promise<void> => {
 
 router.patch("/posts/:id", requireAuth, async (req, res): Promise<void> => {
   const params = UpdatePostParams.safeParse(req.params);
+
   if (!params.success) {
     error(res, "Invalid post ID", 400);
     return;
   }
 
   const parsed = UpdatePostBody.safeParse(req.body);
+
   if (!parsed.success) {
     error(res, parsed.error.issues.map((i) => i.message).join(", "), 400);
     return;
@@ -232,6 +251,7 @@ router.patch("/posts/:id", requireAuth, async (req, res): Promise<void> => {
 
 router.delete("/posts/:id", requireAuth, async (req, res): Promise<void> => {
   const params = DeletePostParams.safeParse(req.params);
+
   if (!params.success) {
     error(res, "Invalid post ID", 400);
     return;
@@ -258,6 +278,7 @@ router.delete("/posts/:id", requireAuth, async (req, res): Promise<void> => {
 
 router.post("/posts/:id/like", requireAuth, async (req, res): Promise<void> => {
   const params = LikePostParams.safeParse(req.params);
+
   if (!params.success) {
     error(res, "Invalid post ID", 400);
     return;
@@ -295,72 +316,87 @@ router.post("/posts/:id/like", requireAuth, async (req, res): Promise<void> => {
   success(res, "Post liked", { liked: true, likeCount });
 });
 
-router.delete("/posts/:id/like", requireAuth, async (req, res): Promise<void> => {
-  const params = UnlikePostParams.safeParse(req.params);
-  if (!params.success) {
-    error(res, "Invalid post ID", 400);
-    return;
-  }
+router.delete(
+  "/posts/:id/like",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const params = UnlikePostParams.safeParse(req.params);
 
-  await db
-    .delete(likesTable)
-    .where(
-      and(
-        eq(likesTable.userId, req.userId!),
-        eq(likesTable.postId, params.data.id),
-      ),
-    );
+    if (!params.success) {
+      error(res, "Invalid post ID", 400);
+      return;
+    }
 
-  const [{ likeCount }] = await db
-    .select({ likeCount: sql<number>`cast(count(*) as integer)` })
-    .from(likesTable)
-    .where(eq(likesTable.postId, params.data.id));
+    await db
+      .delete(likesTable)
+      .where(
+        and(
+          eq(likesTable.userId, req.userId!),
+          eq(likesTable.postId, params.data.id),
+        ),
+      );
 
-  success(res, "Post unliked", { liked: false, likeCount });
-});
+    const [{ likeCount }] = await db
+      .select({ likeCount: sql<number>`cast(count(*) as integer)` })
+      .from(likesTable)
+      .where(eq(likesTable.postId, params.data.id));
 
-router.post("/posts/:id/bookmark", requireAuth, async (req, res): Promise<void> => {
-  const params = BookmarkPostParams.safeParse(req.params);
-  if (!params.success) {
-    error(res, "Invalid post ID", 400);
-    return;
-  }
+    success(res, "Post unliked", { liked: false, likeCount });
+  },
+);
 
-  const [post] = await db
-    .select({ id: postsTable.id })
-    .from(postsTable)
-    .where(eq(postsTable.id, params.data.id));
+router.post(
+  "/posts/:id/bookmark",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const params = BookmarkPostParams.safeParse(req.params);
 
-  if (!post) {
-    error(res, "Post not found", 404);
-    return;
-  }
+    if (!params.success) {
+      error(res, "Invalid post ID", 400);
+      return;
+    }
 
-  await db
-    .insert(bookmarksTable)
-    .values({ userId: req.userId!, postId: params.data.id })
-    .onConflictDoNothing();
+    const [post] = await db
+      .select({ id: postsTable.id })
+      .from(postsTable)
+      .where(eq(postsTable.id, params.data.id));
 
-  success(res, "Post bookmarked", { bookmarked: true });
-});
+    if (!post) {
+      error(res, "Post not found", 404);
+      return;
+    }
 
-router.delete("/posts/:id/bookmark", requireAuth, async (req, res): Promise<void> => {
-  const params = UnbookmarkPostParams.safeParse(req.params);
-  if (!params.success) {
-    error(res, "Invalid post ID", 400);
-    return;
-  }
+    await db
+      .insert(bookmarksTable)
+      .values({ userId: req.userId!, postId: params.data.id })
+      .onConflictDoNothing();
 
-  await db
-    .delete(bookmarksTable)
-    .where(
-      and(
-        eq(bookmarksTable.userId, req.userId!),
-        eq(bookmarksTable.postId, params.data.id),
-      ),
-    );
+    success(res, "Post bookmarked", { bookmarked: true });
+  },
+);
 
-  success(res, "Bookmark removed", { bookmarked: false });
-});
+router.delete(
+  "/posts/:id/bookmark",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const params = UnbookmarkPostParams.safeParse(req.params);
+
+    if (!params.success) {
+      error(res, "Invalid post ID", 400);
+      return;
+    }
+
+    await db
+      .delete(bookmarksTable)
+      .where(
+        and(
+          eq(bookmarksTable.userId, req.userId!),
+          eq(bookmarksTable.postId, params.data.id),
+        ),
+      );
+
+    success(res, "Bookmark removed", { bookmarked: false });
+  },
+);
 
 export default router;
