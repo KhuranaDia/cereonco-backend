@@ -24,19 +24,31 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   }
 
   const { name, email, role, specialty } = parsed.data;
-  const countryCode = parsed.data.country_code ?? null;
-  const phoneNumber = parsed.data.phone_number ?? null;
+  const countryCode = parsed.data.country_code?.trim() || null;
+  const phoneNumber = parsed.data.phone_number?.trim() || null;
 
   const normalizedEmail = email.trim().toLowerCase();
 
-  const [existing] = await db
+  const [existingEmail] = await db
     .select({ id: usersTable.id })
     .from(usersTable)
     .where(eq(usersTable.email, normalizedEmail));
 
-  if (existing) {
+  if (existingEmail) {
     error(res, "Email already in use", 409);
     return;
+  }
+
+  if (phoneNumber) {
+    const [existingPhone] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.phoneNumber, phoneNumber));
+
+    if (existingPhone) {
+      error(res, "Phone number already in use", 409);
+      return;
+    }
   }
 
   const { token: setupToken, tokenHash, expiresAt } = generateSetupToken();

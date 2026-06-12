@@ -18,7 +18,7 @@ export const usersTable = pgTable("users", {
 
   // Contact
   countryCode: text("country_code"),
-  phoneNumber: text("phone_number"),
+  phoneNumber: text("phone_number").unique(),
 
   // Email verification + passwordless setup flow
   emailVerified: boolean("email_verified").notNull().default(false),
