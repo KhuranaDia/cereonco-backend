@@ -22,6 +22,8 @@ tags:
     description: Community groups, membership, group posts
   - name: notifications
     description: User notifications
+  - name: messages
+    description: Direct messaging between users
 
 components:
   securitySchemes:
@@ -589,6 +591,118 @@ components:
           type: integer
 
     UnreadCountResponse:
+      type: object
+      required: [unreadCount]
+      properties:
+        unreadCount:
+          type: integer
+
+    # Message schemas
+    ConversationParticipant:
+      type: object
+      required: [id, name, role]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        role:
+          $ref: "#/components/schemas/UserRole"
+        avatarUrl:
+          type: ["string", "null"]
+        profilePhotoUrl:
+          type: ["string", "null"]
+
+    Message:
+      type: object
+      required: [id, conversationId, senderId, receiverId, content, mediaUrls, isRead, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        senderId:
+          type: integer
+        receiverId:
+          type: integer
+        content:
+          type: string
+        mediaUrls:
+          type: array
+          items:
+            type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Conversation:
+      type: object
+      required: [id, participant, lastMessage, unreadCount, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        participant:
+          $ref: "#/components/schemas/ConversationParticipant"
+        lastMessage:
+          oneOf:
+            - $ref: "#/components/schemas/Message"
+            - type: "null"
+        unreadCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ConversationListResponse:
+      type: object
+      required: [conversations, total]
+      properties:
+        conversations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Conversation"
+        total:
+          type: integer
+
+    MessagesListResponse:
+      type: object
+      required: [messages, total]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+        total:
+          type: integer
+
+    CreateConversationInput:
+      type: object
+      required: [recipientId]
+      properties:
+        recipientId:
+          type: integer
+
+    SendMessageInput:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+        mediaUrls:
+          type: array
+          items:
+            type: string
+
+    UnreadMessagesCountResponse:
       type: object
       required: [unreadCount]
       properties:
@@ -1371,3 +1485,155 @@ paths:
                     type: integer
         "401":
           description: Unauthorized
+
+  /messages/conversations:
+    post:
+      operationId: createConversation
+      tags: [messages]
+      summary: Create or get a conversation with another user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateConversationInput"
+      responses:
+        "201":
+          description: Conversation created or existing one returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+        "400":
+          description: Invalid request (e.g. messaging yourself)
+        "401":
+          description: Unauthorized
+        "404":
+          description: Recipient not found
+    get:
+      operationId: listConversations
+      tags: [messages]
+      summary: List current user's conversations (newest updated first)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Conversation list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationListResponse"
+        "401":
+          description: Unauthorized
+
+  /messages/unread-count:
+    get:
+      operationId: getUnreadMessageCount
+      tags: [messages]
+      summary: Get total unread message count for the current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unread message count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnreadMessagesCountResponse"
+        "401":
+          description: Unauthorized
+
+  /messages/conversations/{conversationId}:
+    get:
+      operationId: getConversationMessages
+      tags: [messages]
+      summary: Get messages in a conversation (oldest first)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Messages list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessagesListResponse"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Conversation not found
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      summary: Send a message in a conversation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageInput"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Conversation not found
+
+  /messages/conversations/{conversationId}/read:
+    patch:
+      operationId: markConversationRead
+      tags: [messages]
+      summary: Mark messages from the other user as read
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Messages marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [updatedCount, unreadCount]
+                properties:
+                  updatedCount:
+                    type: integer
+                  unreadCount:
+                    type: integer
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Conversation not found

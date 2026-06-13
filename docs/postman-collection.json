@@ -75,6 +75,11 @@
       "key": "user_id2",
       "value": "1",
       "type": "string"
+    },
+    {
+      "key": "conversation_id",
+      "value": "1",
+      "type": "string"
     }
   ],
   "item": [
@@ -1426,6 +1431,190 @@
               "script": {
                 "exec": [
                   "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 7 - Messages",
+      "item": [
+        {
+          "name": "POST create/get conversation",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/messages/conversations",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recipientId\": \"{{user_id2}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Has conversation id', () => pm.expect(d.id).to.be.a('number'));",
+                  "pm.test('Has participant', () => pm.expect(d.participant).to.have.property('name'));",
+                  "pm.test('Has unreadCount', () => pm.expect(d.unreadCount).to.be.a('number'));",
+                  "pm.collectionVariables.set('conversation_id', d.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST send message",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/messages/conversations/{{conversation_id}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Hello there!\",\n  \"mediaUrls\": [\n    \"https://example.com/img.png\"\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Has message id', () => pm.expect(d.id).to.be.a('number'));",
+                  "pm.test('Content matches', () => pm.expect(d.content).to.eql('Hello there!'));",
+                  "pm.test('mediaUrls is array', () => pm.expect(d.mediaUrls).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET conversations (list)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/messages/conversations",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Has conversations array', () => pm.expect(d.conversations).to.be.an('array'));",
+                  "pm.test('Has total', () => pm.expect(d.total).to.be.a('number'));",
+                  "if (d.conversations.length > 0) {",
+                  "  const conv = d.conversations[0];",
+                  "  pm.test('Conversation has participant', () => pm.expect(conv.participant).to.have.property('name'));",
+                  "  pm.test('Conversation has unreadCount', () => pm.expect(conv.unreadCount).to.be.a('number'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET messages in conversation",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/messages/conversations/{{conversation_id}}",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Has messages array', () => pm.expect(d.messages).to.be.an('array'));",
+                  "pm.test('Has total', () => pm.expect(d.total).to.be.a('number'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET unread message count",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/messages/unread-count",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Has unreadCount', () => pm.expect(d.unreadCount).to.be.a('number'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH mark conversation read",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/messages/conversations/{{conversation_id}}/read",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token2}}"
+              }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Has updatedCount', () => pm.expect(d.updatedCount).to.be.a('number'));",
+                  "pm.test('unreadCount is 0', () => pm.expect(d.unreadCount).to.eql(0));"
                 ]
               }
             }

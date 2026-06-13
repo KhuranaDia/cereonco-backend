@@ -342,6 +342,61 @@ export interface UnreadCountResponse {
   unreadCount: number;
 }
 
+export interface ConversationParticipant {
+  id: number;
+  name: string;
+  role: UserRole;
+  /** @nullable */
+  avatarUrl?: string | null;
+  /** @nullable */
+  profilePhotoUrl?: string | null;
+}
+
+export interface Message {
+  id: number;
+  conversationId: number;
+  senderId: number;
+  receiverId: number;
+  content: string;
+  mediaUrls: string[];
+  isRead: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Conversation {
+  id: number;
+  participant: ConversationParticipant;
+  lastMessage: Message | null;
+  unreadCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConversationListResponse {
+  conversations: Conversation[];
+  total: number;
+}
+
+export interface MessagesListResponse {
+  messages: Message[];
+  total: number;
+}
+
+export interface CreateConversationInput {
+  recipientId: number;
+}
+
+export interface SendMessageInput {
+  /** @minLength 1 */
+  content: string;
+  mediaUrls?: string[];
+}
+
+export interface UnreadMessagesCountResponse {
+  unreadCount: number;
+}
+
 export type GetFeedParams = {
 limit?: number;
 offset?: number;
@@ -364,5 +419,10 @@ offset?: number;
 
 export type MarkAllRead200 = {
   updatedCount: number;
+};
+
+export type MarkConversationRead200 = {
+  updatedCount: number;
+  unreadCount: number;
 };
 

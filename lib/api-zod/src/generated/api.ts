@@ -720,3 +720,103 @@ export const MarkAllReadResponse = zod.object({
 })
 
 
+/**
+ * @summary Create or get a conversation with another user
+ */
+export const CreateConversationBody = zod.object({
+  "recipientId": zod.number()
+})
+
+
+/**
+ * @summary List current user's conversations (newest updated first)
+ */
+export const ListConversationsResponse = zod.object({
+  "conversations": zod.array(zod.object({
+  "id": zod.number(),
+  "participant": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
+  "avatarUrl": zod.string().nullish(),
+  "profilePhotoUrl": zod.string().nullish()
+}),
+  "lastMessage": zod.union([zod.object({
+  "id": zod.number(),
+  "conversationId": zod.number(),
+  "senderId": zod.number(),
+  "receiverId": zod.number(),
+  "content": zod.string(),
+  "mediaUrls": zod.array(zod.string()),
+  "isRead": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),zod.null()]),
+  "unreadCount": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "total": zod.number()
+})
+
+
+/**
+ * @summary Get total unread message count for the current user
+ */
+export const GetUnreadMessageCountResponse = zod.object({
+  "unreadCount": zod.number()
+})
+
+
+/**
+ * @summary Get messages in a conversation (oldest first)
+ */
+export const GetConversationMessagesParams = zod.object({
+  "conversationId": zod.coerce.number()
+})
+
+export const GetConversationMessagesResponse = zod.object({
+  "messages": zod.array(zod.object({
+  "id": zod.number(),
+  "conversationId": zod.number(),
+  "senderId": zod.number(),
+  "receiverId": zod.number(),
+  "content": zod.string(),
+  "mediaUrls": zod.array(zod.string()),
+  "isRead": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "total": zod.number()
+})
+
+
+/**
+ * @summary Send a message in a conversation
+ */
+export const SendMessageParams = zod.object({
+  "conversationId": zod.coerce.number()
+})
+
+
+
+
+export const SendMessageBody = zod.object({
+  "content": zod.string().min(1),
+  "mediaUrls": zod.array(zod.string()).optional()
+})
+
+
+/**
+ * @summary Mark messages from the other user as read
+ */
+export const MarkConversationReadParams = zod.object({
+  "conversationId": zod.coerce.number()
+})
+
+export const MarkConversationReadResponse = zod.object({
+  "updatedCount": zod.number(),
+  "unreadCount": zod.number()
+})
+
+

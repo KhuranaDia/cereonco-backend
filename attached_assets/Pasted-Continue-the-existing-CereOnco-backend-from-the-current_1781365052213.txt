@@ -1,0 +1,149 @@
+Continue the existing CereOnco backend from the current codebase. Do not rebuild or refactor completed modules.
+
+Task: Implement Phase 7 — Messages.
+
+Stack:
+Node.js, Express, TypeScript, PostgreSQL, Drizzle ORM, JWT, bcrypt, Swagger/OpenAPI, Postman, Render.
+
+Existing completed modules:
+Auth, Users, Posts, Comments, Groups, Notifications, Registration flow, Post mediaUrls/feeling.
+
+Goal:
+Add direct messaging between users.
+
+Required features:
+
+1. Conversations
+- Create or get conversation between two users.
+- List current user's conversations.
+- Conversation should show the other participant, last message, unread count, and updatedAt.
+
+2. Messages
+- Send message in a conversation.
+- Get messages in a conversation.
+- Mark messages as read.
+- Unread message count.
+
+3. Database tables
+Add tables if missing:
+
+conversations:
+- id
+- user_one_id
+- user_two_id
+- created_at
+- updated_at
+
+messages:
+- id
+- conversation_id
+- sender_id
+- receiver_id
+- content
+- media_urls text array default []
+- is_read boolean default false
+- created_at
+- updated_at
+
+4. API endpoints
+
+POST /messages/conversations
+Body:
+{
+  "recipientId": 2
+}
+
+GET /messages/conversations
+
+GET /messages/conversations/:conversationId
+
+POST /messages/conversations/:conversationId
+Body:
+{
+  "content": "Hello",
+  "mediaUrls": []
+}
+
+PATCH /messages/conversations/:conversationId/read
+
+GET /messages/unread-count
+
+5. Rules
+- User must be authenticated.
+- Users cannot access conversations they are not part of.
+- Users cannot message themselves.
+- If conversation already exists between same two users, return existing one.
+- Messages newest/oldest order should be consistent; use oldest first inside a conversation.
+- Conversation list should be newest updated first.
+- Mark read should only mark messages sent by the other user.
+- mediaUrls optional and should default to [].
+- Keep response format:
+{
+  "success": true,
+  "message": "",
+  "data": {}
+}
+
+Error:
+{
+  "success": false,
+  "message": ""
+}
+
+6. OpenAPI/Swagger
+Update:
+- lib/api-spec/openapi.yaml
+- artifacts/api-server/src/openapi-spec.ts
+
+Add schemas:
+- Conversation
+- Message
+- ConversationListResponse
+- MessagesListResponse
+- CreateConversationInput
+- SendMessageInput
+- UnreadMessagesCountResponse
+
+7. Postman
+Add folder:
+Phase 7 - Messages
+
+Requests:
+- Create Conversation
+- List Conversations
+- Get Conversation Messages
+- Send Message
+- Mark Conversation Read
+- Get Unread Message Count
+
+Use variables:
+conversationId
+recipientId
+messageId
+
+8. Testing
+Run:
+pnpm --filter @workspace/api-server build
+
+Then test:
+- Register/Login two users
+- User A creates conversation with User B
+- User A sends message
+- User B lists conversations
+- User B gets messages
+- User B unread count increases
+- User B marks conversation read
+- Unread count becomes 0
+- Unauthorized access blocked
+
+9. DB push
+After schema update:
+DATABASE_URL="PRODUCTION_DB_URL?sslmode=require" npx drizzle-kit push --config drizzle.config.ts
+
+10. Commit:
+git add .
+git commit -m "Implement Phase 7 messages"
+git push origin main
+
+Do not change completed modules unless required.
+Do not break Auth, Posts, Comments, Groups, Notifications.

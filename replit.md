@@ -1,6 +1,6 @@
 # CereOnco Community API
 
-A modular REST API backend for the CereOnco Community platform — supporting cancer patients, caregivers, and medical professionals. Phase 1–5 complete.
+A modular REST API backend for the CereOnco Community platform — supporting cancer patients, caregivers, and medical professionals. Phase 1–7 complete.
 
 ## Run & Operate
 
@@ -27,8 +27,8 @@ A modular REST API backend for the CereOnco Community platform — supporting ca
 ## Where things live
 
 - **API contract**: `lib/api-spec/openapi.yaml` — source of truth, edit here first
-- **DB schema**: `lib/db/src/schema/` — users.ts, posts.ts, comments.ts, groups.ts
-- **Routes**: `artifacts/api-server/src/routes/` — auth, users, posts, comments, groups, docs, health
+- **DB schema**: `lib/db/src/schema/` — users.ts, posts.ts, comments.ts, groups.ts, notifications.ts, messages.ts
+- **Routes**: `artifacts/api-server/src/routes/` — auth, users, posts, comments, groups, notifications, messages, docs, health
 - **Middlewares**: `artifacts/api-server/src/middlewares/` — auth.ts (requireAuth), optionalAuth.ts
 - **Utils**: `artifacts/api-server/src/utils/` — response.ts, token.ts
 - **Docs**: `docs/` — README.md, PROJECT_STATUS.md, postman-collection.json
@@ -45,10 +45,11 @@ A modular REST API backend for the CereOnco Community platform — supporting ca
 - **JWT via SESSION_SECRET**: 7-day expiry; logout is client-side.
 - **Passwordless registration**: `POST /auth/register` collects no password — it stores a hashed, 24h single-use setup token and emails (or logs) a setup link. `POST /auth/set-password {token, password}` verifies the account, bcrypt-hashes the password, and auto-logs-in. `passwordHash` is nullable until then; login before setup returns 403. Only the SHA-256 hash of the setup token is persisted. SMTP is pluggable via `SMTP_HOST`/`SMTP_USER`; `FRONTEND_URL` sets the link base.
 - **api-zod barrel**: `lib/api-zod/src/index.ts` exports only `generated/api` (Zod schemas). The `generated/types` barrel is NOT re-exported to avoid TS2308 collisions when operations have both path params and query params.
+- **Conversation identity**: conversations store a normalized participant pair (`userOneId = min(a,b)`, `userTwoId = max(a,b)`) with a `unique(userOneId, userTwoId)` constraint, so `(A,B)` and `(B,A)` map to one row. Create-or-get uses insert `onConflictDoNothing()` then re-select for race safety.
 
 ## Product
 
-Phase 1–5 complete:
+Phase 1–7 complete:
 - User registration/login with JWT + bcrypt
 - Role-based profiles (patient, caregiver, medical_professional, admin)
 - Extended profile fields: cancerType, treatmentStage, interests (patient/caregiver); specialty, hospitalAffiliation, medicalLicenseNumber (medical professionals)
@@ -58,6 +59,8 @@ Phase 1–5 complete:
 - `commentCount` on all post responses
 - Comments & Replies: threaded structure, edit, soft delete, auth-gated
 - Community Groups: list/view groups with memberCount+isMember, join/leave (idempotent), group feed, group post CRUD with ownership checks
+- Notifications: list (paginated), unread-count, mark single/all read; triggered by likes/comments/replies/group-joins/group-posts
+- Messages: 1:1 direct messaging — create-or-get conversation (idempotent, normalized participant pair), conversation list (otherParticipant + lastMessage + unreadCount, newest-updated first), conversation messages (oldest-first, membership-gated), send message (touches conversation updatedAt), mark-read (only messages received by current user), global unread-count
 - Swagger UI at `/api/docs`
 
 ## User preferences
@@ -77,6 +80,7 @@ Phase 1–5 complete:
 - Body schema names in the spec must be entity-shaped (not `<OperationIdPascal>Body`) to avoid TS2308 codegen collisions
 - Self-referencing FK in Drizzle requires `(): AnyPgColumn =>` arrow wrapper
 - Operations with BOTH path params AND query params generate `XxxParams` in both `api.ts` (Zod) and `types/` (TS type), causing TS2308. Fix: do NOT re-export `generated/types` from `lib/api-zod/src/index.ts`
+- `pnpm --filter @workspace/db run push` currently blocks on a pre-existing, unrelated drift: the dev DB has duplicate non-null `phone_number` values, so adding the `users_phone_number_unique` constraint prompts to truncate users (and `push-force` would error). It needs a TTY and cannot run non-interactively. When this drift blocks a push for a NEW table, create just the new tables via direct DDL matching Drizzle's constraint naming (`<table>_<col>_<reftable>_<refcol>_fk`, `<table>_<col1>_<col2>_unique`) so a future clean push sees no drift.
 
 ## Pointers
 

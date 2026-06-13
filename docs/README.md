@@ -317,9 +317,77 @@ Users are never notified about their own actions.
 
 ---
 
-## Future Modules (Phase 7+)
+## Messages (Phase 7)
 
-- Direct Messages
+Direct (1:1) messaging between users. A conversation is uniquely identified by its
+participant pair; participant IDs are normalized (`userOneId = min`, `userTwoId = max`)
+so `(A,B)` and `(B,A)` resolve to the same conversation.
+
+### Create or get a conversation
+
+```
+POST /api/messages/conversations
+Authorization: Bearer <token>
+{ "recipientId": 2 }
+```
+
+Returns the `Conversation` (`201`). Idempotent — returns the existing conversation if
+one already exists. Returns `400` when messaging yourself, `404` when the recipient
+does not exist.
+
+### List conversations
+
+```
+GET /api/messages/conversations
+Authorization: Bearer <token>
+```
+
+Returns `{ conversations: [...], total: N }`, newest-updated first. Each conversation
+includes the other `participant`, the `lastMessage` (or `null`), and `unreadCount`.
+
+### Get messages in a conversation
+
+```
+GET /api/messages/conversations/:conversationId
+Authorization: Bearer <token>
+```
+
+Returns `{ messages: [...], total: N }`, oldest-first. `403` if you are not a participant.
+
+### Send a message
+
+```
+POST /api/messages/conversations/:conversationId
+Authorization: Bearer <token>
+{ "content": "Hello", "mediaUrls": ["https://..."] }
+```
+
+Returns the created `Message` (`201`). `403` if you are not a participant. Touches the
+conversation's `updatedAt` so it sorts to the top of the list.
+
+### Mark conversation as read
+
+```
+PATCH /api/messages/conversations/:conversationId/read
+Authorization: Bearer <token>
+```
+
+Marks only messages received by the current user as read. Returns
+`{ updatedCount: N, unreadCount: 0 }`.
+
+### Unread message count
+
+```
+GET /api/messages/unread-count
+Authorization: Bearer <token>
+```
+
+Returns `{ unreadCount: N }` across all conversations.
+
+---
+
+## Future Modules (Phase 8+)
+
 - Cognie AI integration
 - Admin endpoints (verify/reject MDs, moderate content)
 - File uploads
