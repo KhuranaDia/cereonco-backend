@@ -6,3 +6,4 @@
 - [Dual OpenAPI specs](dual-openapi-spec.md) — Swagger UI serves a hand-maintained openapi-spec.ts, separate from the codegen YAML; both must be synced on any contract change.
 - [Posts mediaUrls storage](posts-mediaurls-storage.md) — media_urls kept as jsonb (not Postgres text[]); responses normalize null→[]; feeling is nullable text.
 - [Drizzle push blocked by phone drift](db-push-phone-drift.md) — dev `db run push` fails on duplicate phone_number unique; add new tables via direct DDL matching Drizzle constraint names.
+- [Socket.IO real-time layer](socketio-realtime.md) — shared HTTP server, path must be `/api/socket.io` for the proxy, persist-then-emit, in-memory presence wont scale past one instance.

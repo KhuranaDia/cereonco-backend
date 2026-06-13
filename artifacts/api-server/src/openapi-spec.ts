@@ -42,7 +42,7 @@ export const openApiSpec = {
     },
     {
       "name": "messages",
-      "description": "Direct messaging between users"
+      "description": "Direct (1:1) messaging between users. These REST endpoints are the durable source of truth (history, unread counts, mark-read). Real-time delivery, typing indicators and presence run over **Socket.IO** on the same server.\n\n**Socket connection**\n\nConnect to the same origin with path `/api/socket.io` and authenticate with the same JWT used for REST. Pass the token in the handshake: `io(ORIGIN, { path: \"/api/socket.io\", auth: { token: \"<JWT>\" } })`. An invalid/missing token rejects the connection. Sending a message over a socket persists it to the database first, then emits — so socket and REST stay consistent.\n\n**Client → Server events** (each accepts an optional ack callback):\n- `joinConversation { conversationId }` — join a chat room (membership-checked)\n- `leaveConversation { conversationId }`\n- `sendMessage { conversationId, content, mediaUrls? }` — persist + fan out\n- `markRead { conversationId }` — mark received messages read\n- `typingStart { conversationId }` / `typingStop { conversationId }`\n\n**Server → Client events:**\n- `newMessage` (Message) — to everyone in the conversation room\n- `messageReceived` (Message) — to the recipient's personal room (inbox badge)\n- `messageRead { conversationId, readerId, messageIds }` — read receipts\n- `typing { conversationId, userId }` / `stopTyping { conversationId, userId }`\n- `userOnline { userId }` / `userOffline { userId }` — presence\n- `onlineUsers { userIds }` — presence snapshot sent on connect"
     }
   ],
   "components": {

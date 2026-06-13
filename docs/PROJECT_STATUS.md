@@ -54,6 +54,13 @@ A modular REST API backend for the CereOnco Community platform. Built API-first 
   - Mark single notification as read (idempotent)
   - Mark all as read
   - 403 guard: users can only act on their own notifications
+- **Real-Time Messaging (Phase 7)**:
+  - 1:1 direct messaging with one conversation per user pair (normalized participant pair)
+  - REST endpoints: create/get conversation, list conversations (participant + lastMessage + unreadCount), get messages, send (fallback), mark read, unread count
+  - **Socket.IO** on the same server/port (path `/api/socket.io`), JWT handshake auth
+  - Live events: `newMessage`, `messageReceived`, `messageRead`, `typing`/`stopTyping`, `userOnline`/`userOffline`, `onlineUsers`
+  - Messages persist to PostgreSQL first, then emit — offline recipients get history on reconnect
+  - In-memory presence map (no Redis); typing is never persisted
 - Swagger UI at `/api/docs`
 - Postman collection in `docs/`
 
@@ -70,6 +77,7 @@ A modular REST API backend for the CereOnco Community platform. Built API-first 
 | ORM | Drizzle ORM + drizzle-kit |
 | Validation | Zod v4 + drizzle-zod |
 | Auth | JWT (jsonwebtoken) + bcrypt (bcryptjs) |
+| Real-time | Socket.IO (shared HTTP server) |
 | Logging | Pino + pino-http |
 | API Spec | OpenAPI 3.1 (Orval codegen) |
 | Docs UI | swagger-ui-express |
@@ -98,7 +106,14 @@ workspace/
 │           │   ├── comments.ts           # Comments + replies (Phase 4)
 │           │   ├── groups.ts             # Community groups (Phase 5)
 │           │   ├── notifications.ts      # Notifications (Phase 6)
+│           │   ├── messages.ts           # Messages REST (Phase 7)
 │           │   └── docs.ts               # Swagger UI
+│           ├── services/
+│           │   └── messages.ts           # Shared message ops + socket emit (Phase 7)
+│           ├── socket/
+│           │   ├── index.ts              # Socket.IO init, JWT handshake, event handlers
+│           │   ├── io.ts                 # io singleton + emit helpers
+│           │   └── onlineUsers.ts        # In-memory presence map
 │           └── utils/
 │               ├── response.ts           # success() / error()
 │               ├── token.ts              # generateToken() / verifyToken()
@@ -430,8 +445,8 @@ pnpm --filter @workspace/api-spec run codegen
 | Phase | Module | Status |
 |---|---|---|
 | Phase 6 | Notifications | ✅ Complete |
-| Phase 7 | Direct Messages | Planned |
-| Phase 7 | Cognie AI integration | Planned |
+| Phase 7 | Real-Time Direct Messaging (Socket.IO) | ✅ Done |
+| Phase 8 | Cognie AI integration | Planned |
 | Phase 8 | Admin endpoints (verify/reject MDs, moderate content) | Planned |
 | Phase 8 | File uploads (Object Storage) | Planned |
 | Phase 8 | Events & RSVPs | Planned |

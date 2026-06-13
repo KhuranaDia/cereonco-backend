@@ -5,8 +5,6 @@ import {
   conversationsTable,
   messagesTable,
   usersTable,
-  type Conversation,
-  type Message,
 } from "@workspace/db";
 import {
   CreateConversationBody,
@@ -17,46 +15,16 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import { success, error } from "../utils/response";
+import {
+  shapeMessage,
+  otherUserId,
+  loadOwnedConversation,
+  createOrGetConversation,
+  sendMessageToConversation,
+  markConversationRead,
+} from "../services/messages";
 
 const router: IRouter = Router();
-
-function shapeMessage(m: Message) {
-  return {
-    id: m.id,
-    conversationId: m.conversationId,
-    senderId: m.senderId,
-    receiverId: m.receiverId,
-    content: m.content,
-    mediaUrls: m.mediaUrls ?? [],
-    isRead: m.isRead,
-    createdAt: m.createdAt,
-    updatedAt: m.updatedAt,
-  };
-}
-
-function otherUserId(convo: Conversation, currentUserId: number): number {
-  return convo.userOneId === currentUserId ? convo.userTwoId : convo.userOneId;
-}
-
-function isParticipant(convo: Conversation, currentUserId: number): boolean {
-  return (
-    convo.userOneId === currentUserId || convo.userTwoId === currentUserId
-  );
-}
-
-async function loadParticipant(userId: number) {
-  const [user] = await db
-    .select({
-      id: usersTable.id,
-      name: usersTable.name,
-      role: usersTable.role,
-      avatarUrl: usersTable.avatarUrl,
-      profilePhotoUrl: usersTable.profilePhotoUrl,
-    })
-    .from(usersTable)
-    .where(eq(usersTable.id, userId));
-  return user ?? null;
-}
 
 router.post(
   "/messages/conversations",
@@ -68,59 +36,16 @@ router.post(
       return;
     }
 
-    const currentUserId = req.userId!;
-    const { recipientId } = parsed.data;
-
-    if (recipientId === currentUserId) {
-      error(res, "You cannot start a conversation with yourself", 400);
-      return;
-    }
-
-    const recipient = await loadParticipant(recipientId);
-    if (!recipient) {
-      error(res, "Recipient not found", 404);
-      return;
-    }
-
-    const userOneId = Math.min(currentUserId, recipientId);
-    const userTwoId = Math.max(currentUserId, recipientId);
-
-    let [convo] = await db
-      .insert(conversationsTable)
-      .values({ userOneId, userTwoId })
-      .onConflictDoNothing()
-      .returning();
-
-    if (!convo) {
-      [convo] = await db
-        .select()
-        .from(conversationsTable)
-        .where(
-          and(
-            eq(conversationsTable.userOneId, userOneId),
-            eq(conversationsTable.userTwoId, userTwoId),
-          ),
-        );
-    }
-
-    if (!convo) {
-      error(res, "Failed to create conversation", 500);
-      return;
-    }
-
-    success(
-      res,
-      "Conversation ready",
-      {
-        id: convo.id,
-        participant: recipient,
-        lastMessage: null,
-        unreadCount: 0,
-        createdAt: convo.createdAt,
-        updatedAt: convo.updatedAt,
-      },
-      201,
+    const result = await createOrGetConversation(
+      req.userId!,
+      parsed.data.recipientId,
     );
+    if ("status" in result) {
+      error(res, result.message, result.status);
+      return;
+    }
+
+    success(res, "Conversation ready", result, 201);
   },
 );
 
@@ -230,29 +155,6 @@ router.get(
   },
 );
 
-async function loadOwnedConversation(
-  conversationId: number,
-  currentUserId: number,
-): Promise<
-  { convo: Conversation } | { status: number; message: string }
-> {
-  const [convo] = await db
-    .select()
-    .from(conversationsTable)
-    .where(eq(conversationsTable.id, conversationId));
-
-  if (!convo) {
-    return { status: 404, message: "Conversation not found" };
-  }
-  if (!isParticipant(convo, currentUserId)) {
-    return {
-      status: 403,
-      message: "Forbidden — you are not part of this conversation",
-    };
-  }
-  return { convo };
-}
-
 router.get(
   "/messages/conversations/:conversationId",
   requireAuth,
@@ -301,35 +203,18 @@ router.post(
       return;
     }
 
-    const currentUserId = req.userId!;
-    const result = await loadOwnedConversation(
+    const result = await sendMessageToConversation(
       params.data.conversationId,
-      currentUserId,
+      req.userId!,
+      parsed.data.content,
+      parsed.data.mediaUrls ?? [],
     );
     if ("status" in result) {
       error(res, result.message, result.status);
       return;
     }
 
-    const receiverId = otherUserId(result.convo, currentUserId);
-
-    const [message] = await db
-      .insert(messagesTable)
-      .values({
-        conversationId: result.convo.id,
-        senderId: currentUserId,
-        receiverId,
-        content: parsed.data.content,
-        mediaUrls: parsed.data.mediaUrls ?? [],
-      })
-      .returning();
-
-    await db
-      .update(conversationsTable)
-      .set({ updatedAt: new Date() })
-      .where(eq(conversationsTable.id, result.convo.id));
-
-    success(res, "Message sent", shapeMessage(message), 201);
+    success(res, "Message sent", result.message, 201);
   },
 );
 
@@ -343,30 +228,17 @@ router.patch(
       return;
     }
 
-    const currentUserId = req.userId!;
-    const result = await loadOwnedConversation(
+    const result = await markConversationRead(
       params.data.conversationId,
-      currentUserId,
+      req.userId!,
     );
     if ("status" in result) {
       error(res, result.message, result.status);
       return;
     }
 
-    const updated = await db
-      .update(messagesTable)
-      .set({ isRead: true })
-      .where(
-        and(
-          eq(messagesTable.conversationId, result.convo.id),
-          eq(messagesTable.receiverId, currentUserId),
-          eq(messagesTable.isRead, false),
-        ),
-      )
-      .returning({ id: messagesTable.id });
-
     success(res, "Conversation marked as read", {
-      updatedCount: updated.length,
+      updatedCount: result.updatedCount,
       unreadCount: 0,
     });
   },

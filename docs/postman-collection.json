@@ -80,6 +80,14 @@
       "key": "conversation_id",
       "value": "1",
       "type": "string"
+    },
+    {
+      "key": "recipient_id",
+      "value": ""
+    },
+    {
+      "key": "message_id",
+      "value": ""
     }
   ],
   "item": [
@@ -1439,7 +1447,7 @@
       ]
     },
     {
-      "name": "Phase 7 - Messages",
+      "name": "Phase 7 - Live Messaging",
       "item": [
         {
           "name": "POST create/get conversation",
@@ -1619,6 +1627,25 @@
               }
             }
           ]
+        },
+        {
+          "name": "Socket Testing Notes (read me)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/healthz",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "healthz"
+              ]
+            },
+            "description": "Real-time messaging runs over Socket.IO on the SAME server/port as REST.\nPostman cannot fully drive Socket.IO acks, but you can connect with a Socket.IO client.\n\nCONNECT\n  URL: {{base_url}} (e.g. http://localhost:80 in dev, your Render URL in prod)\n  Path: /api/socket.io\n  Auth: pass JWT in the handshake -> auth: { token: \"<JWT from login/register>\" }\n  Example: io(\"{{base_url}}\", { path: \"/api/socket.io\", auth: { token: \"{{token}}\" } })\n\nCLIENT -> SERVER EVENTS (payload JSON; optional ack callback)\n  joinConversation   { \"conversationId\": {{conversation_id}} }\n  leaveConversation  { \"conversationId\": {{conversation_id}} }\n  sendMessage        { \"conversationId\": {{conversation_id}}, \"content\": \"hi\", \"mediaUrls\": [] }\n  markRead           { \"conversationId\": {{conversation_id}} }\n  typingStart        { \"conversationId\": {{conversation_id}} }\n  typingStop         { \"conversationId\": {{conversation_id}} }\n\nSERVER -> CLIENT EVENTS (listen)\n  newMessage, messageReceived, messageRead, typing, stopTyping, userOnline, userOffline, onlineUsers\n\nTYPICAL FLOW\n  1. Login as User A and User B (REST) to get two JWTs.\n  2. Connect two socket clients, one per token.\n  3. POST create/get conversation (REST) -> save conversation_id.\n  4. Both clients emit joinConversation.\n  5. A emits sendMessage -> B receives newMessage + messageReceived instantly.\n  6. B emits markRead -> A receives messageRead.\n  7. A emits typingStart/typingStop -> B receives typing/stopTyping.\n  8. Disconnect B; A emits sendMessage; reconnect B; GET messages shows full history.\n\nThis request itself just hits the health endpoint so the folder stays runnable."
+          },
+          "response": []
         }
       ]
     }

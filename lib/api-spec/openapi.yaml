@@ -23,7 +23,49 @@ tags:
   - name: notifications
     description: User notifications
   - name: messages
-    description: Direct messaging between users
+    description: >
+      Direct (1:1) messaging between users. These REST endpoints are the durable
+      source of truth (history, unread counts, mark-read). Real-time delivery,
+      typing indicators and presence run over **Socket.IO** on the same server.
+
+
+      **Socket connection**
+
+
+      Connect to the same origin with path `/api/socket.io` and authenticate with
+      the same JWT used for REST. Pass the token in the handshake:
+      `io(ORIGIN, { path: "/api/socket.io", auth: { token: "<JWT>" } })`.
+      An invalid/missing token rejects the connection. Sending a message over a
+      socket persists it to the database first, then emits — so socket and REST
+      stay consistent.
+
+
+      **Client → Server events** (each accepts an optional ack callback):
+
+      - `joinConversation { conversationId }` — join a chat room (membership-checked)
+
+      - `leaveConversation { conversationId }`
+
+      - `sendMessage { conversationId, content, mediaUrls? }` — persist + fan out
+
+      - `markRead { conversationId }` — mark received messages read
+
+      - `typingStart { conversationId }` / `typingStop { conversationId }`
+
+
+      **Server → Client events:**
+
+      - `newMessage` (Message) — to everyone in the conversation room
+
+      - `messageReceived` (Message) — to the recipient's personal room (inbox badge)
+
+      - `messageRead { conversationId, readerId, messageIds }` — read receipts
+
+      - `typing { conversationId, userId }` / `stopTyping { conversationId, userId }`
+
+      - `userOnline { userId }` / `userOffline { userId }` — presence
+
+      - `onlineUsers { userIds }` — presence snapshot sent on connect
 
 components:
   securitySchemes:

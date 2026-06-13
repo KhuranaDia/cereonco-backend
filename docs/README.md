@@ -317,11 +317,52 @@ Users are never notified about their own actions.
 
 ---
 
-## Messages (Phase 7)
+## Messages (Phase 7 — Real-Time)
 
-Direct (1:1) messaging between users. A conversation is uniquely identified by its
-participant pair; participant IDs are normalized (`userOneId = min`, `userTwoId = max`)
-so `(A,B)` and `(B,A)` resolve to the same conversation.
+Direct (1:1) **real-time** messaging. The REST endpoints below are the durable source
+of truth (persistence, history, unread counts); live delivery, typing indicators and
+presence run over **Socket.IO** on the same server and port. A conversation is uniquely
+identified by its participant pair; participant IDs are normalized
+(`userOneId = min`, `userTwoId = max`) so `(A,B)` and `(B,A)` resolve to one conversation.
+
+### Real-time (Socket.IO)
+
+Connect to the same origin, path `/api/socket.io`, authenticated with the same JWT as REST:
+
+```js
+import { io } from "socket.io-client";
+const socket = io(ORIGIN, {
+  path: "/api/socket.io",
+  auth: { token: "<JWT>" }, // from login/register
+});
+```
+
+A missing/invalid token rejects the connection. `sendMessage` over a socket persists to
+the DB first, then emits — so socket and REST stay consistent. If the recipient is
+offline the message is still stored and appears in their history on reconnect.
+
+**Client → Server** (each accepts an optional ack callback `(res) => ...`):
+
+| Event | Payload | Purpose |
+|---|---|---|
+| `joinConversation` | `{ conversationId }` | Join a chat room (membership-checked) |
+| `leaveConversation` | `{ conversationId }` | Leave the room |
+| `sendMessage` | `{ conversationId, content, mediaUrls? }` | Persist + fan out a message |
+| `markRead` | `{ conversationId }` | Mark received messages read |
+| `typingStart` / `typingStop` | `{ conversationId }` | Typing indicator |
+
+**Server → Client:**
+
+| Event | Payload | When |
+|---|---|---|
+| `newMessage` | `Message` | New message, to everyone in the conversation room |
+| `messageReceived` | `Message` | To the recipient's personal room (inbox/badge) |
+| `messageRead` | `{ conversationId, readerId, messageIds }` | Read receipts |
+| `typing` / `stopTyping` | `{ conversationId, userId }` | Other participant typing |
+| `userOnline` / `userOffline` | `{ userId }` | Presence changes |
+| `onlineUsers` | `{ userIds }` | Presence snapshot, sent on connect |
+
+Presence is tracked in an in-memory map (no Redis); typing is never persisted.
 
 ### Create or get a conversation
 

@@ -1,0 +1,399 @@
+Continue the existing CereOnco backend from the current codebase. Do NOT rebuild or refactor completed modules. Maintain backward compatibility.
+
+Current stack:
+- Node.js
+- Express
+- TypeScript
+- PostgreSQL
+- Drizzle ORM
+- JWT
+- Swagger/OpenAPI
+- Postman
+- Render
+
+Completed:
+✅ Auth
+✅ Registration flow
+✅ Posts
+✅ Comments
+✅ Groups
+✅ Notifications
+✅ feeling + mediaUrls support
+✅ Phone number uniqueness
+✅ Password setup flow
+
+Task:
+Implement Phase 7 as REAL-TIME MESSAGING.
+
+We are NOT building a simple inbox. We want live messaging similar to WhatsApp/Instagram DMs.
+
+Use:
+- Socket.io
+- Existing Express server
+- Existing JWT auth
+- PostgreSQL
+- Drizzle ORM
+
+DO NOT use:
+- Firebase
+- Supabase
+- Pusher
+- Third-party realtime services
+
+==================================
+ARCHITECTURE
+==================================
+
+User A
+↓
+Socket connection
+↓
+JWT authentication
+↓
+Socket server
+↓
+Save message to PostgreSQL
+↓
+Emit to User B instantly
+↓
+Receiver gets message in real time
+
+If receiver offline:
+Store message.
+Deliver when they reconnect.
+
+==================================
+DATABASE
+==================================
+
+Create conversations table:
+
+id
+userOneId
+userTwoId
+createdAt
+updatedAt
+
+Rules:
+Only one conversation per user pair.
+
+Create messages table:
+
+id
+conversationId
+senderId
+receiverId
+content
+mediaUrls text[] default []
+isRead boolean default false
+createdAt
+updatedAt
+
+==================================
+SOCKET AUTH
+==================================
+
+Authenticate socket using JWT.
+
+Client connects:
+
+socket.connect()
+
+Send JWT.
+
+Validate JWT.
+
+Store:
+
+userId -> socketId
+
+Maintain online users map.
+
+Remove mapping on disconnect.
+
+==================================
+REAL TIME EVENTS
+==================================
+
+Client -> Server:
+
+joinConversation
+
+{
+conversationId
+}
+
+sendMessage
+
+{
+conversationId,
+content,
+mediaUrls:[]
+}
+
+markRead
+
+{
+conversationId
+}
+
+typingStart
+
+{
+conversationId
+}
+
+typingStop
+
+{
+conversationId
+}
+
+==================================
+SERVER -> CLIENT
+==================================
+
+newMessage
+
+messageReceived
+
+messageRead
+
+typing
+
+stopTyping
+
+userOnline
+
+userOffline
+
+==================================
+REST APIS
+==================================
+
+Keep REST APIs too.
+
+POST /messages/conversations
+
+Create or return existing conversation.
+
+GET /messages/conversations
+
+List conversations.
+
+GET /messages/conversations/:id
+
+Get messages.
+
+POST /messages/conversations/:id
+
+Fallback send message.
+
+PATCH /messages/conversations/:id/read
+
+Mark messages read.
+
+GET /messages/unread-count
+
+Unread count.
+
+==================================
+RULES
+==================================
+
+Users cannot message themselves.
+
+Users cannot access conversations they do not belong to.
+
+Only one conversation between two users.
+
+Messages persist in DB.
+
+Socket emits after successful DB save.
+
+If receiver online:
+Deliver instantly.
+
+If receiver offline:
+Keep in DB.
+
+Unread count updates.
+
+Opening conversation marks received messages read.
+
+==================================
+ONLINE STATUS
+==================================
+
+Track connected users.
+
+Emit:
+
+userOnline
+
+userOffline
+
+No Redis required.
+
+Simple in-memory map.
+
+==================================
+TYPING STATUS
+==================================
+
+Emit:
+
+typing
+
+stopTyping
+
+No DB persistence.
+
+==================================
+MEDIA
+==================================
+
+Support:
+
+mediaUrls
+
+Store URLs only.
+
+Do NOT implement actual uploads.
+
+==================================
+SWAGGER
+==================================
+
+Update:
+
+openapi.yaml
+
+openapi-spec.ts
+
+Schemas:
+
+Conversation
+
+Message
+
+SendMessageInput
+
+ConversationList
+
+UnreadCount
+
+==================================
+POSTMAN
+==================================
+
+Create folder:
+
+Phase 7 Live Messaging
+
+Requests:
+
+Create Conversation
+
+List Conversations
+
+Get Messages
+
+Send Message
+
+Mark Read
+
+Unread Count
+
+Socket testing notes.
+
+Variables:
+
+conversationId
+
+recipientId
+
+messageId
+
+==================================
+TESTING
+==================================
+
+Run:
+
+pnpm --filter @workspace/api-server build
+
+Test:
+
+Register User A
+
+Register User B
+
+User A connects socket
+
+User B connects socket
+
+Create conversation
+
+User A sends message
+
+User B receives instantly
+
+User B unread count updates
+
+User B opens chat
+
+Read status updates
+
+Typing indicator works
+
+Disconnect User B
+
+User A sends message
+
+Reconnect User B
+
+Message history available
+
+Unauthorized user blocked
+
+==================================
+DEPLOY
+==================================
+
+Push DB changes.
+
+Commit:
+
+git add .
+
+git commit -m "Implement Phase 7 real-time messaging"
+
+git push origin main
+
+Deploy Render.
+
+Verify sockets work on Render.
+
+==================================
+IMPORTANT
+==================================
+
+Do NOT break completed modules.
+
+Do NOT remove existing APIs.
+
+Reuse existing JWT middleware.
+
+Reuse existing response format.
+
+Keep REST + Socket architecture.
+
+Stop after implementation and provide:
+1. Files changed.
+2. DB changes.
+3. Socket architecture.
+4. Postman tests.
+5. Swagger updates.
+6. Any Render-specific WebSocket configuration required.
+7. Step-by-step testing instructions for a beginner.
