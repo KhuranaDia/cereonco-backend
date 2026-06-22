@@ -146,7 +146,9 @@ export const GetMeResponse = zod.object({
 
 
 /**
- * @summary Update current user profile
+ * Accepts application/json (profile fields) or multipart/form-data with an optional `avatar` file (jpg/jpeg/png/webp, max 5MB) plus any profile fields. Uploading an avatar updates both avatarUrl and profilePhotoUrl.
+
+ * @summary Update current user profile (JSON or multipart avatar upload)
  */
 
 
@@ -237,6 +239,7 @@ export const GetFeedQueryParams = zod.object({
 export const GetFeedResponseItem = zod.object({
   "id": zod.number(),
   "userId": zod.number(),
+  "groupId": zod.number().nullish(),
   "content": zod.string(),
   "feeling": zod.string().nullable(),
   "imageUrl": zod.string().nullish(),
@@ -259,7 +262,9 @@ export const GetFeedResponse = zod.array(GetFeedResponseItem)
 
 
 /**
- * @summary Create a post
+ * Accepts application/json or multipart/form-data with up to 10 `media` files (images jpg/jpeg/png/webp or videos mp4/mov/webm, max 10MB each) plus text fields. Uploaded file URLs are merged into mediaUrls.
+
+ * @summary Create a post (JSON or multipart media upload)
  */
 
 
@@ -267,9 +272,46 @@ export const GetFeedResponse = zod.array(GetFeedResponseItem)
 export const CreatePostBody = zod.object({
   "content": zod.string().min(1),
   "feeling": zod.string().nullish(),
+  "groupId": zod.number().nullish().describe('When set, the post is scoped to the given group; null\/omitted for a regular feed post.'),
   "imageUrl": zod.string().optional(),
   "mediaUrls": zod.array(zod.string()).optional()
 })
+
+
+/**
+ * @summary Get current user's bookmarked posts (newest first)
+ */
+export const getSavedPostsQueryLimitDefault = 20;
+export const getSavedPostsQueryOffsetDefault = 0;
+
+export const GetSavedPostsQueryParams = zod.object({
+  "limit": zod.coerce.number().default(getSavedPostsQueryLimitDefault),
+  "offset": zod.coerce.number().default(getSavedPostsQueryOffsetDefault)
+})
+
+export const GetSavedPostsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "groupId": zod.number().nullish(),
+  "content": zod.string(),
+  "feeling": zod.string().nullable(),
+  "imageUrl": zod.string().nullish(),
+  "mediaUrls": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "author": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
+  "avatarUrl": zod.string().nullish()
+}),
+  "likeCount": zod.number(),
+  "bookmarkCount": zod.number(),
+  "commentCount": zod.number(),
+  "isLiked": zod.boolean(),
+  "isBookmarked": zod.boolean()
+})
+export const GetSavedPostsResponse = zod.array(GetSavedPostsResponseItem)
 
 
 /**
@@ -282,6 +324,7 @@ export const GetPostParams = zod.object({
 export const GetPostResponse = zod.object({
   "id": zod.number(),
   "userId": zod.number(),
+  "groupId": zod.number().nullish(),
   "content": zod.string(),
   "feeling": zod.string().nullable(),
   "imageUrl": zod.string().nullish(),
@@ -322,6 +365,7 @@ export const UpdatePostBody = zod.object({
 export const UpdatePostResponse = zod.object({
   "id": zod.number(),
   "userId": zod.number(),
+  "groupId": zod.number().nullish(),
   "content": zod.string(),
   "feeling": zod.string().nullable(),
   "imageUrl": zod.string().nullish(),
@@ -337,6 +381,10 @@ export const UpdatePostResponse = zod.object({
 export const DeletePostParams = zod.object({
   "id": zod.coerce.number()
 })
+
+export const DeletePostResponse = zod.object({
+
+}).passthrough().describe('Standard envelope for resource deletions.')
 
 
 /**
@@ -489,6 +537,10 @@ export const DeleteCommentParams = zod.object({
   "id": zod.coerce.number()
 })
 
+export const DeleteCommentResponse = zod.object({
+
+}).passthrough().describe('Standard envelope for resource deletions.')
+
 
 /**
  * @summary List all groups
@@ -506,6 +558,7 @@ export const ListGroupsResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "description": zod.string(),
+  "tagline": zod.string().nullish(),
   "category": zod.string(),
   "imageUrl": zod.string().nullish(),
   "memberCount": zod.number(),
@@ -514,6 +567,23 @@ export const ListGroupsResponse = zod.object({
   "updatedAt": zod.coerce.date()
 })),
   "total": zod.number()
+})
+
+
+/**
+ * @summary Create a community group
+ */
+
+
+
+
+
+export const CreateGroupBody = zod.object({
+  "name": zod.string().min(1),
+  "description": zod.string().min(1),
+  "tagline": zod.string().nullish(),
+  "category": zod.string().min(1),
+  "imageUrl": zod.string().nullish()
 })
 
 
@@ -528,6 +598,7 @@ export const GetGroupResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "description": zod.string(),
+  "tagline": zod.string().nullish(),
   "category": zod.string(),
   "imageUrl": zod.string().nullish(),
   "memberCount": zod.number(),
@@ -653,6 +724,10 @@ export const DeleteGroupPostParams = zod.object({
   "postId": zod.coerce.number()
 })
 
+export const DeleteGroupPostResponse = zod.object({
+
+}).passthrough().describe('Standard envelope for resource deletions.')
+
 
 /**
  * @summary Get current user notifications (newest first)
@@ -668,8 +743,107 @@ export const ListNotificationsQueryParams = zod.object({
 export const ListNotificationsResponse = zod.object({
   "notifications": zod.array(zod.object({
   "id": zod.number(),
-  "type": zod.enum(['post_liked', 'post_commented', 'comment_replied', 'group_joined', 'group_post_created', 'verification_updated']),
-  "entityType": zod.enum(['post', 'comment', 'group', 'group_post', 'user']),
+  "type": zod.enum(['post_liked', 'post_commented', 'comment_replied', 'group_joined', 'group_post_created', 'verification_updated', 'mention', 'system']),
+  "entityType": zod.enum(['post', 'comment', 'group', 'group_post', 'user', 'event']),
+  "entityId": zod.number(),
+  "message": zod.string(),
+  "isRead": zod.boolean(),
+  "actor": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
+  "profilePhotoUrl": zod.string().nullish()
+}),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "total": zod.number(),
+  "unreadCount": zod.number()
+})
+
+
+/**
+ * @summary Get unread notifications (newest first)
+ */
+export const listUnreadNotificationsQueryLimitDefault = 20;
+export const listUnreadNotificationsQueryOffsetDefault = 0;
+
+export const ListUnreadNotificationsQueryParams = zod.object({
+  "limit": zod.coerce.number().default(listUnreadNotificationsQueryLimitDefault),
+  "offset": zod.coerce.number().default(listUnreadNotificationsQueryOffsetDefault)
+})
+
+export const ListUnreadNotificationsResponse = zod.object({
+  "notifications": zod.array(zod.object({
+  "id": zod.number(),
+  "type": zod.enum(['post_liked', 'post_commented', 'comment_replied', 'group_joined', 'group_post_created', 'verification_updated', 'mention', 'system']),
+  "entityType": zod.enum(['post', 'comment', 'group', 'group_post', 'user', 'event']),
+  "entityId": zod.number(),
+  "message": zod.string(),
+  "isRead": zod.boolean(),
+  "actor": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
+  "profilePhotoUrl": zod.string().nullish()
+}),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "total": zod.number(),
+  "unreadCount": zod.number()
+})
+
+
+/**
+ * @summary Get mention notifications (newest first)
+ */
+export const listMentionedNotificationsQueryLimitDefault = 20;
+export const listMentionedNotificationsQueryOffsetDefault = 0;
+
+export const ListMentionedNotificationsQueryParams = zod.object({
+  "limit": zod.coerce.number().default(listMentionedNotificationsQueryLimitDefault),
+  "offset": zod.coerce.number().default(listMentionedNotificationsQueryOffsetDefault)
+})
+
+export const ListMentionedNotificationsResponse = zod.object({
+  "notifications": zod.array(zod.object({
+  "id": zod.number(),
+  "type": zod.enum(['post_liked', 'post_commented', 'comment_replied', 'group_joined', 'group_post_created', 'verification_updated', 'mention', 'system']),
+  "entityType": zod.enum(['post', 'comment', 'group', 'group_post', 'user', 'event']),
+  "entityId": zod.number(),
+  "message": zod.string(),
+  "isRead": zod.boolean(),
+  "actor": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
+  "profilePhotoUrl": zod.string().nullish()
+}),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "total": zod.number(),
+  "unreadCount": zod.number()
+})
+
+
+/**
+ * @summary Get system notifications (newest first)
+ */
+export const listSystemNotificationsQueryLimitDefault = 20;
+export const listSystemNotificationsQueryOffsetDefault = 0;
+
+export const ListSystemNotificationsQueryParams = zod.object({
+  "limit": zod.coerce.number().default(listSystemNotificationsQueryLimitDefault),
+  "offset": zod.coerce.number().default(listSystemNotificationsQueryOffsetDefault)
+})
+
+export const ListSystemNotificationsResponse = zod.object({
+  "notifications": zod.array(zod.object({
+  "id": zod.number(),
+  "type": zod.enum(['post_liked', 'post_commented', 'comment_replied', 'group_joined', 'group_post_created', 'verification_updated', 'mention', 'system']),
+  "entityType": zod.enum(['post', 'comment', 'group', 'group_post', 'user', 'event']),
   "entityId": zod.number(),
   "message": zod.string(),
   "isRead": zod.boolean(),
@@ -704,8 +878,8 @@ export const MarkNotificationReadParams = zod.object({
 
 export const MarkNotificationReadResponse = zod.object({
   "id": zod.number(),
-  "type": zod.enum(['post_liked', 'post_commented', 'comment_replied', 'group_joined', 'group_post_created', 'verification_updated']),
-  "entityType": zod.enum(['post', 'comment', 'group', 'group_post', 'user']),
+  "type": zod.enum(['post_liked', 'post_commented', 'comment_replied', 'group_joined', 'group_post_created', 'verification_updated', 'mention', 'system']),
+  "entityType": zod.enum(['post', 'comment', 'group', 'group_post', 'user', 'event']),
   "entityId": zod.number(),
   "message": zod.string(),
   "isRead": zod.boolean(),
@@ -825,6 +999,165 @@ export const MarkConversationReadParams = zod.object({
 export const MarkConversationReadResponse = zod.object({
   "updatedCount": zod.number(),
   "unreadCount": zod.number()
+})
+
+
+/**
+ * @summary List events (soonest upcoming first)
+ */
+export const listEventsQueryLimitDefault = 20;
+export const listEventsQueryOffsetDefault = 0;
+
+export const ListEventsQueryParams = zod.object({
+  "limit": zod.coerce.number().default(listEventsQueryLimitDefault),
+  "offset": zod.coerce.number().default(listEventsQueryOffsetDefault)
+})
+
+export const ListEventsResponse = zod.object({
+  "events": zod.array(zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "eventDate": zod.coerce.date(),
+  "location": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "createdBy": zod.number(),
+  "creator": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
+  "avatarUrl": zod.string().nullish()
+}),
+  "rsvpCount": zod.number(),
+  "myRsvpStatus": zod.union([zod.enum(['going', 'interested', 'not_going']),zod.null()]).optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "total": zod.number()
+})
+
+
+/**
+ * @summary Create an event
+ */
+
+
+
+export const CreateEventBody = zod.object({
+  "title": zod.string().min(1),
+  "description": zod.string().nullish(),
+  "eventDate": zod.coerce.date(),
+  "location": zod.string().nullish(),
+  "imageUrl": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get a single event
+ */
+export const GetEventParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetEventResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "eventDate": zod.coerce.date(),
+  "location": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "createdBy": zod.number(),
+  "creator": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
+  "avatarUrl": zod.string().nullish()
+}),
+  "rsvpCount": zod.number(),
+  "myRsvpStatus": zod.union([zod.enum(['going', 'interested', 'not_going']),zod.null()]).optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update an event (creator only)
+ */
+export const UpdateEventParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const UpdateEventBody = zod.object({
+  "title": zod.string().min(1).optional(),
+  "description": zod.string().nullish(),
+  "eventDate": zod.coerce.date().optional(),
+  "location": zod.string().nullish(),
+  "imageUrl": zod.string().nullish()
+})
+
+export const UpdateEventResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "eventDate": zod.coerce.date(),
+  "location": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "createdBy": zod.number(),
+  "creator": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
+  "avatarUrl": zod.string().nullish()
+}),
+  "rsvpCount": zod.number(),
+  "myRsvpStatus": zod.union([zod.enum(['going', 'interested', 'not_going']),zod.null()]).optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete an event (creator only)
+ */
+export const DeleteEventParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteEventResponse = zod.object({
+
+}).passthrough().describe('Standard envelope for resource deletions.')
+
+
+/**
+ * @summary Set or update RSVP status for an event
+ */
+export const SetEventRsvpParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SetEventRsvpBody = zod.object({
+  "status": zod.enum(['going', 'interested', 'not_going']).optional()
+})
+
+export const SetEventRsvpResponse = zod.object({
+  "rsvpCount": zod.number(),
+  "myRsvpStatus": zod.union([zod.enum(['going', 'interested', 'not_going']),zod.null()])
+})
+
+
+/**
+ * @summary Remove the current user's RSVP
+ */
+export const RemoveEventRsvpParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RemoveEventRsvpResponse = zod.object({
+  "rsvpCount": zod.number(),
+  "myRsvpStatus": zod.union([zod.enum(['going', 'interested', 'not_going']),zod.null()])
 })
 
 

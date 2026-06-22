@@ -1,7 +1,7 @@
 # CereOnco Community API — Project Status
 
-**Last updated:** 13 June 2026
-**Status:** Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase 4 ✅ · Phase 5 ✅ · Phase 6 ✅ · Phase 7 ✅
+**Last updated:** 22 June 2026
+**Status:** Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase 4 ✅ · Phase 5 ✅ · Phase 6 ✅ · Phase 7 ✅ · Phase 8 ✅
 
 ---
 
@@ -61,6 +61,15 @@ A modular REST API backend for the CereOnco Community platform. Built API-first 
   - Live events: `newMessage`, `messageReceived`, `messageRead`, `typing`/`stopTyping`, `userOnline`/`userOffline`, `onlineUsers`
   - Messages persist to PostgreSQL first, then emit — offline recipients get history on reconnect
   - In-memory presence map (no Redis); typing is never persisted
+- **File Uploads, Groups, Notifications & Events (Phase 8)**:
+  - Avatar upload on `PATCH /users/me` (`multipart/form-data`, `avatar` field, ≤5 MB) — sets both `avatarUrl` and `profilePhotoUrl`
+  - Post media upload on `POST /posts` (`multipart/form-data`, up to 10 `media` files, ≤10 MB each); files served from `/uploads/...`
+  - Saved posts: `GET /posts/saved` returns the user's bookmarked posts (newest-saved first)
+  - Group creation: `POST /groups` (creator auto-joins); `tagline` field on all group responses
+  - Grouped posts: posts carry optional `groupId`; the main feed excludes grouped posts (`groupId IS NULL`)
+  - Notification filters: `GET /notifications/unread`, `/mentioned`, `/system`
+  - Consistent delete envelope: post / comment / group post / event deletes return `{ success, message: "Deleted successfully", data: {} }`
+  - Events & RSVPs: full event CRUD (creator-only update/delete), upcoming-first list with `creator`, `rsvpCount`, `myRsvpStatus`; idempotent RSVP set/remove
 - Swagger UI at `/api/docs`
 - Postman collection in `docs/`
 
@@ -96,17 +105,19 @@ workspace/
 │       └── src/
 │           ├── middlewares/
 │           │   ├── auth.ts            # requireAuth
-│           │   └── optionalAuth.ts    # optionalAuth
+│           │   ├── optionalAuth.ts    # optionalAuth
+│           │   └── upload.ts          # multer (avatar/post media) + publicUrl (Phase 8)
 │           ├── routes/
 │           │   ├── index.ts              # Mounts all routers
 │           │   ├── health.ts             # GET /api/healthz
 │           │   ├── auth.ts               # Auth endpoints
-│           │   ├── users.ts              # User profile endpoints
-│           │   ├── posts.ts              # Posts + likes + bookmarks
+│           │   ├── users.ts              # User profile endpoints (+ avatar upload)
+│           │   ├── posts.ts              # Posts + likes + bookmarks + saved + media
 │           │   ├── comments.ts           # Comments + replies (Phase 4)
-│           │   ├── groups.ts             # Community groups (Phase 5)
-│           │   ├── notifications.ts      # Notifications (Phase 6)
+│           │   ├── groups.ts             # Community groups (Phase 5, + create/tagline)
+│           │   ├── notifications.ts      # Notifications (Phase 6, + filters)
 │           │   ├── messages.ts           # Messages REST (Phase 7)
+│           │   ├── events.ts             # Events & RSVPs (Phase 8)
 │           │   └── docs.ts               # Swagger UI
 │           ├── services/
 │           │   └── messages.ts           # Shared message ops + socket emit (Phase 7)
@@ -125,8 +136,9 @@ workspace/
 │       ├── users.ts                   # usersTable
 │       ├── posts.ts                   # postsTable, likesTable, bookmarksTable
 │       ├── comments.ts                # commentsTable (Phase 4)
-│       ├── groups.ts                  # groupsTable, groupMembersTable, groupPostsTable (Phase 5)
-│       └── notifications.ts           # notificationsTable (Phase 6)
+│       ├── groups.ts                  # groupsTable (+ tagline), groupMembersTable, groupPostsTable (Phase 5)
+│       ├── notifications.ts           # notificationsTable (Phase 6)
+│       └── events.ts                  # eventsTable, eventRsvpsTable (Phase 8)
 │
 └── docs/
     ├── PROJECT_STATUS.md
@@ -173,8 +185,10 @@ workspace/
 |---|---|---|
 | id | serial | PRIMARY KEY |
 | user_id | integer | NOT NULL, FK → users.id CASCADE |
+| group_id | integer | nullable, FK → groups.id CASCADE (grouped posts excluded from main feed) |
 | content | text | NOT NULL |
 | image_url | text | nullable |
+| media_urls | text[] | nullable |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | NOT NULL, DEFAULT now() |
 
@@ -218,6 +232,7 @@ workspace/
 | id | serial | PRIMARY KEY |
 | name | text | NOT NULL |
 | description | text | NOT NULL |
+| tagline | text | nullable |
 | category | text | NOT NULL |
 | image_url | text | nullable |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
@@ -260,7 +275,34 @@ workspace/
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 | updated_at | timestamptz | NOT NULL, DEFAULT now() |
 
-**NotificationType values:** `post_liked` · `post_commented` · `comment_replied` · `group_joined` · `group_post_created` · `verification_updated`
+**NotificationType values:** `post_liked` · `post_commented` · `comment_replied` · `group_joined` · `group_post_created` · `verification_updated` · `mention` · `system`
+
+**EntityType values:** `post` · `comment` · `group` · `group_post` · `user` · `event`
+
+### events
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | serial | PRIMARY KEY |
+| title | text | NOT NULL |
+| description | text | nullable |
+| event_date | timestamptz | NOT NULL |
+| location | text | nullable |
+| image_url | text | nullable |
+| created_by | integer | NOT NULL, FK → users.id CASCADE |
+| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| updated_at | timestamptz | NOT NULL, DEFAULT now() |
+
+### event_rsvps
+
+| Column | Type | Constraints |
+|---|---|---|
+| id | serial | PRIMARY KEY |
+| event_id | integer | NOT NULL, FK → events.id CASCADE |
+| user_id | integer | NOT NULL, FK → users.id CASCADE |
+| status | text | NOT NULL, DEFAULT 'going' (going / interested / not_going) |
+| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| — | — | UNIQUE (event_id, user_id) |
 
 **Relationships:**
 - `users` ──< `posts` (CASCADE delete)
@@ -277,6 +319,10 @@ workspace/
 - `users` ──< `group_posts` (CASCADE delete)
 - `users` ──< `notifications` as recipient (CASCADE delete)
 - `users` ──< `notifications` as actor (CASCADE delete)
+- `groups` ──< `posts` (CASCADE delete; optional `group_id`)
+- `users` ──< `events` as creator (CASCADE delete)
+- `events` ──< `event_rsvps` (CASCADE delete)
+- `users` ──< `event_rsvps` (CASCADE delete)
 
 ---
 
@@ -313,11 +359,12 @@ workspace/
 
 | Method | Route | Auth | Description |
 |---|---|---|---|
-| GET | `/posts` | Optional | Feed with `commentCount`, `likeCount`, `bookmarkCount`, `isLiked`, `isBookmarked` |
-| POST | `/posts` | Bearer | Create post |
+| GET | `/posts` | Optional | Feed with `commentCount`, `likeCount`, `bookmarkCount`, `isLiked`, `isBookmarked` (ungrouped only) |
+| POST | `/posts` | Bearer | Create post (JSON or multipart `media` files; optional `groupId`) |
+| GET | `/posts/saved` | Bearer | Current user's bookmarked posts (newest-saved first) |
 | GET | `/posts/:id` | Optional | Single post with all counts |
 | PATCH | `/posts/:id` | Bearer | Update own post |
-| DELETE | `/posts/:id` | Bearer | Delete own post → 204 |
+| DELETE | `/posts/:id` | Bearer | Delete own post → `{ message: "Deleted successfully", data: {} }` |
 | POST | `/posts/:id/like` | Bearer | Like → `{ liked: true, likeCount }` |
 | DELETE | `/posts/:id/like` | Bearer | Unlike → `{ liked: false, likeCount }` |
 | POST | `/posts/:id/bookmark` | Bearer | Bookmark → `{ bookmarked: true }` |
@@ -330,20 +377,21 @@ workspace/
 | GET | `/posts/:id/comments` | Bearer | — | `{ comments, total }` — threaded |
 | POST | `/posts/:id/comments` | Bearer | `{ content, parentCommentId? }` | Created comment |
 | PATCH | `/comments/:id` | Bearer | `{ content }` | Updated comment |
-| DELETE | `/comments/:id` | Bearer | — | `{ deleted: true, id }` |
+| DELETE | `/comments/:id` | Bearer | — | `{ message: "Deleted successfully", data: {} }` (soft delete) |
 
 ### Groups (Phase 5)
 
 | Method | Route | Auth | Description |
 |---|---|---|---|
-| GET | `/groups` | Bearer | List all groups with `memberCount` and `isMember` |
+| GET | `/groups` | Bearer | List all groups with `memberCount`, `isMember`, `tagline` |
+| POST | `/groups` | Bearer | Create group → 201 (creator auto-joins) |
 | GET | `/groups/:id` | Bearer | Single group detail |
 | POST | `/groups/:id/join` | Bearer | Join group → `{ joined: true, memberCount }` |
 | DELETE | `/groups/:id/join` | Bearer | Leave group → `{ joined: false, memberCount }` |
 | GET | `/groups/:id/posts` | Bearer | Group feed (paginated, newest-first, with author) |
 | POST | `/groups/:id/posts` | Bearer | Create group post → 201 |
 | PATCH | `/groups/posts/:postId` | Bearer | Edit own group post |
-| DELETE | `/groups/posts/:postId` | Bearer | Delete own group post → 204 |
+| DELETE | `/groups/posts/:postId` | Bearer | Delete own group post → `{ message: "Deleted successfully", data: {} }` |
 
 **Group rules:**
 - All group endpoints require authentication (Bearer token)
@@ -358,6 +406,9 @@ workspace/
 | Method | Route | Auth | Description |
 |---|---|---|---|
 | GET | `/notifications` | Bearer | Paginated list (newest-first) with actor info. Query: `?limit=20&offset=0` |
+| GET | `/notifications/unread` | Bearer | Only unread notifications (paginated) |
+| GET | `/notifications/mentioned` | Bearer | Only `mention`-type notifications (paginated) |
+| GET | `/notifications/system` | Bearer | Only `system`-type notifications (paginated) |
 | GET | `/notifications/unread-count` | Bearer | `{ unreadCount }` |
 | PATCH | `/notifications/:id/read` | Bearer | Mark single as read (idempotent) → returns updated notification |
 | PATCH | `/notifications/read-all` | Bearer | Mark all unread as read → `{ updatedCount }` |
@@ -400,6 +451,32 @@ workspace/
 ```
 
 ---
+
+### Events & RSVPs (Phase 8)
+
+| Method | Route | Auth | Description |
+|---|---|---|---|
+| GET | `/events` | Bearer | List events (upcoming-first by `eventDate`) with `creator`, `rsvpCount`, `myRsvpStatus` |
+| POST | `/events` | Bearer | Create event → 201 |
+| GET | `/events/:id` | Bearer | Single event detail |
+| PATCH | `/events/:id` | Bearer | Update own event (creator only, else 403) |
+| DELETE | `/events/:id` | Bearer | Delete own event → `{ message: "Deleted successfully", data: {} }` |
+| PUT | `/events/:id/rsvp` | Bearer | Set/update RSVP `{ status? }` → `{ rsvpCount, myRsvpStatus }` |
+| DELETE | `/events/:id/rsvp` | Bearer | Remove RSVP → `{ rsvpCount, myRsvpStatus: null }` |
+
+**Event rules:**
+- All event endpoints require authentication (Bearer token)
+- Only the creator can update or delete an event (403 otherwise)
+- RSVP is idempotent — one row per `(event_id, user_id)`; `PUT` upserts the status
+- `status` defaults to `going`; valid values: `going`, `interested`, `not_going`
+- `myRsvpStatus` is the current user's own status (or `null`); `rsvpCount` is the total
+
+### Uploads & Delete Envelope (Phase 8)
+
+- **Avatar:** `PATCH /users/me` accepts `multipart/form-data` with an `avatar` file (≤5 MB, jpg/jpeg/png/webp) — stored URL set on both `avatarUrl` + `profilePhotoUrl`
+- **Post media:** `POST /posts` accepts up to 10 `media` files (≤10 MB each; images or mp4/mov/webm); appended to `mediaUrls`
+- Files are served statically from `/uploads/avatars/...` and `/uploads/posts/...`
+- **Delete envelope:** all resource deletes (post, comment, group post, event) return `{ success: true, message: "Deleted successfully", data: {} }`
 
 ## 6. Authentication Flow
 
@@ -447,8 +524,11 @@ pnpm --filter @workspace/api-spec run codegen
 |---|---|---|
 | Phase 6 | Notifications | ✅ Complete |
 | Phase 7 | Real-Time Direct Messaging (Socket.IO) | ✅ Done |
-| Phase 8 | Cognie AI integration | Planned |
-| Phase 8 | Admin endpoints (verify/reject MDs, moderate content) | Planned |
-| Phase 8 | File uploads (Object Storage) | Planned |
-| Phase 8 | Events & RSVPs | Planned |
-| Phase 8 | Survivor Stories | Planned |
+| Phase 8 | File uploads (avatar + post media via multer) | ✅ Complete |
+| Phase 8 | Groups create + tagline, grouped posts, saved posts | ✅ Complete |
+| Phase 8 | Notification filters (unread/mentioned/system) | ✅ Complete |
+| Phase 8 | Events & RSVPs | ✅ Complete |
+| Phase 9 | Phone/OTP verification (Twilio) | Planned |
+| Phase 9 | Cognie AI integration | Planned |
+| Phase 9 | Admin endpoints (verify/reject MDs, moderate content) | Planned |
+| Phase 9 | Survivor Stories | Planned |

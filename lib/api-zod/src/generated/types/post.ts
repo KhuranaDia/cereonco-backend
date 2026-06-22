@@ -9,6 +9,8 @@
 export interface Post {
   id: number;
   userId: number;
+  /** @nullable */
+  groupId?: number | null;
   content: string;
   /** @nullable */
   feeling: string | null;

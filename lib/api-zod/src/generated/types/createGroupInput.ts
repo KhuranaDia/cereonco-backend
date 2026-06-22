@@ -6,17 +6,15 @@
  * OpenAPI spec version: 0.5.0
  */
 
-export interface Group {
-  id: number;
+export interface CreateGroupInput {
+  /** @minLength 1 */
   name: string;
+  /** @minLength 1 */
   description: string;
   /** @nullable */
   tagline?: string | null;
+  /** @minLength 1 */
   category: string;
   /** @nullable */
   imageUrl?: string | null;
-  memberCount: number;
-  isMember: boolean;
-  createdAt: Date;
-  updatedAt: Date;
 }

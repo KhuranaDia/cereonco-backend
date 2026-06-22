@@ -8,10 +8,19 @@ export const NOTIFICATION_TYPES = [
   "group_joined",
   "group_post_created",
   "verification_updated",
+  "mention",
+  "system",
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
-export const ENTITY_TYPES = ["post", "comment", "group", "group_post", "user"] as const;
+export const ENTITY_TYPES = [
+  "post",
+  "comment",
+  "group",
+  "group_post",
+  "user",
+  "event",
+] as const;
 export type EntityType = (typeof ENTITY_TYPES)[number];
 
 export const notificationsTable = pgTable("notifications", {

@@ -11,6 +11,7 @@ import { createNotifications } from "../utils/notify";
 import {
   ListGroupsQueryParams,
   GetGroupParams,
+  CreateGroupBody,
   JoinGroupParams,
   LeaveGroupParams,
   GetGroupFeedParams,
@@ -48,7 +49,7 @@ async function getIsMember(groupId: number, userId: number): Promise<boolean> {
 }
 
 function buildGroupResponse(
-  group: { id: number; name: string; description: string; category: string; imageUrl: string | null; createdAt: Date; updatedAt: Date },
+  group: { id: number; name: string; description: string; tagline: string | null; category: string; imageUrl: string | null; createdAt: Date; updatedAt: Date },
   memberCount: number,
   isMember: boolean,
 ) {
@@ -56,6 +57,7 @@ function buildGroupResponse(
     id: group.id,
     name: group.name,
     description: group.description,
+    tagline: group.tagline,
     category: group.category,
     imageUrl: group.imageUrl,
     memberCount,
@@ -76,6 +78,7 @@ router.get("/groups", requireAuth, async (req, res): Promise<void> => {
       id: groupsTable.id,
       name: groupsTable.name,
       description: groupsTable.description,
+      tagline: groupsTable.tagline,
       category: groupsTable.category,
       imageUrl: groupsTable.imageUrl,
       createdAt: groupsTable.createdAt,
@@ -112,6 +115,34 @@ router.get("/groups", requireAuth, async (req, res): Promise<void> => {
   );
 
   success(res, "Groups retrieved", { groups, total: groups.length });
+});
+
+// POST /groups
+router.post("/groups", requireAuth, async (req, res): Promise<void> => {
+  const parsed = CreateGroupBody.safeParse(req.body);
+  if (!parsed.success) {
+    error(res, parsed.error.issues.map((i) => i.message).join(", "), 400);
+    return;
+  }
+
+  const [created] = await db
+    .insert(groupsTable)
+    .values({
+      name: parsed.data.name,
+      description: parsed.data.description,
+      tagline: parsed.data.tagline ?? null,
+      category: parsed.data.category,
+      imageUrl: parsed.data.imageUrl ?? null,
+    })
+    .returning();
+
+  // Creator auto-joins their own group.
+  await db
+    .insert(groupMembersTable)
+    .values({ groupId: created.id, userId: req.userId! })
+    .onConflictDoNothing();
+
+  success(res, "Group created", buildGroupResponse(created, 1, true), 201);
 });
 
 // GET /groups/:id
@@ -447,7 +478,7 @@ router.delete("/groups/posts/:postId", requireAuth, async (req, res): Promise<vo
   }
 
   await db.delete(groupPostsTable).where(eq(groupPostsTable.id, params.data.postId));
-  res.sendStatus(204);
+  success(res, "Deleted successfully", {});
 });
 
 export default router;

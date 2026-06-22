@@ -6,17 +6,14 @@
  * OpenAPI spec version: 0.5.0
  */
 
-export interface Group {
-  id: number;
-  name: string;
-  description: string;
+export interface EventInput {
+  /** @minLength 1 */
+  title: string;
   /** @nullable */
-  tagline?: string | null;
-  category: string;
+  description?: string | null;
+  eventDate: Date;
+  /** @nullable */
+  location?: string | null;
   /** @nullable */
   imageUrl?: string | null;
-  memberCount: number;
-  isMember: boolean;
-  createdAt: Date;
-  updatedAt: Date;
 }

@@ -126,15 +126,18 @@ Password reset reuses the exact same token mechanism as registration — there i
 | Method | Route | Auth | Description |
 |---|---|---|---|
 | GET | `/api/users/me` | Bearer | Get current user profile |
-| PATCH | `/api/users/me` | Bearer | Update current user profile |
+| PATCH | `/api/users/me` | Bearer | Update current user profile (JSON or `multipart/form-data` with an `avatar` file) |
 | GET | `/api/users/:id` | No | Get any user's public profile |
+
+**Avatar upload:** `PATCH /api/users/me` accepts `multipart/form-data` with an `avatar` file field (jpg/jpeg/png/webp, ≤5 MB) alongside (or instead of) the JSON profile fields. The stored public URL is set on both `avatarUrl` and the legacy `profilePhotoUrl`. Files are served from `/uploads/avatars/...`.
 
 ### Posts
 
 | Method | Route | Auth | Description |
 |---|---|---|---|
-| GET | `/api/posts` | Optional | Get feed (newest first, includes `commentCount`) |
-| POST | `/api/posts` | Bearer | Create a post |
+| GET | `/api/posts` | Optional | Get feed (newest first, includes `commentCount`; only ungrouped posts) |
+| POST | `/api/posts` | Bearer | Create a post (JSON or `multipart/form-data` with `media` files) |
+| GET | `/api/posts/saved` | Bearer | Get the current user's bookmarked posts (newest-saved first) |
 | GET | `/api/posts/:id` | Optional | Get a single post |
 | PATCH | `/api/posts/:id` | Bearer | Update own post |
 | DELETE | `/api/posts/:id` | Bearer | Delete own post |
@@ -142,6 +145,12 @@ Password reset reuses the exact same token mechanism as registration — there i
 | DELETE | `/api/posts/:id/like` | Bearer | Unlike a post |
 | POST | `/api/posts/:id/bookmark` | Bearer | Bookmark a post |
 | DELETE | `/api/posts/:id/bookmark` | Bearer | Remove bookmark |
+
+**Media upload:** `POST /api/posts` accepts `multipart/form-data` with up to 10 `media` files (images jpg/jpeg/png/webp or videos mp4/mov/webm, ≤10 MB each). Uploaded file URLs are appended to any `mediaUrls` sent in the body. Files are served from `/uploads/posts/...`.
+
+**Grouped posts:** A post may carry an optional `groupId`. When set, the post belongs to that group and is **excluded from the main feed** (`GET /posts`) — it surfaces only in the group feed (`GET /groups/:id/posts`). The main feed returns only ungrouped posts (`groupId IS NULL`). A non-existent `groupId` returns `404`.
+
+**Saved posts:** `GET /api/posts/saved` returns the authenticated user's bookmarked posts, ordered newest-saved first, using the same feed post shape (`isLiked`/`isBookmarked` included).
 
 ### Comments
 
@@ -157,6 +166,7 @@ Password reset reuses the exact same token mechanism as registration — there i
 | Method | Route | Auth | Description |
 |---|---|---|---|
 | GET | `/api/groups` | Bearer | List all groups with `memberCount` + `isMember` |
+| POST | `/api/groups` | Bearer | Create a group (creator auto-joins) |
 | GET | `/api/groups/:id` | Bearer | Single group detail |
 | POST | `/api/groups/:id/join` | Bearer | Join a group |
 | DELETE | `/api/groups/:id/join` | Bearer | Leave a group |
@@ -221,6 +231,7 @@ Password reset reuses the exact same token mechanism as registration — there i
   "id": 1,
   "name": "Breast Cancer Warriors",
   "description": "A supportive community for breast cancer patients and survivors",
+  "tagline": "Stronger together",
   "category": "breast_cancer",
   "imageUrl": null,
   "memberCount": 42,
@@ -229,6 +240,22 @@ Password reset reuses the exact same token mechanism as registration — there i
   "updatedAt": "..."
 }
 ```
+
+### Create a group
+
+```
+POST /api/groups
+Authorization: Bearer <token>
+{
+  "name": "Breast Cancer Warriors",
+  "description": "A supportive community",
+  "tagline": "Stronger together",
+  "category": "breast_cancer",
+  "imageUrl": null
+}
+```
+
+Returns the created group (`201`). The creator is automatically added as the first member (`memberCount: 1`, `isMember: true`). `tagline` and `imageUrl` are optional.
 
 `isMember` reflects the authenticated user's current membership status.
 
@@ -254,7 +281,15 @@ Returns `{ posts: [...], total: N }`. Each post includes full author info.
 ```
 POST   /api/groups/:id/posts          → 201 created post with author
 PATCH  /api/groups/posts/:postId      → updated post (owner only, else 403)
-DELETE /api/groups/posts/:postId      → 204 (owner only, else 403)
+DELETE /api/groups/posts/:postId      → 200 delete envelope (owner only, else 403)
+```
+
+### Delete response envelope
+
+All resource deletions (post, comment, group post, event) return a consistent `200` envelope rather than `204`:
+
+```json
+{ "success": true, "message": "Deleted successfully", "data": {} }
 ```
 
 ---
@@ -298,6 +333,17 @@ Authorization: Bearer <token>
 ```
 
 Returns `{ notifications: [...], total: N, unreadCount: N }`.
+
+### Filtered lists
+
+```
+GET /api/notifications/unread       → only unread notifications
+GET /api/notifications/mentioned    → only `mention`-type notifications
+GET /api/notifications/system       → only `system`-type notifications
+Authorization: Bearer <token>
+```
+
+Each accepts `?limit` & `?offset` and returns `{ notifications: [...], total: N, unreadCount: N }`, newest first.
 
 ### Unread count
 
@@ -448,9 +494,60 @@ Returns `{ unreadCount: N }` across all conversations.
 
 ---
 
+## Events & RSVPs
+
+Community events with RSVP tracking.
+
+| Method | Route | Auth | Description |
+|---|---|---|---|
+| GET | `/api/events` | Bearer | List events (upcoming-first by `eventDate`) |
+| POST | `/api/events` | Bearer | Create an event |
+| GET | `/api/events/:id` | Bearer | Single event detail |
+| PATCH | `/api/events/:id` | Bearer | Update own event (creator only, else 403) |
+| DELETE | `/api/events/:id` | Bearer | Delete own event (creator only, else 403) |
+| PUT | `/api/events/:id/rsvp` | Bearer | Set or update your RSVP status |
+| DELETE | `/api/events/:id/rsvp` | Bearer | Remove your RSVP |
+
+### Event Object
+
+```json
+{
+  "id": 1,
+  "title": "Caregiver Support Webinar",
+  "description": "Monthly online support session",
+  "eventDate": "2026-07-15T18:00:00.000Z",
+  "location": "Online (Zoom)",
+  "imageUrl": null,
+  "createdBy": 3,
+  "creator": { "id": 3, "name": "Dr. Dia", "role": "medical_professional", "avatarUrl": null },
+  "rsvpCount": 12,
+  "myRsvpStatus": "going",
+  "createdAt": "...",
+  "updatedAt": "..."
+}
+```
+
+`rsvpCount` is the total number of RSVPs; `myRsvpStatus` is the authenticated user's own status (`going` | `interested` | `not_going`) or `null` if they have not responded.
+
+### RSVP
+
+```
+PUT /api/events/:id/rsvp
+Authorization: Bearer <token>
+{ "status": "going" }            // going (default) | interested | not_going
+→ { "rsvpCount": 12, "myRsvpStatus": "going" }
+
+DELETE /api/events/:id/rsvp
+Authorization: Bearer <token>
+→ { "rsvpCount": 11, "myRsvpStatus": null }
+```
+
+RSVP is idempotent — calling `PUT` again updates the existing status (one RSVP row per user per event).
+
+---
+
 ## Future Modules (Phase 8+)
 
 - Cognie AI integration
 - Admin endpoints (verify/reject MDs, moderate content)
-- File uploads
-- Events & RSVPs
+- Phone/OTP verification (Twilio)

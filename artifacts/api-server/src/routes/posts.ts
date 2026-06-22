@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, sql, and, inArray } from "drizzle-orm";
+import { eq, desc, sql, and, inArray, isNull } from "drizzle-orm";
 import {
   db,
   postsTable,
@@ -7,6 +7,7 @@ import {
   likesTable,
   bookmarksTable,
   commentsTable,
+  groupsTable,
 } from "@workspace/db";
 import { createNotification } from "../utils/notify";
 import {
@@ -20,9 +21,11 @@ import {
   BookmarkPostParams,
   UnbookmarkPostParams,
   GetFeedQueryParams,
+  GetSavedPostsQueryParams,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import { optionalAuth } from "../middlewares/optionalAuth";
+import { uploadPostMedia, publicUrl } from "../middlewares/upload";
 import { success, error } from "../utils/response";
 
 const router: IRouter = Router();
@@ -31,6 +34,7 @@ async function buildFeedPosts(
   rawPosts: Array<{
     id: number;
     userId: number;
+    groupId: number | null;
     content: string;
     feeling: string | null;
     imageUrl: string | null;
@@ -81,6 +85,7 @@ async function buildFeedPosts(
   return rawPosts.map((p) => ({
     id: p.id,
     userId: p.userId,
+    groupId: p.groupId,
     content: p.content,
     feeling: p.feeling,
     imageUrl: p.imageUrl,
@@ -106,6 +111,7 @@ async function queryFeed(limit: number, offset: number) {
     .select({
       id: postsTable.id,
       userId: postsTable.userId,
+      groupId: postsTable.groupId,
       content: postsTable.content,
       feeling: postsTable.feeling,
       imageUrl: postsTable.imageUrl,
@@ -125,8 +131,48 @@ async function queryFeed(limit: number, offset: number) {
     .leftJoin(likesTable, eq(likesTable.postId, postsTable.id))
     .leftJoin(bookmarksTable, eq(bookmarksTable.postId, postsTable.id))
     .leftJoin(commentsTable, eq(commentsTable.postId, postsTable.id))
+    // Main feed shows only ungrouped posts; group-scoped posts live in the
+    // group feed (GET /groups/:id/posts).
+    .where(isNull(postsTable.groupId))
     .groupBy(postsTable.id, usersTable.id)
     .orderBy(desc(postsTable.createdAt))
+    .limit(limit)
+    .offset(offset);
+}
+
+async function querySavedPosts(
+  userId: number,
+  limit: number,
+  offset: number,
+) {
+  return db
+    .select({
+      id: postsTable.id,
+      userId: postsTable.userId,
+      groupId: postsTable.groupId,
+      content: postsTable.content,
+      feeling: postsTable.feeling,
+      imageUrl: postsTable.imageUrl,
+      mediaUrls: postsTable.mediaUrls,
+      createdAt: postsTable.createdAt,
+      updatedAt: postsTable.updatedAt,
+      authorId: usersTable.id,
+      authorName: usersTable.name,
+      authorRole: usersTable.role,
+      authorAvatarUrl: usersTable.avatarUrl,
+      bookmarkedAt: bookmarksTable.createdAt,
+      likeCount: sql<number>`cast(count(distinct ${likesTable.id}) as integer)`,
+      bookmarkCount: sql<number>`cast(count(distinct ${bookmarksTable.id}) as integer)`,
+      commentCount: sql<number>`cast(count(distinct ${commentsTable.id}) filter (where not ${commentsTable.isDeleted}) as integer)`,
+    })
+    .from(bookmarksTable)
+    .innerJoin(postsTable, eq(bookmarksTable.postId, postsTable.id))
+    .innerJoin(usersTable, eq(postsTable.userId, usersTable.id))
+    .leftJoin(likesTable, eq(likesTable.postId, postsTable.id))
+    .leftJoin(commentsTable, eq(commentsTable.postId, postsTable.id))
+    .where(eq(bookmarksTable.userId, userId))
+    .groupBy(postsTable.id, usersTable.id, bookmarksTable.createdAt)
+    .orderBy(desc(bookmarksTable.createdAt))
     .limit(limit)
     .offset(offset);
 }
@@ -142,24 +188,72 @@ router.get("/posts", optionalAuth, async (req, res): Promise<void> => {
   success(res, "Feed retrieved", posts);
 });
 
-router.post("/posts", requireAuth, async (req, res): Promise<void> => {
-  const parsed = CreatePostBody.safeParse(req.body);
+router.post(
+  "/posts",
+  requireAuth,
+  uploadPostMedia,
+  async (req, res): Promise<void> => {
+    // Multipart sends scalar fields as strings; coerce numeric/empty groupId
+    // before Zod validation so the same schema serves JSON and form-data.
+    const body: Record<string, unknown> = { ...req.body };
+    if (typeof body.groupId === "string") {
+      body.groupId = body.groupId.trim() === "" ? null : Number(body.groupId);
+    }
 
-  if (!parsed.success) {
-    error(res, parsed.error.issues.map((i) => i.message).join(", "), 400);
-    return;
-  }
+    const parsed = CreatePostBody.safeParse(body);
 
-  const [post] = await db
-    .insert(postsTable)
-    .values({
-      userId: req.userId!,
-      ...parsed.data,
-      mediaUrls: parsed.data.mediaUrls ?? [],
-    })
-    .returning();
+    if (!parsed.success) {
+      error(res, parsed.error.issues.map((i) => i.message).join(", "), 400);
+      return;
+    }
 
-  success(res, "Post created", { ...post, mediaUrls: post.mediaUrls ?? [] }, 201);
+    // If a group is specified, ensure it exists (FK would otherwise 500).
+    if (parsed.data.groupId != null) {
+      const [group] = await db
+        .select({ id: groupsTable.id })
+        .from(groupsTable)
+        .where(eq(groupsTable.id, parsed.data.groupId));
+      if (!group) {
+        error(res, "Group not found", 404);
+        return;
+      }
+    }
+
+    // Merge uploaded media file URLs with any URLs sent in the body.
+    const uploaded = Array.isArray(req.files)
+      ? (req.files as Express.Multer.File[]).map((f) =>
+          publicUrl("posts", f.filename),
+        )
+      : [];
+    const mediaUrls = [...(parsed.data.mediaUrls ?? []), ...uploaded];
+
+    const [post] = await db
+      .insert(postsTable)
+      .values({
+        userId: req.userId!,
+        ...parsed.data,
+        mediaUrls,
+      })
+      .returning();
+
+    success(
+      res,
+      "Post created",
+      { ...post, mediaUrls: post.mediaUrls ?? [] },
+      201,
+    );
+  },
+);
+
+router.get("/posts/saved", requireAuth, async (req, res): Promise<void> => {
+  const query = GetSavedPostsQueryParams.safeParse(req.query);
+  const limit = query.success ? (query.data.limit ?? 20) : 20;
+  const offset = query.success ? (query.data.offset ?? 0) : 0;
+
+  const rawPosts = await querySavedPosts(req.userId!, limit, offset);
+  const posts = await buildFeedPosts(rawPosts, req.userId);
+
+  success(res, "Saved posts retrieved", posts);
 });
 
 router.get("/posts/:id", optionalAuth, async (req, res): Promise<void> => {
@@ -174,6 +268,7 @@ router.get("/posts/:id", optionalAuth, async (req, res): Promise<void> => {
     .select({
       id: postsTable.id,
       userId: postsTable.userId,
+      groupId: postsTable.groupId,
       content: postsTable.content,
       feeling: postsTable.feeling,
       imageUrl: postsTable.imageUrl,
@@ -273,7 +368,7 @@ router.delete("/posts/:id", requireAuth, async (req, res): Promise<void> => {
   }
 
   await db.delete(postsTable).where(eq(postsTable.id, params.data.id));
-  res.sendStatus(204);
+  success(res, "Deleted successfully", {});
 });
 
 router.post("/posts/:id/like", requireAuth, async (req, res): Promise<void> => {

@@ -15,4 +15,5 @@ export const EntityType = {
   group: 'group',
   group_post: 'group_post',
   user: 'user',
+  event: 'event',
 } as const;

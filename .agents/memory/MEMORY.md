@@ -1,9 +1,1 @@
-- [CereOnco project context](cereonco-context.md) — Backend-only build; user explicitly wants no frontend. Phase 3+ needs explicit approval before starting.
-- [Response envelope pattern](response-envelope.md) — All routes wrap with { success, message, data } via utils/response.ts; spec defines only the data payload shape, not the envelope.
-- [Optional auth on read routes](optional-auth-pattern.md) — Feed and single-post use optionalAuth middleware so unauthenticated clients get counts and authenticated clients get per-user isLiked/isBookmarked state.
-- [api-zod TS2308 collision](api-zod-collision.md) — operations with path params + query params cause name clash; never re-export generated/types barrel from lib/api-zod/src/index.ts.
-- [api-zod codegen barrel overwrite](codegen-barrel-overwrite.md) — codegen rewrites index.ts and re-adds types export; reset to api-only after every codegen to avoid TS2308
-- [Dual OpenAPI specs](dual-openapi-spec.md) — Swagger UI serves a hand-maintained openapi-spec.ts, separate from the codegen YAML; both must be synced on any contract change.
-- [Posts mediaUrls storage](posts-mediaurls-storage.md) — media_urls kept as jsonb (not Postgres text[]); responses normalize null→[]; feeling is nullable text.
-- [Drizzle push blocked by phone drift](db-push-phone-drift.md) — dev `db run push` fails on duplicate phone_number unique; add new tables via direct DDL matching Drizzle constraint names.
-- [Socket.IO real-time layer](socketio-realtime.md) — shared HTTP server, path must be `/api/socket.io` for the proxy, persist-then-emit, in-memory presence wont scale past one instance.
+- [openapi-spec.ts sync](openapi-spec-sync.md) — after editing openapi.yaml, regen the server's Swagger mirror (openapi-spec.ts) + codegen + reset api-zod barrel, or Swagger/contract drift.

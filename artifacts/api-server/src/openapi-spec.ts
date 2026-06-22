@@ -1,3 +1,5 @@
+// AUTO-GENERATED from lib/api-spec/openapi.yaml — do not edit by hand.
+// Regenerate by parsing the YAML (the contract is the single source of truth).
 export const openApiSpec = {
   "openapi": "3.1.0",
   "info": {
@@ -42,7 +44,7 @@ export const openApiSpec = {
     },
     {
       "name": "messages",
-      "description": "Direct (1:1) messaging between users. These REST endpoints are the durable source of truth (history, unread counts, mark-read). Real-time delivery, typing indicators and presence run over **Socket.IO** on the same server.\n\n**Socket connection**\n\nConnect to the same origin with path `/api/socket.io` and authenticate with the same JWT used for REST. Pass the token in the handshake: `io(ORIGIN, { path: \"/api/socket.io\", auth: { token: \"<JWT>\" } })`. An invalid/missing token rejects the connection. Sending a message over a socket persists it to the database first, then emits — so socket and REST stay consistent.\n\n**Client → Server events** (each accepts an optional ack callback):\n- `joinConversation { conversationId }` — join a chat room (membership-checked)\n- `leaveConversation { conversationId }`\n- `sendMessage { conversationId, content, mediaUrls? }` — persist + fan out\n- `markRead { conversationId }` — mark received messages read\n- `typingStart { conversationId }` / `typingStop { conversationId }`\n\n**Server → Client events:**\n- `newMessage` (Message) — to everyone in the conversation room\n- `messageReceived` (Message) — to the recipient's personal room (inbox badge)\n- `messageRead { conversationId, readerId, messageIds }` — read receipts\n- `typing { conversationId, userId }` / `stopTyping { conversationId, userId }`\n- `userOnline { userId }` / `userOffline { userId }` — presence\n- `onlineUsers { userIds }` — presence snapshot sent on connect"
+      "description": "Direct (1:1) messaging between users. These REST endpoints are the durable source of truth (history, unread counts, mark-read). Real-time delivery, typing indicators and presence run over **Socket.IO** on the same server.\n\n**Socket connection**\n\nConnect to the same origin with path `/api/socket.io` and authenticate with the same JWT used for REST. Pass the token in the handshake: `io(ORIGIN, { path: \"/api/socket.io\", auth: { token: \"<JWT>\" } })`. An invalid/missing token rejects the connection. Sending a message over a socket persists it to the database first, then emits — so socket and REST stay consistent.\n\n**Client → Server events** (each accepts an optional ack callback):\n- `joinConversation { conversationId }` — join a chat room (membership-checked)\n- `leaveConversation { conversationId }`\n- `sendMessage { conversationId, content, mediaUrls? }` — persist + fan out\n- `markRead { conversationId }` — mark received messages read\n- `typingStart { conversationId }` / `typingStop { conversationId }`\n\n**Server → Client events:**\n- `newMessage` (Message) — to everyone in the conversation room\n- `messageReceived` (Message) — to the recipient's personal room (inbox badge)\n- `messageRead { conversationId, readerId, messageIds }` — read receipts\n- `typing { conversationId, userId }` / `stopTyping { conversationId, userId }`\n- `userOnline { userId }` / `userOffline { userId }` — presence\n- `onlineUsers { userIds }` — presence snapshot sent on connect\n"
     }
   ],
   "components": {
@@ -225,20 +227,20 @@ export const openApiSpec = {
       "RegisterResponse": {
         "type": "object",
         "required": [
-          "token",
-          "user"
+          "user",
+          "token"
         ],
         "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
           "token": {
             "type": "string",
             "description": "JWT issued immediately on registration — the user is logged in."
           },
-          "user": {
-            "$ref": "#/components/schemas/User"
-          },
           "setupToken": {
             "type": "string",
-            "description": "Password-setup token. Returned ONLY in non-production (NODE_ENV !== 'production') for testing. In production it is delivered via the emailed setup link only."
+            "description": "Password-setup token. Returned ONLY in non-production (NODE_ENV !== 'production') for testing convenience. In production the token is delivered via the emailed setup link only."
           }
         }
       },
@@ -259,6 +261,12 @@ export const openApiSpec = {
           },
           "userId": {
             "type": "integer"
+          },
+          "groupId": {
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "content": {
             "type": "string"
@@ -339,6 +347,12 @@ export const openApiSpec = {
           },
           "userId": {
             "type": "integer"
+          },
+          "groupId": {
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "content": {
             "type": "string"
@@ -716,6 +730,13 @@ export const openApiSpec = {
               "null"
             ]
           },
+          "groupId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "When set, the post is scoped to the given group; null/omitted for a regular feed post."
+          },
           "imageUrl": {
             "type": "string"
           },
@@ -800,6 +821,12 @@ export const openApiSpec = {
           "description": {
             "type": "string"
           },
+          "tagline": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "category": {
             "type": "string"
           },
@@ -840,6 +867,40 @@ export const openApiSpec = {
           },
           "total": {
             "type": "integer"
+          }
+        }
+      },
+      "CreateGroupInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "category"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tagline": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1
+          },
+          "imageUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -954,7 +1015,9 @@ export const openApiSpec = {
           "comment_replied",
           "group_joined",
           "group_post_created",
-          "verification_updated"
+          "verification_updated",
+          "mention",
+          "system"
         ]
       },
       "EntityType": {
@@ -964,7 +1027,8 @@ export const openApiSpec = {
           "comment",
           "group",
           "group_post",
-          "user"
+          "user",
+          "event"
         ]
       },
       "NotificationActor": {
@@ -1264,6 +1328,228 @@ export const openApiSpec = {
             "type": "integer"
           }
         }
+      },
+      "RsvpStatus": {
+        "type": "string",
+        "enum": [
+          "going",
+          "interested",
+          "not_going"
+        ]
+      },
+      "EventCreator": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          },
+          "avatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "Event": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "eventDate",
+          "createdBy",
+          "creator",
+          "rsvpCount",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "eventDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imageUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdBy": {
+            "type": "integer"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/EventCreator"
+          },
+          "rsvpCount": {
+            "type": "integer"
+          },
+          "myRsvpStatus": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RsvpStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "EventsListResponse": {
+        "type": "object",
+        "required": [
+          "events",
+          "total"
+        ],
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "EventInput": {
+        "type": "object",
+        "required": [
+          "title",
+          "eventDate"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "eventDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imageUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "EventUpdate": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "eventDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imageUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "EventRsvpInput": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/RsvpStatus"
+          }
+        }
+      },
+      "RsvpResponse": {
+        "type": "object",
+        "required": [
+          "rsvpCount",
+          "myRsvpStatus"
+        ],
+        "properties": {
+          "rsvpCount": {
+            "type": "integer"
+          },
+          "myRsvpStatus": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RsvpStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "DeleteResponse": {
+        "type": "object",
+        "description": "Standard envelope for resource deletions.",
+        "properties": {}
       }
     }
   },
@@ -1308,7 +1594,7 @@ export const openApiSpec = {
         },
         "responses": {
           "201": {
-            "description": "Registered; user is logged in and a password-setup email is sent",
+            "description": "Registered; password-setup email sent",
             "content": {
               "application/json": {
                 "schema": {
@@ -1332,7 +1618,7 @@ export const openApiSpec = {
         "tags": [
           "auth"
         ],
-        "summary": "Set password via the emailed setup token (verifies the account)",
+        "summary": "Set password via setup token (completes passwordless registration)",
         "requestBody": {
           "required": true,
           "content": {
@@ -1473,7 +1759,8 @@ export const openApiSpec = {
         "tags": [
           "users"
         ],
-        "summary": "Update current user profile",
+        "summary": "Update current user profile (JSON or multipart avatar upload)",
+        "description": "Accepts application/json (profile fields) or multipart/form-data with an optional `avatar` file (jpg/jpeg/png/webp, max 5MB) plus any profile fields. Uploading an avatar updates both avatarUrl and profilePhotoUrl.\n",
         "security": [
           {
             "bearerAuth": []
@@ -1591,7 +1878,8 @@ export const openApiSpec = {
         "tags": [
           "posts"
         ],
-        "summary": "Create a post",
+        "summary": "Create a post (JSON or multipart media upload)",
+        "description": "Accepts application/json or multipart/form-data with up to 10 `media` files (images jpg/jpeg/png/webp or videos mp4/mov/webm, max 10MB each) plus text fields. Uploaded file URLs are merged into mediaUrls.\n",
         "security": [
           {
             "bearerAuth": []
@@ -1614,6 +1902,56 @@ export const openApiSpec = {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Post"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/posts/saved": {
+      "get": {
+        "operationId": "getSavedPosts",
+        "tags": [
+          "posts"
+        ],
+        "summary": "Get current user's bookmarked posts (newest first)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Saved posts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FeedPost"
+                  }
                 }
               }
             }
@@ -1734,8 +2072,15 @@ export const openApiSpec = {
           }
         ],
         "responses": {
-          "204": {
-            "description": "Deleted"
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              }
+            }
           },
           "403": {
             "description": "Forbidden"
@@ -2058,7 +2403,14 @@ export const openApiSpec = {
         ],
         "responses": {
           "200": {
-            "description": "Comment deleted (soft)"
+            "description": "Comment deleted (soft)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              }
+            }
           },
           "401": {
             "description": "Unauthorized"
@@ -2109,6 +2461,43 @@ export const openApiSpec = {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GroupsListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createGroup",
+        "tags": [
+          "groups"
+        ],
+        "summary": "Create a community group",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGroupInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Group"
                 }
               }
             }
@@ -2433,8 +2822,15 @@ export const openApiSpec = {
           }
         ],
         "responses": {
-          "204": {
-            "description": "Deleted"
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              }
+            }
           },
           "401": {
             "description": "Unauthorized"
@@ -2481,6 +2877,147 @@ export const openApiSpec = {
         "responses": {
           "200": {
             "description": "Notifications list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationsListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/notifications/unread": {
+      "get": {
+        "operationId": "listUnreadNotifications",
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Get unread notifications (newest first)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unread notifications list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationsListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/notifications/mentioned": {
+      "get": {
+        "operationId": "listMentionedNotifications",
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Get mention notifications (newest first)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mention notifications list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationsListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/notifications/system": {
+      "get": {
+        "operationId": "listSystemNotifications",
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Get system notifications (newest first)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "System notifications list",
             "content": {
               "application/json": {
                 "schema": {
@@ -2864,6 +3401,317 @@ export const openApiSpec = {
           }
         }
       }
+    },
+    "/events": {
+      "get": {
+        "operationId": "listEvents",
+        "tags": [
+          "events"
+        ],
+        "summary": "List events (soonest upcoming first)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Events list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventsListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createEvent",
+        "tags": [
+          "events"
+        ],
+        "summary": "Create an event",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/events/{id}": {
+      "get": {
+        "operationId": "getEvent",
+        "tags": [
+          "events"
+        ],
+        "summary": "Get a single event",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateEvent",
+        "tags": [
+          "events"
+        ],
+        "summary": "Update an event (creator only)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Event not found"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteEvent",
+        "tags": [
+          "events"
+        ],
+        "summary": "Delete an event (creator only)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Event not found"
+          }
+        }
+      }
+    },
+    "/events/{id}/rsvp": {
+      "put": {
+        "operationId": "setEventRsvp",
+        "tags": [
+          "events"
+        ],
+        "summary": "Set or update RSVP status for an event",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventRsvpInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "RSVP updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RsvpResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Event not found"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removeEventRsvp",
+        "tags": [
+          "events"
+        ],
+        "summary": "Remove the current user's RSVP",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "RSVP removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RsvpResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Event not found"
+          }
+        }
+      }
     }
   }
-} as const;
+};

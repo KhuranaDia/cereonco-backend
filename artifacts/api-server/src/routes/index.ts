@@ -7,6 +7,7 @@ import commentsRouter from "./comments";
 import groupsRouter from "./groups";
 import notificationsRouter from "./notifications";
 import messagesRouter from "./messages";
+import eventsRouter from "./events";
 import docsRouter from "./docs";
 
 const router: IRouter = Router();
@@ -19,6 +20,7 @@ router.use(commentsRouter);
 router.use(groupsRouter);
 router.use(notificationsRouter);
 router.use(messagesRouter);
+router.use(eventsRouter);
 router.use(docsRouter);
 
 export default router;

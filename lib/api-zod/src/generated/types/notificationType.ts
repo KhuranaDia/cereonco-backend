@@ -16,4 +16,6 @@ export const NotificationType = {
   group_joined: 'group_joined',
   group_post_created: 'group_post_created',
   verification_updated: 'verification_updated',
+  mention: 'mention',
+  system: 'system',
 } as const;

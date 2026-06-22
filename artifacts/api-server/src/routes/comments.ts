@@ -315,7 +315,7 @@ router.delete("/comments/:id", requireAuth, async (req, res): Promise<void> => {
     .set({ isDeleted: true })
     .where(eq(commentsTable.id, params.data.id));
 
-  success(res, "Comment deleted", { deleted: true, id: params.data.id });
+  success(res, "Deleted successfully", {});
 });
 
 export default router;

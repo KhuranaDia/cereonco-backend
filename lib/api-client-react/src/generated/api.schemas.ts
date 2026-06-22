@@ -80,6 +80,8 @@ export interface RegisterResponse {
 export interface Post {
   id: number;
   userId: number;
+  /** @nullable */
+  groupId?: number | null;
   content: string;
   /** @nullable */
   feeling: string | null;
@@ -101,6 +103,8 @@ export interface PostAuthor {
 export interface FeedPost {
   id: number;
   userId: number;
+  /** @nullable */
+  groupId?: number | null;
   content: string;
   /** @nullable */
   feeling: string | null;
@@ -217,6 +221,11 @@ export interface PostInput {
   content: string;
   /** @nullable */
   feeling?: string | null;
+  /**
+     * When set, the post is scoped to the given group; null/omitted for a regular feed post.
+     * @nullable
+     */
+  groupId?: number | null;
   imageUrl?: string;
   mediaUrls?: string[];
 }
@@ -245,6 +254,8 @@ export interface Group {
   id: number;
   name: string;
   description: string;
+  /** @nullable */
+  tagline?: string | null;
   category: string;
   /** @nullable */
   imageUrl?: string | null;
@@ -257,6 +268,19 @@ export interface Group {
 export interface GroupsListResponse {
   groups: Group[];
   total: number;
+}
+
+export interface CreateGroupInput {
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  description: string;
+  /** @nullable */
+  tagline?: string | null;
+  /** @minLength 1 */
+  category: string;
+  /** @nullable */
+  imageUrl?: string | null;
 }
 
 export interface GroupPost {
@@ -303,6 +327,8 @@ export const NotificationType = {
   group_joined: 'group_joined',
   group_post_created: 'group_post_created',
   verification_updated: 'verification_updated',
+  mention: 'mention',
+  system: 'system',
 } as const;
 
 export type EntityType = typeof EntityType[keyof typeof EntityType];
@@ -314,6 +340,7 @@ export const EntityType = {
   group: 'group',
   group_post: 'group_post',
   user: 'user',
+  event: 'event',
 } as const;
 
 export interface NotificationActor {
@@ -401,7 +428,90 @@ export interface UnreadMessagesCountResponse {
   unreadCount: number;
 }
 
+export type RsvpStatus = typeof RsvpStatus[keyof typeof RsvpStatus];
+
+
+export const RsvpStatus = {
+  going: 'going',
+  interested: 'interested',
+  not_going: 'not_going',
+} as const;
+
+export interface EventCreator {
+  id: number;
+  name: string;
+  role: UserRole;
+  /** @nullable */
+  avatarUrl?: string | null;
+}
+
+export interface Event {
+  id: number;
+  title: string;
+  /** @nullable */
+  description?: string | null;
+  eventDate: string;
+  /** @nullable */
+  location?: string | null;
+  /** @nullable */
+  imageUrl?: string | null;
+  createdBy: number;
+  creator: EventCreator;
+  rsvpCount: number;
+  myRsvpStatus?: RsvpStatus | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EventsListResponse {
+  events: Event[];
+  total: number;
+}
+
+export interface EventInput {
+  /** @minLength 1 */
+  title: string;
+  /** @nullable */
+  description?: string | null;
+  eventDate: string;
+  /** @nullable */
+  location?: string | null;
+  /** @nullable */
+  imageUrl?: string | null;
+}
+
+export interface EventUpdate {
+  /** @minLength 1 */
+  title?: string;
+  /** @nullable */
+  description?: string | null;
+  eventDate?: string;
+  /** @nullable */
+  location?: string | null;
+  /** @nullable */
+  imageUrl?: string | null;
+}
+
+export interface EventRsvpInput {
+  status?: RsvpStatus;
+}
+
+export interface RsvpResponse {
+  rsvpCount: number;
+  myRsvpStatus: RsvpStatus | null;
+}
+
+/**
+ * Standard envelope for resource deletions.
+ */
+export interface DeleteResponse { [key: string]: unknown }
+
 export type GetFeedParams = {
+limit?: number;
+offset?: number;
+};
+
+export type GetSavedPostsParams = {
 limit?: number;
 offset?: number;
 };
@@ -421,6 +531,21 @@ limit?: number;
 offset?: number;
 };
 
+export type ListUnreadNotificationsParams = {
+limit?: number;
+offset?: number;
+};
+
+export type ListMentionedNotificationsParams = {
+limit?: number;
+offset?: number;
+};
+
+export type ListSystemNotificationsParams = {
+limit?: number;
+offset?: number;
+};
+
 export type MarkAllRead200 = {
   updatedCount: number;
 };
@@ -428,5 +553,10 @@ export type MarkAllRead200 = {
 export type MarkConversationRead200 = {
   updatedCount: number;
   unreadCount: number;
+};
+
+export type ListEventsParams = {
+limit?: number;
+offset?: number;
 };
 

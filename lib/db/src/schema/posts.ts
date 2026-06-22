@@ -10,12 +10,19 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
+import { groupsTable } from "./groups";
 
 export const postsTable = pgTable("posts", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
     .notNull()
     .references(() => usersTable.id, { onDelete: "cascade" }),
+
+  // Nullable: regular posts have groupId = null; group posts carry the group id.
+  // Unified storage — group-scoped posts live in the same posts table.
+  groupId: integer("group_id").references(() => groupsTable.id, {
+    onDelete: "cascade",
+  }),
 
   content: text("content").notNull(),
 

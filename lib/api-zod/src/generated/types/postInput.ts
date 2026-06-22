@@ -11,6 +11,11 @@ export interface PostInput {
   content: string;
   /** @nullable */
   feeling?: string | null;
+  /**
+     * When set, the post is scoped to the given group; null/omitted for a regular feed post.
+     * @nullable
+     */
+  groupId?: number | null;
   imageUrl?: string;
   mediaUrls?: string[];
 }

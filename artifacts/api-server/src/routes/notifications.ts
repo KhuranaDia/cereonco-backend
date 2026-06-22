@@ -3,12 +3,80 @@ import { eq, and, sql, desc } from "drizzle-orm";
 import { db, notificationsTable, usersTable } from "@workspace/db";
 import {
   ListNotificationsQueryParams,
+  ListUnreadNotificationsQueryParams,
+  ListMentionedNotificationsQueryParams,
+  ListSystemNotificationsQueryParams,
   MarkNotificationReadParams,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import { success, error } from "../utils/response";
 
 const router: IRouter = Router();
+
+type NotificationFilter = ReturnType<typeof eq>;
+
+async function getUnreadCount(userId: number): Promise<number> {
+  const [{ unreadCount }] = await db
+    .select({ unreadCount: sql<number>`cast(count(*) as integer)` })
+    .from(notificationsTable)
+    .where(
+      and(
+        eq(notificationsTable.userId, userId),
+        eq(notificationsTable.isRead, false),
+      ),
+    );
+  return unreadCount;
+}
+
+async function listFilteredNotifications(
+  userId: number,
+  limit: number,
+  offset: number,
+  extra?: NotificationFilter,
+) {
+  const conditions = [eq(notificationsTable.userId, userId)];
+  if (extra) conditions.push(extra);
+
+  const rows = await db
+    .select({
+      id: notificationsTable.id,
+      userId: notificationsTable.userId,
+      actorId: notificationsTable.actorId,
+      type: notificationsTable.type,
+      entityType: notificationsTable.entityType,
+      entityId: notificationsTable.entityId,
+      message: notificationsTable.message,
+      isRead: notificationsTable.isRead,
+      createdAt: notificationsTable.createdAt,
+      updatedAt: notificationsTable.updatedAt,
+      actorName: usersTable.name,
+      actorRole: usersTable.role,
+      actorProfilePhotoUrl: usersTable.profilePhotoUrl,
+    })
+    .from(notificationsTable)
+    .innerJoin(usersTable, eq(notificationsTable.actorId, usersTable.id))
+    .where(and(...conditions))
+    .orderBy(desc(notificationsTable.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  return rows.map((r) => ({
+    id: r.id,
+    type: r.type,
+    entityType: r.entityType,
+    entityId: r.entityId,
+    message: r.message,
+    isRead: r.isRead,
+    actor: {
+      id: r.actorId,
+      name: r.actorName,
+      role: r.actorRole,
+      profilePhotoUrl: r.actorProfilePhotoUrl,
+    },
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  }));
+}
 
 async function buildNotification(raw: typeof notificationsTable.$inferSelect & {
   actorId: number;
@@ -90,6 +158,72 @@ router.get("/notifications", requireAuth, async (req, res): Promise<void> => {
   }));
 
   success(res, "Notifications retrieved", {
+    notifications,
+    total: notifications.length,
+    unreadCount,
+  });
+});
+
+router.get("/notifications/unread", requireAuth, async (req, res): Promise<void> => {
+  const query = ListUnreadNotificationsQueryParams.safeParse(req.query);
+  const limit = query.success ? (query.data.limit ?? 20) : 20;
+  const offset = query.success ? (query.data.offset ?? 0) : 0;
+
+  const [notifications, unreadCount] = await Promise.all([
+    listFilteredNotifications(
+      req.userId!,
+      limit,
+      offset,
+      eq(notificationsTable.isRead, false),
+    ),
+    getUnreadCount(req.userId!),
+  ]);
+
+  success(res, "Unread notifications retrieved", {
+    notifications,
+    total: notifications.length,
+    unreadCount,
+  });
+});
+
+router.get("/notifications/mentioned", requireAuth, async (req, res): Promise<void> => {
+  const query = ListMentionedNotificationsQueryParams.safeParse(req.query);
+  const limit = query.success ? (query.data.limit ?? 20) : 20;
+  const offset = query.success ? (query.data.offset ?? 0) : 0;
+
+  const [notifications, unreadCount] = await Promise.all([
+    listFilteredNotifications(
+      req.userId!,
+      limit,
+      offset,
+      eq(notificationsTable.type, "mention"),
+    ),
+    getUnreadCount(req.userId!),
+  ]);
+
+  success(res, "Mentioned notifications retrieved", {
+    notifications,
+    total: notifications.length,
+    unreadCount,
+  });
+});
+
+router.get("/notifications/system", requireAuth, async (req, res): Promise<void> => {
+  const query = ListSystemNotificationsQueryParams.safeParse(req.query);
+  const limit = query.success ? (query.data.limit ?? 20) : 20;
+  const offset = query.success ? (query.data.offset ?? 0) : 0;
+
+  const [notifications, unreadCount] = await Promise.all([
+    listFilteredNotifications(
+      req.userId!,
+      limit,
+      offset,
+      eq(notificationsTable.type, "system"),
+    ),
+    getUnreadCount(req.userId!),
+  ]);
+
+  success(res, "System notifications retrieved", {
     notifications,
     total: notifications.length,
     unreadCount,

@@ -1,0 +1,390 @@
+Continue the existing CereOnco backend from the current codebase. Do NOT rebuild or refactor completed modules.
+
+IMPORTANT:
+Replit credits are limited.
+
+Goal:
+Implement Tasks 2–9 in one implementation pass.
+
+Do NOT run long E2E tests.
+Do NOT run repeated integration loops.
+Do NOT run socket stress tests.
+
+Only:
+
+* Implement
+* Update schemas/specs/docs
+* Run build/typecheck
+* Summarize changes
+
+Current stack:
+
+* Node.js
+* Express
+* TypeScript
+* PostgreSQL
+* Drizzle ORM
+* JWT
+* Socket.IO
+* Swagger/OpenAPI
+* Postman
+* Render
+
+Already completed:
+✅ Auth
+✅ Registration Flow
+✅ Forgot Password
+✅ Password Setup Flow
+✅ Posts
+✅ Comments
+✅ Groups
+✅ Notifications
+✅ Real-Time Messaging
+
+DO NOT TOUCH:
+
+* Messaging architecture
+* JWT auth flow
+* Forgot-password flow
+* Existing response envelope format
+
+==================================================
+TASK 2 — PROFILE AVATAR UPLOAD
+==============================
+
+PATCH /users/me
+
+Support:
+
+* application/json
+* multipart/form-data
+
+Accept:
+
+avatar (file)
+
+Use multer.
+
+Store locally:
+
+uploads/avatars
+
+Serve:
+
+/uploads/avatars/<filename>
+
+Allowed:
+
+* jpg
+* jpeg
+* png
+* webp
+
+Max:
+5MB
+
+Update both:
+
+avatarUrl
+profilePhotoUrl
+
+Keep backward compatibility.
+
+==================================================
+TASK 3 — CREATE POST MULTIPART MEDIA UPLOAD
+===========================================
+
+POST /posts
+
+Support:
+
+multipart/form-data
+
+Fields:
+
+content (text)
+feeling (text)
+media (multiple files)
+
+Store files:
+
+uploads/posts
+
+Save URLs into:
+
+mediaUrls
+
+Keep JSON-body support too.
+
+Allowed:
+
+Images:
+jpg
+jpeg
+png
+webp
+
+Videos:
+mp4
+mov
+webm
+
+Max:
+10MB/file
+
+Do not remove existing imageUrl support.
+
+==================================================
+TASK 4 — SAVED POSTS API
+========================
+
+Create:
+
+GET /posts/saved
+
+Auth required.
+
+Return saved/bookmarked posts of current user.
+
+Include:
+
+* author
+* feeling
+* mediaUrls
+* counts
+
+Use existing bookmark/save data if present.
+
+==================================================
+TASK 5 — GROUPS CREATE + TAGLINE
+================================
+
+Add column:
+
+tagline
+
+Update groups schema.
+
+Create API:
+
+POST /groups
+
+Body:
+
+{
+"name": "string",
+"description": "string",
+"tagline": "string",
+"category": "string",
+"imageUrl": "string"
+}
+
+Update:
+GET /groups
+GET /groups/:id
+
+Return tagline.
+
+==================================================
+TASK 6 — groupId IN POSTS
+=========================
+
+Posts table:
+
+Add nullable:
+
+groupId
+
+Rules:
+
+Regular posts:
+groupId = null
+
+Group posts:
+groupId = group id
+
+Use SAME posts table.
+
+Do not create separate duplicate storage.
+
+Update:
+
+* feeds
+* group post creation
+* retrieval
+
+Preserve backward compatibility.
+
+==================================================
+TASK 7 — DELETE RESPONSE AUDIT
+==============================
+
+Audit all delete APIs.
+
+Posts
+Comments
+Groups
+Group posts
+Notifications
+Messages
+Any others
+
+Every delete endpoint must return:
+
+{
+"success": true,
+"message": "Deleted successfully",
+"data": {}
+}
+
+No empty responses.
+
+==================================================
+TASK 8 — NOTIFICATION FILTER APIS
+=================================
+
+Add:
+
+GET /notifications/unread
+
+GET /notifications/mentioned
+
+GET /notifications/system
+
+Requirements:
+
+Auth required.
+
+Newest first.
+
+Preserve:
+GET /notifications
+GET /notifications/unread-count
+
+==================================================
+TASK 9 — EVENT MANAGEMENT
+=========================
+
+Create tables:
+
+events
+
+id
+title
+description
+eventDate
+location
+imageUrl
+createdBy
+createdAt
+updatedAt
+
+event_rsvps
+
+id
+eventId
+userId
+status
+createdAt
+
+Create APIs:
+
+GET /events
+
+GET /events/:id
+
+POST /events
+
+PATCH /events/:id
+
+DELETE /events/:id
+
+POST /events/:id/rsvp
+
+DELETE /events/:id/rsvp
+
+Auth required.
+
+Return RSVP count.
+
+Return current user's RSVP status.
+
+==================================================
+OPENAPI
+=======
+
+Update BOTH:
+
+lib/api-spec/openapi.yaml
+
+artifacts/api-server/src/openapi-spec.ts
+
+Do not leave them out of sync.
+
+==================================================
+POSTMAN
+=======
+
+Update collection:
+
+Profile Avatar Upload
+
+Create Post Multipart
+
+Saved Posts
+
+Groups Create
+
+Notifications Filters
+
+Events
+
+RSVP
+
+==================================================
+STATIC FILES
+============
+
+Ensure:
+
+/uploads
+
+is served by Express.
+
+==================================================
+BUILD ONLY
+==========
+
+Run:
+
+pnpm --filter @workspace/api-server build
+
+Run typecheck if already part of workflow.
+
+Do NOT run long E2E testing.
+
+==================================================
+DELIVERABLES
+============
+
+At completion provide:
+
+1. Files changed
+
+2. Endpoints added
+
+3. DB changes
+
+4. Manual Postman testing steps
+
+5. Known limitations
+
+6. Any migration commands needed
+
+7. Commit message suggestion
+
+STOP after Tasks 2–9.
+
+Do NOT start Twilio OTP.
+
+Twilio OTP will be implemented separately as Task 10.
