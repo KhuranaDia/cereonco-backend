@@ -20,6 +20,7 @@ export * from './conversationParticipant';
 export * from './createConversationInput';
 export * from './entityType';
 export * from './feedPost';
+export * from './forgotPasswordInput';
 export * from './getFeedParams';
 export * from './getGroupFeedParams';
 export * from './group';

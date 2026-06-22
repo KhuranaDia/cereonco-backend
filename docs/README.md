@@ -64,6 +64,7 @@ pnpm --filter @workspace/api-server run dev
 |---|---|---|---|
 | POST | `/api/auth/register` | No | Register a new user (passwordless — sends setup email) |
 | POST | `/api/auth/set-password` | No | Set password via setup token, verifies account |
+| POST | `/api/auth/forgot-password` | No | Request a password reset link (reuses set-password flow) |
 | POST | `/api/auth/login` | No | Login and get JWT |
 | POST | `/api/auth/logout` | Optional | Logout (client deletes token) |
 
@@ -98,7 +99,27 @@ Registration no longer collects a password. The flow is:
 
 3. **Login** works for any registered user with a password — email verification is independent and does not block login.
 
-**Email/SMTP config (optional):** set `SMTP_HOST` + `SMTP_USER` to enable real delivery; `FRONTEND_URL` (or `APP_BASE_URL`) controls the link base (defaults to `http://localhost:5173`).
+#### Forgot password flow
+
+Password reset reuses the exact same token mechanism as registration — there is no separate reset endpoint to set the new password.
+
+1. **Request a reset link:**
+   ```json
+   POST /api/auth/forgot-password
+   { "email": "asha@example.com" }
+   ```
+   - If a matching account exists, a fresh single-use 24-hour token is generated (only its SHA-256 hash is stored in `passwordSetupToken` + `passwordSetupTokenExpiresAt`) and a reset link is emailed. **Until SMTP is configured, the link is logged** (via pino).
+   - The response is **always** a generic `200` success (`"If an account exists for that email, a password reset link has been sent."`) whether or not the email is registered, to prevent account enumeration. In non-production (`NODE_ENV !== "production"`) the response data includes `setupToken` for testing convenience only when a user actually matched — never in production.
+   - The link format is `${FRONTEND_URL}/set-password?token={token}`.
+
+2. **Set the new password** with the existing endpoint:
+   ```json
+   POST /api/auth/set-password
+   { "token": "<token-from-link>", "password": "NewPass123" }
+   ```
+   - Same handler as registration: validates token + expiry, bcrypt-hashes the password, sets `emailVerified = true`, clears the token fields, returns an auto-login JWT.
+
+**Email/SMTP config (optional):** set `SMTP_HOST` + `SMTP_USER` (plus `SMTP_PORT`, `SMTP_PASS`, `SMTP_FROM` once real delivery is wired) to enable email; `FRONTEND_URL` (or `APP_BASE_URL`) controls the link base (defaults to `http://localhost:5173`).
 
 ### Users
 

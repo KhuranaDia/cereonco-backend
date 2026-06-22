@@ -2,14 +2,19 @@ import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
-import { RegisterBody, LoginBody, SetPasswordBody } from "@workspace/api-zod";
+import {
+  RegisterBody,
+  LoginBody,
+  SetPasswordBody,
+  ForgotPasswordBody,
+} from "@workspace/api-zod";
 import {
   generateToken,
   generateSetupToken,
   generateTempPassword,
   hashSetupToken,
 } from "../utils/token";
-import { sendPasswordSetupEmail } from "../utils/email";
+import { sendPasswordSetupEmail, sendPasswordResetEmail } from "../utils/email";
 import { safeUser } from "../utils/safeUser";
 import { success, error } from "../utils/response";
 
@@ -145,6 +150,57 @@ router.post("/auth/set-password", async (req, res): Promise<void> => {
     token: jwt,
     user: safeUser(updated),
   });
+});
+
+router.post("/auth/forgot-password", async (req, res): Promise<void> => {
+  const parsed = ForgotPasswordBody.safeParse(req.body);
+
+  if (!parsed.success) {
+    error(res, parsed.error.issues.map((i) => i.message).join(", "), 400);
+    return;
+  }
+
+  const normalizedEmail = parsed.data.email.trim().toLowerCase();
+
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.email, normalizedEmail));
+
+  // Generic success message regardless of whether the account exists, so the
+  // endpoint cannot be used to enumerate which emails are registered. A reset
+  // link is only generated/sent when a matching user is found.
+  const genericMessage =
+    "If an account exists for that email, a password reset link has been sent.";
+
+  if (!user) {
+    success(res, genericMessage, {});
+    return;
+  }
+
+  const { token: setupToken, tokenHash, expiresAt } = generateSetupToken();
+
+  await db
+    .update(usersTable)
+    .set({
+      passwordSetupToken: tokenHash,
+      passwordSetupTokenExpiresAt: expiresAt,
+    })
+    .where(eq(usersTable.id, user.id));
+
+  await sendPasswordResetEmail({
+    req,
+    to: normalizedEmail,
+    name: user.name,
+    token: setupToken,
+  });
+
+  const responseData: { setupToken?: string } = {};
+  if (process.env.NODE_ENV !== "production") {
+    responseData.setupToken = setupToken;
+  }
+
+  success(res, genericMessage, responseData);
 });
 
 router.post("/auth/login", async (req, res): Promise<void> => {

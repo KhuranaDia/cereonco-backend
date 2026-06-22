@@ -187,6 +187,10 @@ export interface SetPasswordInput {
   password: string;
 }
 
+export interface ForgotPasswordInput {
+  email: string;
+}
+
 export interface LoginInput {
   email: string;
   password: string;

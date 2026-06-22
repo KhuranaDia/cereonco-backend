@@ -627,6 +627,18 @@ export const openApiSpec = {
           }
         }
       },
+      "ForgotPasswordInput": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        }
+      },
       "LoginInput": {
         "type": "object",
         "required": [
@@ -1344,6 +1356,33 @@ export const openApiSpec = {
           },
           "400": {
             "description": "Invalid or expired token"
+          }
+        }
+      }
+    },
+    "/auth/forgot-password": {
+      "post": {
+        "operationId": "forgotPassword",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Request a password reset link (reuses the set-password token flow)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Always returns success when the request is well-formed, even if no account matches the email, to avoid leaking which emails are registered. A reset link is emailed (or logged) only when a user exists."
+          },
+          "400": {
+            "description": "Validation error"
           }
         }
       }

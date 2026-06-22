@@ -74,6 +74,14 @@ export const SetPasswordResponse = zod.object({
 
 
 /**
+ * @summary Request a password reset link (reuses the set-password token flow)
+ */
+export const ForgotPasswordBody = zod.object({
+  "email": zod.string().email()
+})
+
+
+/**
  * @summary Login
  */
 export const LoginBody = zod.object({

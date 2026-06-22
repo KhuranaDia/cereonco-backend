@@ -297,6 +297,7 @@ workspace/
 |---|---|---|---|---|
 | POST | `/auth/register` | No | `{ name, email, role, country_code?, phone_number?, specialty? }` | `{ user }` (passwordless — emails setup link) |
 | POST | `/auth/set-password` | No | `{ token, password }` | `{ token, user }` (verifies + auto-login) |
+| POST | `/auth/forgot-password` | No | `{ email }` | generic success (emails reset link if user exists; reuses set-password) |
 | POST | `/auth/login` | No | `{ email, password }` | `{ token, user }` |
 | POST | `/auth/logout` | Optional | — | success |
 

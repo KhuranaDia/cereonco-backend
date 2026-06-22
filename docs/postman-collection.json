@@ -212,6 +212,68 @@
           ]
         },
         {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/forgot-password",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ananya@example.com\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);",
+                  "const d = pm.response.json().data;",
+                  "// setupToken is only present in non-production (NODE_ENV !== 'production').",
+                  "// In production, copy the reset token from the server logs / email link instead,",
+                  "// then complete it via 'Set Password (patient)'.",
+                  "if (d.setupToken) { pm.collectionVariables.set('setup_token', d.setupToken); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Forgot Password — unknown email (still 200, no enumeration)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/auth/forgot-password",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nobody-here@example.com\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 even for unknown email', () => pm.response.to.have.status(200));",
+                  "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);",
+                  "pm.test('No setupToken leaked for unknown email', () => pm.expect(pm.response.json().data.setupToken).to.be.undefined);"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Register (second user — caregiver)",
           "request": {
             "method": "POST",

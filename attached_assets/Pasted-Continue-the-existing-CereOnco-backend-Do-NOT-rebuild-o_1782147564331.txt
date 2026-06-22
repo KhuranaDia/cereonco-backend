@@ -1,0 +1,270 @@
+Continue the existing CereOnco backend. Do NOT rebuild or refactor completed modules. Work one task at a time, preserve existing API response format, update Swagger/OpenAPI, Postman, README/PROJECT_STATUS after each change, run build before stopping.
+
+Current stack:
+Node.js, Express, TypeScript, PostgreSQL, Drizzle ORM, JWT, bcrypt, Socket.io, Swagger/OpenAPI, Postman, Render.
+
+Current production:
+https://cereonco-backend-a21z.onrender.com
+
+Completed:
+Auth, registration token flow, set-password, posts, comments, groups, notifications, live messages.
+
+IMPORTANT:
+Do not hardcode secrets.
+Use environment variables.
+Do not break existing frontend contracts.
+Keep response format:
+Success:
+{ "success": true, "message": "", "data": {} }
+Error:
+{ "success": false, "message": "" }
+
+Work on the following tasks one by one.
+
+TASK 1 — Forgot Password + Email
+Implement POST /auth/forgot-password.
+
+Request:
+{
+  "email": "user@example.com"
+}
+
+Behavior:
+- Check if user exists.
+- Generate password setup/reset token.
+- Store hashed token and expiry in users table using existing passwordSetupToken fields.
+- Send password reset email using existing email service.
+- If SMTP is not configured, log the setupUrl in server logs.
+- Existing POST /auth/set-password should be reused to set the new password.
+- After successful set-password, mark emailVerified true and clear token fields.
+- Link format:
+  `${FRONTEND_URL}/set-password?token={actionToken}`
+
+Env:
+FRONTEND_URL=http://localhost:5173
+SMTP_HOST
+SMTP_PORT
+SMTP_USER
+SMTP_PASS
+SMTP_FROM
+
+Do not block login based on emailVerified.
+
+TASK 2 — Profile Avatar Upload
+Currently avatarUrl and profilePhotoUrl both exist. Standardize API response to support profile picture cleanly.
+
+Frontend sends avatar file using key:
+avatar
+
+Update PATCH /users/me to support multipart/form-data.
+It should accept:
+- normal profile fields
+- avatar file
+
+Use multer for multipart parsing.
+Store uploaded file locally for now under uploads/avatars or existing upload strategy.
+Return file URL/path in avatarUrl and/or profilePhotoUrl.
+If both fields exist, keep backward compatibility but document preferred field.
+
+Do not remove existing avatarUrl/profilePhotoUrl yet.
+
+TASK 3 — Create Post Multipart Media Upload
+Update Create Post API to accept multipart/form-data.
+
+POST /posts
+
+Frontend sends:
+content → text
+feeling → text
+media → multiple files
+
+Requirements:
+- Parse multipart/form-data.
+- Accept multiple files under field name media.
+- Store/upload files locally for now under uploads/posts or existing upload strategy.
+- Convert uploaded files to URLs/paths.
+- Save media URLs in mediaUrls array.
+- Save content and feeling.
+- Keep mediaUrls support for JSON body too if already implemented.
+- Do not remove backward compatibility.
+
+Example fields:
+content = "My post"
+feeling = "hopeful"
+media = image/video file
+media = image/video file
+
+TASK 4 — Saved Posts API
+Add API:
+GET /posts/saved
+
+Behavior:
+- Auth required.
+- Return posts bookmarked/saved by logged-in user.
+- Include author, feeling, mediaUrls, like/bookmark/comment counts.
+- Maintain response format.
+
+TASK 5 — Groups Updates
+Add create group API:
+POST /groups
+
+Request:
+{
+  "name": "Breast Cancer Support",
+  "description": "string",
+  "tagline": "Short text",
+  "category": "support",
+  "imageUrl": "string"
+}
+
+Add new groups table column:
+tagline
+
+Update:
+- GET /groups
+- GET /groups/:id
+to include tagline.
+
+TASK 6 — groupId in Posts
+Update posts table:
+- Add groupId nullable column.
+
+Rules:
+- Regular post: groupId = null.
+- Group post: groupId = group id.
+- Use same posts table for regular posts and group posts.
+- Update group post creation to save groupId into posts table.
+- Update feed logic carefully:
+  - General feed can include groupId if present.
+  - Group feed should filter by groupId.
+
+Preserve old group post APIs if they exist, but align internally with posts table.
+
+TASK 7 — Delete API Responses
+Audit delete APIs for:
+- posts
+- comments
+- group posts
+- messages if applicable
+- any other delete routes
+
+Every delete should return standard response:
+{
+  "success": true,
+  "message": "Deleted successfully",
+  "data": {}
+}
+
+No empty responses.
+
+TASK 8 — Notifications Filters
+Add separate notification APIs:
+
+GET /notifications/unread
+GET /notifications/mentioned
+GET /notifications/system
+
+Behavior:
+- Auth required.
+- Return only logged-in user's notifications.
+- newest first.
+- Preserve existing GET /notifications and unread-count APIs.
+
+If notification types need extension, add safely.
+
+TASK 9 — Event Management APIs
+Implement basic event management.
+
+Tables:
+events:
+- id
+- title
+- description
+- eventDate
+- location
+- imageUrl
+- createdBy
+- createdAt
+- updatedAt
+
+event_rsvps:
+- id
+- eventId
+- userId
+- status
+- createdAt
+
+APIs:
+GET /events
+GET /events/:id
+POST /events
+PATCH /events/:id
+DELETE /events/:id
+POST /events/:id/rsvp
+DELETE /events/:id/rsvp
+
+Auth required for create/update/delete/rsvp for now.
+Return RSVP count and user RSVP status where useful.
+
+TASK 10 — Twilio OTP Login
+Implement mobile OTP login.
+
+Do NOT hardcode credentials.
+Use env variables:
+TWILIO_ACCOUNT_SID
+TWILIO_AUTH_TOKEN
+TWILIO_VERIFY_SERVICE_SID
+
+APIs:
+POST /auth/otp/send
+
+Body:
+{
+  "country_code": "+91",
+  "phone_number": "9876543210"
+}
+
+Behavior:
+- Send OTP using Twilio Verify.
+- Return standard success response.
+
+POST /auth/otp/verify
+
+Body:
+{
+  "country_code": "+91",
+  "phone_number": "9876543210",
+  "otp": "123456"
+}
+
+Behavior:
+- Verify OTP using Twilio.
+- If user exists with phone number, return user + JWT.
+- If user does not exist, return clear error or create user only if product confirms. For now, do NOT auto-create unless already agreed.
+- Return:
+{
+  "success": true,
+  "message": "OTP verified successfully",
+  "data": {
+    "user": {},
+    "token": "JWT"
+  }
+}
+
+Security:
+- Do not expose Twilio token.
+- Do not log OTP.
+- Validate phone number.
+- Reuse existing JWT generation.
+
+After each task:
+1. Update Drizzle schema if needed.
+2. Push DB schema if needed.
+3. Update OpenAPI YAML.
+4. Update served openapi-spec.ts too if this project still uses dual specs.
+5. Update Postman collection.
+6. Run:
+   pnpm --filter @workspace/api-server build
+7. Summarize files changed, endpoints added, DB changes, testing steps.
+
+Start with TASK 1 only. Stop after completing TASK 1 and ask before moving to TASK 2.
