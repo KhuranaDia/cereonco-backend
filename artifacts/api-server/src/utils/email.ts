@@ -1,13 +1,18 @@
 import type { Request } from "express";
-import nodemailer, { type Transporter } from "nodemailer";
+import nodemailer, {
+  type Transporter,
+  type SentMessageInfo,
+} from "nodemailer";
+import { logger } from "../lib/logger";
 
 /**
  * Email service.
  *
  * Real SMTP delivery is used when SMTP_* env vars are configured. The transport
- * is built from SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS and messages are
- * sent FROM SMTP_FROM (falling back to SMTP_USER). Credentials are read from the
- * environment only — never hardcoded. We NEVER use console.log in server code.
+ * is built from SMTP_HOST / SMTP_PORT / SMTP_USER / (SMTP_PASS or SMTP_PASSWORD)
+ * and messages are sent FROM SMTP_FROM (falling back to SMTP_USER). Credentials
+ * are read from the environment only — never hardcoded. We NEVER use
+ * console.log in server code.
  *
  * SECURITY: the link contains a raw, account-takeover-capable token.
  * - SMTP configured  → send the link by email (not logged).
@@ -15,6 +20,26 @@ import nodemailer, { type Transporter } from "nodemailer";
  *   the token, so reset/setup links cannot leak into shared production logs.
  * - SMTP missing + non-production → log the full link for local/dev testing.
  */
+
+/** Read the SMTP password from either supported env var name. */
+function smtpPassword(): string | undefined {
+  return process.env.SMTP_PASS || process.env.SMTP_PASSWORD;
+}
+
+/** Result metadata returned by nodemailer, safe to log / return (no secrets). */
+function sendResultMeta(info: SentMessageInfo): {
+  messageId: string;
+  accepted: string[];
+  rejected: string[];
+  response: string;
+} {
+  return {
+    messageId: info.messageId ?? "",
+    accepted: (info.accepted ?? []).map(String),
+    rejected: (info.rejected ?? []).map(String),
+    response: info.response ?? "",
+  };
+}
 
 function frontendBaseUrl(): string {
   return (
@@ -28,9 +53,31 @@ export function buildPasswordSetupUrl(token: string): string {
   return `${frontendBaseUrl()}/set-password?token=${token}`;
 }
 
-/** True when the minimum SMTP config (host) is present. */
-function smtpConfigured(): boolean {
-  return Boolean(process.env.SMTP_HOST);
+/**
+ * True only when SMTP is fully configured for authenticated sending: host, user,
+ * and a password (SMTP_PASS or SMTP_PASSWORD). Partial config is treated as NOT
+ * configured so flows fail closed rather than attempting a doomed send.
+ */
+export function smtpConfigured(): boolean {
+  return Boolean(
+    process.env.SMTP_HOST && process.env.SMTP_USER && smtpPassword(),
+  );
+}
+
+/**
+ * Throw a clear, actionable error when SMTP is not fully configured. Used by the
+ * test endpoint and any flow that must fail loudly rather than silently skip.
+ */
+function assertSmtpConfigured(): void {
+  const missing: string[] = [];
+  if (!process.env.SMTP_HOST) missing.push("SMTP_HOST");
+  if (!process.env.SMTP_USER) missing.push("SMTP_USER");
+  if (!smtpPassword()) missing.push("SMTP_PASS (or SMTP_PASSWORD)");
+  if (missing.length > 0) {
+    throw new Error(
+      `SMTP is not configured — missing ${missing.join(", ")}. Set SMTP_HOST, SMTP_PORT (default 587), SMTP_USER, SMTP_PASS or SMTP_PASSWORD, and optionally SMTP_FROM.`,
+    );
+  }
 }
 
 let cachedTransporter: Transporter | null = null;
@@ -42,7 +89,7 @@ function getTransporter(): Transporter {
   const host = process.env.SMTP_HOST!;
   const port = Number(process.env.SMTP_PORT ?? 587);
   const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const pass = smtpPassword();
 
   cachedTransporter = nodemailer.createTransport({
     host,
@@ -53,6 +100,73 @@ function getTransporter(): Transporter {
   });
 
   return cachedTransporter;
+}
+
+/**
+ * Verify SMTP connectivity + auth without sending a message. Logs success
+ * (host/port/user only — never the password) or a clear error. Returns a
+ * structured result so callers can surface it without throwing.
+ */
+export async function verifySmtpConnection(): Promise<{
+  ok: boolean;
+  message: string;
+}> {
+  if (!smtpConfigured()) {
+    const message =
+      "SMTP not configured — set SMTP_HOST, SMTP_USER and SMTP_PASS (or SMTP_PASSWORD).";
+    logger.warn({}, `[email] ${message}`);
+    return { ok: false, message };
+  }
+  try {
+    await getTransporter().verify();
+    logger.info(
+      {
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT ?? 587),
+        user: process.env.SMTP_USER,
+      },
+      "[email] SMTP connection verified",
+    );
+    return { ok: true, message: "SMTP connection verified" };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error(
+      {
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT ?? 587),
+        user: process.env.SMTP_USER,
+        err: message,
+      },
+      "[email] SMTP verification failed",
+    );
+    return { ok: false, message };
+  }
+}
+
+/**
+ * Send a simple SMTP test email and return nodemailer result metadata. Throws a
+ * clear error if SMTP is not configured (so the caller can return a 503/500).
+ */
+export async function sendTestEmail(to: string): Promise<{
+  messageId: string;
+  accepted: string[];
+  rejected: string[];
+  response: string;
+}> {
+  assertSmtpConfigured();
+  const info = await getTransporter().sendMail({
+    from: fromAddress(),
+    to,
+    subject: "CereOnco SMTP Test",
+    text: "SMTP email test successful.",
+    html: "<p>SMTP email test successful.</p>",
+  });
+  const meta = sendResultMeta(info);
+  logger.info(
+    { to, messageId: meta.messageId, accepted: meta.accepted, rejected: meta.rejected },
+    "[email] Test email sent",
+  );
+  return meta;
 }
 
 function fromAddress(): string {
@@ -95,7 +209,7 @@ async function deliverPasswordLink(
   if (smtpConfigured()) {
     const { subject, text, html } = renderEmail(kind, name, setupUrl);
     try {
-      await getTransporter().sendMail({
+      const info = await getTransporter().sendMail({
         from: fromAddress(),
         to,
         subject,
@@ -103,7 +217,17 @@ async function deliverPasswordLink(
         html,
       });
       // Metadata only — never log the token-bearing link.
-      req.log.info({ to }, `[email] Password ${kind} email sent`);
+      const meta = sendResultMeta(info);
+      req.log.info(
+        {
+          to,
+          messageId: meta.messageId,
+          accepted: meta.accepted,
+          rejected: meta.rejected,
+          response: meta.response,
+        },
+        `[email] Password ${kind} email sent`,
+      );
     } catch (err) {
       // Fail safe: log (without leaking the token) and let the calling flow
       // continue, rather than 500-ing registration/forgot-password on a

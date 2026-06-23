@@ -70,6 +70,8 @@ import type {
   RsvpResponse,
   SendMessageInput,
   SetPasswordInput,
+  TestEmailInput,
+  TestEmailResult,
   UnreadCountResponse,
   UnreadMessagesCountResponse,
   User,
@@ -518,6 +520,77 @@ export const useLogout = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getLogoutMutationOptions(options));
+    }
+
+export const getTestEmailUrl = () => {
+
+
+
+
+  return `/api/auth/test-email`
+}
+
+/**
+ * @summary Send a test email to verify SMTP configuration (admin only)
+ */
+export const testEmail = async (testEmailInput: TestEmailInput, options?: RequestInit): Promise<TestEmailResult> => {
+
+  return customFetch<TestEmailResult>(getTestEmailUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      testEmailInput,)
+  }
+);}
+
+
+
+
+export const getTestEmailMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testEmail>>, TError,{data: BodyType<TestEmailInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof testEmail>>, TError,{data: BodyType<TestEmailInput>}, TContext> => {
+
+const mutationKey = ['testEmail'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof testEmail>>, {data: BodyType<TestEmailInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  testEmail(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TestEmailMutationResult = NonNullable<Awaited<ReturnType<typeof testEmail>>>
+    export type TestEmailMutationBody = BodyType<TestEmailInput>
+    export type TestEmailMutationError = ErrorType<void>
+
+    /**
+ * @summary Send a test email to verify SMTP configuration (admin only)
+ */
+export const useTestEmail = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testEmail>>, TError,{data: BodyType<TestEmailInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof testEmail>>,
+        TError,
+        {data: BodyType<TestEmailInput>},
+        TContext
+      > => {
+      return useMutation(getTestEmailMutationOptions(options));
     }
 
 export const getGetMeUrl = () => {

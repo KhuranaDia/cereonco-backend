@@ -1,0 +1,111 @@
+Fix and verify the mail functionality properly.
+
+Current issue:
+Forgot-password returns 200 and logs "[email] Password reset email dispatched", but email is not arriving. We need to make sure the mail feature actually works with any SMTP credentials provided through env/config.
+
+Do NOT hardcode credentials.
+Use only env variables.
+
+Current SMTP env names available:
+SMTP_HOST
+SMTP_PORT
+SMTP_USER
+SMTP_PASSWORD
+SMTP_PASS
+SMTP_FROM
+
+Important:
+Some people provided SMTP_PASSWORD, but existing backend may read SMTP_PASS. Support both:
+const smtpPassword = process.env.SMTP_PASS || process.env.SMTP_PASSWORD
+
+Tasks:
+
+1. Inspect artifacts/api-server/src/utils/email.ts
+
+2. Make SMTP config robust:
+- SMTP_HOST required
+- SMTP_PORT required/default 587
+- SMTP_USER required
+- SMTP_PASS OR SMTP_PASSWORD required
+- SMTP_FROM optional, fallback to SMTP_USER
+
+3. Use nodemailer transporter with:
+host: SMTP_HOST
+port: Number(SMTP_PORT)
+secure: SMTP_PORT === "465"
+auth: {
+  user: SMTP_USER,
+  pass: SMTP_PASS || SMTP_PASSWORD
+}
+
+4. Add transporter.verify() helper:
+create function verifySmtpConnection()
+
+It should:
+- verify SMTP connection/auth
+- log success without exposing secrets
+- log clear error if failed
+
+5. Add temporary/admin-safe test endpoint:
+POST /auth/test-email
+
+Body:
+{
+  "to": "receiver@example.com"
+}
+
+Behavior:
+- Auth required, preferably admin only if admin role exists.
+- Calls SMTP transporter.
+- Sends a simple test email:
+Subject: CereOnco SMTP Test
+Body: SMTP email test successful.
+- Return:
+{
+  "success": true,
+  "message": "Test email sent successfully",
+  "data": {
+    "messageId": "...",
+    "accepted": [],
+    "rejected": [],
+    "response": "..."
+  }
+}
+
+6. Improve current sendPasswordSetupEmail/sendPasswordResetEmail:
+- Actually await transporter.sendMail()
+- Log nodemailer result metadata:
+messageId
+accepted
+rejected
+response
+- Do NOT log token links in production.
+- Do NOT expose credentials.
+
+7. If SMTP is missing:
+- In production, return/log clear config error.
+- In development, allow placeholder logging as currently.
+
+8. Update OpenAPI:
+- lib/api-spec/openapi.yaml
+- artifacts/api-server/src/openapi-spec.ts
+
+Add:
+POST /auth/test-email
+
+9. Update Postman collection:
+Add request:
+Auth → Test Email
+
+10. Run:
+pnpm --filter @workspace/api-server build
+
+11. Stop and summarize:
+- files changed
+- env vars supported
+- how to test SMTP
+- what logs to check
+- whether SMTP_PASSWORD is now supported
+
+Do not change forgot-password logic except to use improved email utility.
+Do not start Twilio.

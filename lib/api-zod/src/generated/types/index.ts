@@ -65,6 +65,8 @@ export * from './rsvpResponse';
 export * from './rsvpStatus';
 export * from './sendMessageInput';
 export * from './setPasswordInput';
+export * from './testEmailInput';
+export * from './testEmailResult';
 export * from './unreadCountResponse';
 export * from './unreadMessagesCountResponse';
 export * from './user';

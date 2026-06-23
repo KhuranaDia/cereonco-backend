@@ -653,6 +653,47 @@ export const openApiSpec = {
           }
         }
       },
+      "TestEmailInput": {
+        "type": "object",
+        "required": [
+          "to"
+        ],
+        "properties": {
+          "to": {
+            "type": "string",
+            "format": "email"
+          }
+        }
+      },
+      "TestEmailResult": {
+        "type": "object",
+        "required": [
+          "messageId",
+          "accepted",
+          "rejected",
+          "response"
+        ],
+        "properties": {
+          "messageId": {
+            "type": "string"
+          },
+          "accepted": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rejected": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "response": {
+            "type": "string"
+          }
+        }
+      },
       "LoginInput": {
         "type": "object",
         "required": [
@@ -1722,6 +1763,54 @@ export const openApiSpec = {
         "responses": {
           "200": {
             "description": "Logged out"
+          }
+        }
+      }
+    },
+    "/auth/test-email": {
+      "post": {
+        "operationId": "testEmail",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Send a test email to verify SMTP configuration (admin only)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestEmailInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Test email sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestEmailResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden — admin role required"
+          },
+          "503": {
+            "description": "SMTP not configured"
           }
         }
       }

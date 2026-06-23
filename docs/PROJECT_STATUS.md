@@ -346,6 +346,7 @@ workspace/
 | POST | `/auth/forgot-password` | No | `{ email }` | generic success (emails reset link if user exists; reuses set-password) |
 | POST | `/auth/login` | No | `{ email, password }` | `{ token, user }` |
 | POST | `/auth/logout` | Optional | — | success |
+| POST | `/auth/test-email` | Admin | `{ to }` | `{ messageId, accepted, rejected, response }` (verifies SMTP) |
 
 ### Users
 
@@ -501,8 +502,12 @@ workspace/
 | `PORT` | Yes | Server port (set by Replit workflow) |
 | `NODE_ENV` | No | `development` / `production` |
 | `FRONTEND_URL` | No | Base URL for the password-setup link (default `http://localhost:5173`); `APP_BASE_URL` also accepted |
-| `SMTP_HOST` | No | SMTP host — enables real email delivery when set with `SMTP_USER` |
-| `SMTP_USER` | No | SMTP username/credential — enables real email delivery |
+| `SMTP_HOST` | No | SMTP host — enables real nodemailer delivery when set |
+| `SMTP_PORT` | No | SMTP port (default `587`; `465` = implicit TLS, else STARTTLS) |
+| `SMTP_USER` | No | SMTP username/credential |
+| `SMTP_PASS` | No | SMTP password (alias: `SMTP_PASSWORD`; `SMTP_PASS` wins if both set) |
+| `SMTP_PASSWORD` | No | SMTP password (alias of `SMTP_PASS`) |
+| `SMTP_FROM` | No | From address; falls back to `SMTP_USER` |
 
 ---
 

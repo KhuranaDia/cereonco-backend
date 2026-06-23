@@ -118,6 +118,21 @@ export const LoginResponse = zod.object({
 
 
 /**
+ * @summary Send a test email to verify SMTP configuration (admin only)
+ */
+export const TestEmailBody = zod.object({
+  "to": zod.string().email()
+})
+
+export const TestEmailResponse = zod.object({
+  "messageId": zod.string(),
+  "accepted": zod.array(zod.string()),
+  "rejected": zod.array(zod.string()),
+  "response": zod.string()
+})
+
+
+/**
  * @summary Get current user profile
  */
 export const GetMeResponse = zod.object({

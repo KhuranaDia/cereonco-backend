@@ -195,6 +195,17 @@ export interface ForgotPasswordInput {
   email: string;
 }
 
+export interface TestEmailInput {
+  to: string;
+}
+
+export interface TestEmailResult {
+  messageId: string;
+  accepted: string[];
+  rejected: string[];
+  response: string;
+}
+
 export interface LoginInput {
   email: string;
   password: string;

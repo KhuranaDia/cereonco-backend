@@ -290,6 +290,41 @@
      ]
     },
     {
+     "name": "Test Email (admin only \u2014 verify SMTP)",
+     "request": {
+      "method": "POST",
+      "url": "{{base_url}}/auth/test-email",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"to\": \"receiver@example.com\"\n}"
+      },
+      "description": "Sends a fixed test email ('CereOnco SMTP Test') to verify SMTP credentials end-to-end. Requires a Bearer token for a user whose role is 'admin'. Returns 403 for non-admins, and 503 when SMTP env vars are not configured. On success, data contains messageId, accepted, rejected and response from nodemailer."
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "// Requires {{token}} to belong to an admin user, and SMTP_* env vars set.",
+         "pm.test('Status 200', () => pm.response.to.have.status(200));",
+         "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);",
+         "pm.test('has messageId', () => pm.expect(pm.response.json().data).to.have.property('messageId'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
      "name": "Register (second user \u2014 caregiver)",
      "request": {
       "method": "POST",

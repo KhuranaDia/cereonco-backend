@@ -7,6 +7,7 @@ import {
   LoginBody,
   SetPasswordBody,
   ForgotPasswordBody,
+  TestEmailBody,
 } from "@workspace/api-zod";
 import {
   generateToken,
@@ -14,9 +15,15 @@ import {
   generateTempPassword,
   hashSetupToken,
 } from "../utils/token";
-import { sendPasswordSetupEmail, sendPasswordResetEmail } from "../utils/email";
+import {
+  sendPasswordSetupEmail,
+  sendPasswordResetEmail,
+  sendTestEmail,
+  smtpConfigured,
+} from "../utils/email";
 import { safeUser } from "../utils/safeUser";
 import { success, error } from "../utils/response";
+import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
@@ -242,5 +249,61 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 router.post("/auth/logout", (_req, res): void => {
   success(res, "Logged out successfully");
 });
+
+/**
+ * Admin-only SMTP test endpoint. Sends a fixed test email so operators can
+ * verify SMTP credentials end-to-end without triggering the password flows.
+ */
+router.post(
+  "/auth/test-email",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const parsed = TestEmailBody.safeParse(req.body);
+    if (!parsed.success) {
+      error(res, parsed.error.issues.map((i) => i.message).join(", "), 400);
+      return;
+    }
+
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, req.userId!));
+
+    if (!user) {
+      error(res, "User not found", 401);
+      return;
+    }
+    if (user.role !== "admin") {
+      error(res, "Forbidden — admin role required", 403);
+      return;
+    }
+
+    if (!smtpConfigured()) {
+      error(
+        res,
+        "SMTP is not configured. Set SMTP_HOST, SMTP_PORT (default 587), SMTP_USER, SMTP_PASS or SMTP_PASSWORD, and optionally SMTP_FROM.",
+        503,
+      );
+      return;
+    }
+
+    try {
+      const result = await sendTestEmail(parsed.data.to);
+      success(res, "Test email sent successfully", result);
+    } catch (err) {
+      // Log the provider's detail server-side only; return a generic message so
+      // internal SMTP error text is not disclosed to the client.
+      req.log.error(
+        { err: err instanceof Error ? err.message : String(err) },
+        "[email] Test email failed",
+      );
+      error(
+        res,
+        "Failed to send test email. Check the server logs and SMTP configuration.",
+        502,
+      );
+    }
+  },
+);
 
 export default router;

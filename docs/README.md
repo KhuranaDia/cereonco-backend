@@ -67,6 +67,7 @@ pnpm --filter @workspace/api-server run dev
 | POST | `/api/auth/forgot-password` | No | Request a password reset link (reuses set-password flow) |
 | POST | `/api/auth/login` | No | Login and get JWT |
 | POST | `/api/auth/logout` | Optional | Logout (client deletes token) |
+| POST | `/api/auth/test-email` | Admin | Send a test email to verify SMTP config |
 
 #### Passwordless registration flow
 
@@ -119,7 +120,16 @@ Password reset reuses the exact same token mechanism as registration — there i
    ```
    - Same handler as registration: validates token + expiry, bcrypt-hashes the password, sets `emailVerified = true`, clears the token fields, returns an auto-login JWT.
 
-**Email/SMTP config (optional):** set `SMTP_HOST` + `SMTP_USER` (plus `SMTP_PORT`, `SMTP_PASS`, `SMTP_FROM` once real delivery is wired) to enable email; `FRONTEND_URL` (or `APP_BASE_URL`) controls the link base (defaults to `http://localhost:5173`).
+**Email/SMTP config:** real delivery via nodemailer is enabled when SMTP is configured. Set:
+
+- `SMTP_HOST` — SMTP server host (required to enable sending)
+- `SMTP_PORT` — port, default `587`; `465` uses implicit TLS, anything else uses STARTTLS
+- `SMTP_USER` — username/credential
+- `SMTP_PASS` **or** `SMTP_PASSWORD` — password (both names supported; `SMTP_PASS` wins if both set)
+- `SMTP_FROM` — optional From address; falls back to `SMTP_USER`
+- `FRONTEND_URL` (or `APP_BASE_URL`) — base for the `/set-password?token=...` link (default `http://localhost:5173`)
+
+When SMTP is **not** configured: in production the setup/reset link is **not** sent and only a non-sensitive warning is logged (fail-closed, token never logged); in development the full link is logged via pino for testing. Verify credentials end-to-end with the admin-only `POST /api/auth/test-email`.
 
 ### Users
 
