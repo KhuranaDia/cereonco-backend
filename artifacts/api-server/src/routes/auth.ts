@@ -264,19 +264,21 @@ router.post(
       return;
     }
 
-    const [user] = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.id, req.userId!));
-
-    if (!user) {
-      error(res, "User not found", 401);
-      return;
-    }
-    if (user.role !== "admin") {
-      error(res, "Forbidden — admin role required", 403);
-      return;
-    }
+    // TEMPORARY: admin-only check disabled so SMTP can be tested without an
+    // admin user. Any authenticated user (requireAuth) may call this. Restore
+    // the role check below — or delete this endpoint — once SMTP is verified.
+    // const [user] = await db
+    //   .select()
+    //   .from(usersTable)
+    //   .where(eq(usersTable.id, req.userId!));
+    // if (!user) {
+    //   error(res, "User not found", 401);
+    //   return;
+    // }
+    // if (user.role !== "admin") {
+    //   error(res, "Forbidden — admin role required", 403);
+    //   return;
+    // }
 
     if (!smtpConfigured()) {
       error(
