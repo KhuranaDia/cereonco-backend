@@ -68,6 +68,8 @@ import type {
   PostUpdate,
   RegisterResponse,
   RsvpResponse,
+  SearchUsersParams,
+  SeedSystemNotificationsResponse,
   SendMessageInput,
   SetPasswordInput,
   TestEmailInput,
@@ -76,7 +78,8 @@ import type {
   UnreadMessagesCountResponse,
   User,
   UserProfileUpdate,
-  UserRegisterInput
+  UserRegisterInput,
+  UserSearchResponse
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -679,9 +682,9 @@ export const getUpdateMeUrl = () => {
 }
 
 /**
- * Accepts application/json (profile fields) or multipart/form-data with an optional `avatar` file (jpg/jpeg/png/webp, max 5MB) plus any profile fields. Uploading an avatar updates both avatarUrl and profilePhotoUrl.
+ * Accepts application/json (profile fields) or multipart/form-data with an optional profile image plus any profile fields. The image field is `image` (preferred); the legacy `avatar` field is still accepted for backward compatibility. Allowed types jpg/jpeg/png/webp, max 20MB. Uploading an image sets imageUrl, avatarUrl, and profilePhotoUrl.
 
- * @summary Update current user profile (JSON or multipart avatar upload)
+ * @summary Update current user profile (JSON or multipart image upload)
  */
 export const updateMe = async (userProfileUpdate: UserProfileUpdate, options?: RequestInit): Promise<User> => {
 
@@ -730,7 +733,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateMeMutationError = ErrorType<void>
 
     /**
- * @summary Update current user profile (JSON or multipart avatar upload)
+ * @summary Update current user profile (JSON or multipart image upload)
  */
 export const useUpdateMe = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMe>>, TError,{data: BodyType<UserProfileUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -742,6 +745,92 @@ export const useUpdateMe = <TError = ErrorType<void>,
       > => {
       return useMutation(getUpdateMeMutationOptions(options));
     }
+
+export const getSearchUsersUrl = (params: SearchUsersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/users/search?${stringifiedParams}` : `/api/users/search`
+}
+
+/**
+ * Case-insensitive search over name and email. Requires q of at least 2 characters. Returns only safe public fields (never passwordHash/tokens).
+
+ * @summary Search users by name or email
+ */
+export const searchUsers = async (params: SearchUsersParams, options?: RequestInit): Promise<UserSearchResponse> => {
+
+  return customFetch<UserSearchResponse>(getSearchUsersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchUsersQueryKey = (params?: SearchUsersParams,) => {
+    return [
+    `/api/users/search`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchUsersQueryOptions = <TData = Awaited<ReturnType<typeof searchUsers>>, TError = ErrorType<void>>(params: SearchUsersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchUsers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchUsersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchUsers>>> = ({ signal }) => searchUsers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchUsers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type SearchUsersQueryResult = NonNullable<Awaited<ReturnType<typeof searchUsers>>>
+export type SearchUsersQueryError = ErrorType<void>
+
+
+/**
+ * @summary Search users by name or email
+ */
+
+export function useSearchUsers<TData = Awaited<ReturnType<typeof searchUsers>>, TError = ErrorType<void>>(
+ params: SearchUsersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchUsers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getSearchUsersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getGetUserUrl = (id: number,) => {
 
@@ -913,7 +1002,7 @@ export const getCreatePostUrl = () => {
 }
 
 /**
- * Accepts application/json or multipart/form-data with up to 10 `media` files (images jpg/jpeg/png/webp or videos mp4/mov/webm, max 10MB each) plus text fields. Uploaded file URLs are merged into mediaUrls.
+ * Accepts application/json or multipart/form-data with up to 10 `media` files (images jpg/jpeg/png/webp or videos mp4/mov/webm, max 50MB each) plus text fields. Uploaded file URLs are merged into mediaUrls.
 
  * @summary Create a post (JSON or multipart media upload)
  */
@@ -1147,7 +1236,9 @@ export const getUpdatePostUrl = (id: number,) => {
 }
 
 /**
- * @summary Update own post
+ * Accepts application/json or multipart/form-data. For media edits send `remainingMedia` (the URLs to keep — a JSON array string, repeated fields, or a comma-separated string) and/or up to 10 new `media` files (max 50MB each). The final mediaUrls = [...remainingMedia, ...newly uploaded]. Sending an empty remainingMedia with no files clears all media. If neither remainingMedia nor files are sent, existing media is left unchanged. content and feeling are still updatable.
+
+ * @summary Update own post (JSON or multipart media merge)
  */
 export const updatePost = async (id: number,
     postUpdate: PostUpdate, options?: RequestInit): Promise<Post> => {
@@ -1197,7 +1288,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdatePostMutationError = ErrorType<void>
 
     /**
- * @summary Update own post
+ * @summary Update own post (JSON or multipart media merge)
  */
 export const useUpdatePost = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePost>>, TError,{id: number;data: BodyType<PostUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -1646,6 +1737,8 @@ export const getCreateCommentUrl = (id: number,) => {
 }
 
 /**
+ * Optionally include mentionedUserId to mention a user; when present a mention notification is created for that user.
+
  * @summary Add a comment or reply to a post
  */
 export const createComment = async (id: number,
@@ -2861,6 +2954,78 @@ export function useListSystemNotifications<TData = Awaited<ReturnType<typeof lis
 
 
 
+
+export const getSeedSystemNotificationsUrl = () => {
+
+
+
+
+  return `/api/notifications/seed-system`
+}
+
+/**
+ * Creates a few `system` category notifications for the authenticated user if they have none yet. Safe to call repeatedly — returns created:0 when system notifications already exist.
+
+ * @summary Seed dummy system notifications for the current user (testing)
+ */
+export const seedSystemNotifications = async ( options?: RequestInit): Promise<SeedSystemNotificationsResponse> => {
+
+  return customFetch<SeedSystemNotificationsResponse>(getSeedSystemNotificationsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getSeedSystemNotificationsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof seedSystemNotifications>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof seedSystemNotifications>>, TError,void, TContext> => {
+
+const mutationKey = ['seedSystemNotifications'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof seedSystemNotifications>>, void> = () => {
+
+
+          return  seedSystemNotifications(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SeedSystemNotificationsMutationResult = NonNullable<Awaited<ReturnType<typeof seedSystemNotifications>>>
+
+    export type SeedSystemNotificationsMutationError = ErrorType<void>
+
+    /**
+ * @summary Seed dummy system notifications for the current user (testing)
+ */
+export const useSeedSystemNotifications = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof seedSystemNotifications>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof seedSystemNotifications>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSeedSystemNotificationsMutationOptions(options));
+    }
 
 export const getGetUnreadCountUrl = () => {
 

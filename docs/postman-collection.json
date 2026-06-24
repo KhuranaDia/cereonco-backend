@@ -1,9 +1,9 @@
 {
  "info": {
   "name": "CereOnco Community API",
-  "description": "Phase 1-5: Auth, Users, Posts, Comments & Replies, Community Groups",
+  "description": "Auth, Users (+search, image upload), Posts (+media merge), Comments (+mentions), Groups, Notifications (+system/seed), Messaging, Events",
   "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-  "version": "0.5.0"
+  "version": "0.9.0"
  },
  "variable": [
   {
@@ -589,6 +589,60 @@
        }
       }
      ]
+    },
+    {
+     "name": "Update Me \u2014 image upload (form-data)",
+     "request": {
+      "method": "PATCH",
+      "url": "{{base_url}}/users/me",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ]
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "// In Postman, switch Body to form-data:",
+         "//   image = <choose file>  (File; jpg/jpeg/png/webp, max 20MB)",
+         "//   (legacy 'avatar' field is also accepted)",
+         "//   text profile fields (bio, etc.) can be sent alongside",
+         "pm.test('Status 200', () => pm.response.to.have.status(200));",
+         "pm.test('imageUrl set', () => pm.expect(pm.response.json().data.imageUrl).to.be.a('string'));",
+         "pm.test('avatarUrl mirrors image', () => pm.expect(pm.response.json().data.avatarUrl).to.eql(pm.response.json().data.imageUrl));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "GET Users Search",
+     "request": {
+      "method": "GET",
+      "url": "{{base_url}}/users/search?q=an&limit=20&offset=0",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ]
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 200', () => pm.response.to.have.status(200));",
+         "pm.test('users is array', () => pm.expect(pm.response.json().data.users).to.be.an('array'));",
+         "pm.test('total is number', () => pm.expect(pm.response.json().data.total).to.be.a('number'));"
+        ]
+       }
+      }
+     ]
     }
    ]
   },
@@ -774,6 +828,36 @@
      ]
     },
     {
+     "name": "PATCH Post \u2014 multipart media merge (remainingMedia + media)",
+     "request": {
+      "method": "PATCH",
+      "url": "{{base_url}}/posts/{{post_id}}",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ]
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "// In Postman, switch Body to form-data:",
+         "//   content = updated text (text, optional)",
+         "//   remainingMedia = [\"https://.../keep1.jpg\"]  (text: JSON array of URLs to keep)",
+         "//     - omit remainingMedia AND send no files => media unchanged",
+         "//     - send remainingMedia=[] and no files => clears all media",
+         "//   media = <choose file>  (File, repeatable; appended after remainingMedia)",
+         "pm.test('Status 200', () => pm.response.to.have.status(200));",
+         "pm.test('mediaUrls is array', () => pm.expect(pm.response.json().data.mediaUrls).to.be.an('array'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
      "name": "DELETE Post \u2014 delete envelope",
      "request": {
       "method": "DELETE",
@@ -829,6 +913,39 @@
         "exec": [
          "pm.test('Status 201', () => pm.response.to.have.status(201));",
          "pm.collectionVariables.set('comment_id', pm.response.json().data.id);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "POST comment with mention",
+     "request": {
+      "method": "POST",
+      "url": "{{base_url}}/posts/{{post_id}}/comments",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"content\": \"Thanks for sharing!\",\n  \"mentionedUserId\": {{user_id}}\n}"
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 201', () => pm.response.to.have.status(201));",
+         "pm.test('mentionedUserId echoed', () => pm.expect(pm.response.json().data.mentionedUserId).to.eql(Number(pm.collectionVariables.get('user_id'))));",
+         "pm.test('mentionedUserName present', () => pm.expect(pm.response.json().data.mentionedUserName).to.be.a('string'));"
         ]
        }
       }
@@ -1767,6 +1884,30 @@
          "pm.test('Status 200', () => pm.response.to.have.status(200));",
          "pm.test('notifications array', () => pm.expect(pm.response.json().data.notifications).to.be.an('array'));",
          "pm.test('has unreadCount', () => pm.expect(pm.response.json().data).to.have.property('unreadCount'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "POST seed-system (idempotent)",
+     "request": {
+      "method": "POST",
+      "url": "{{base_url}}/notifications/seed-system",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ]
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 200 or 201', () => pm.expect([200, 201]).to.include(pm.response.code));",
+         "pm.test('has created count', () => pm.expect(pm.response.json().data).to.have.property('created'));"
         ]
        }
       }

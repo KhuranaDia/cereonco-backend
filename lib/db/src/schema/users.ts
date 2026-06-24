@@ -32,6 +32,9 @@ export const usersTable = pgTable("users", {
   location: text("location"),
   avatarUrl: text("avatar_url"),
   profilePhotoUrl: text("profile_photo_url"),
+  // Preferred new profile-image field (frontend sends `image`). Kept in sync
+  // with avatarUrl/profilePhotoUrl on upload for backward compatibility.
+  imageUrl: text("image_url"),
 
   // Onboarding
   onboardingCompleted: boolean("onboarding_completed").notNull().default(false),

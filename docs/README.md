@@ -136,10 +136,13 @@ When SMTP is **not** configured: in production the setup/reset link is **not** s
 | Method | Route | Auth | Description |
 |---|---|---|---|
 | GET | `/api/users/me` | Bearer | Get current user profile |
-| PATCH | `/api/users/me` | Bearer | Update current user profile (JSON or `multipart/form-data` with an `avatar` file) |
+| PATCH | `/api/users/me` | Bearer | Update current user profile (JSON or `multipart/form-data` with an `image` or `avatar` file) |
+| GET | `/api/users/search` | Bearer | Search users by name or email (`?q=&limit=&offset=`) |
 | GET | `/api/users/:id` | No | Get any user's public profile |
 
-**Avatar upload:** `PATCH /api/users/me` accepts `multipart/form-data` with an `avatar` file field (jpg/jpeg/png/webp, ≤5 MB) alongside (or instead of) the JSON profile fields. The stored public URL is set on both `avatarUrl` and the legacy `profilePhotoUrl`. Files are served from `/uploads/avatars/...`.
+**Profile image upload:** `PATCH /api/users/me` accepts `multipart/form-data` with an `image` file field (preferred) or the legacy `avatar` field (jpg/jpeg/png/webp, ≤20 MB) alongside (or instead of) the JSON profile fields. The stored public URL is mirrored onto `imageUrl`, `avatarUrl`, and the legacy `profilePhotoUrl`. Files are served from `/uploads/avatars/...`.
+
+**User search:** `GET /api/users/search?q=<query>&limit=20&offset=0` requires a Bearer token. `q` must be ≥2 characters; it matches `name` OR `email` case-insensitively. Returns `{ users: [...safe fields incl. imageUrl], total }` where `total` is the full match count (ignoring pagination).
 
 ### Posts
 
@@ -156,7 +159,9 @@ When SMTP is **not** configured: in production the setup/reset link is **not** s
 | POST | `/api/posts/:id/bookmark` | Bearer | Bookmark a post |
 | DELETE | `/api/posts/:id/bookmark` | Bearer | Remove bookmark |
 
-**Media upload:** `POST /api/posts` accepts `multipart/form-data` with up to 10 `media` files (images jpg/jpeg/png/webp or videos mp4/mov/webm, ≤10 MB each). Uploaded file URLs are appended to any `mediaUrls` sent in the body. Files are served from `/uploads/posts/...`.
+**Media upload:** `POST /api/posts` accepts `multipart/form-data` with up to 10 `media` files (images jpg/jpeg/png/webp or videos mp4/mov/webm, ≤50 MB each). Uploaded file URLs are appended to any `mediaUrls` sent in the body. Files are served from `/uploads/posts/...`.
+
+**Editing media (`PATCH /api/posts/:id`):** accepts `multipart/form-data`. Send `remainingMedia` (a JSON array of existing media URLs to keep — also accepts repeated fields or a comma-separated string) and/or new `media` files. The final media list is `[...remainingMedia, ...uploaded]`. Rules: omitting `remainingMedia` **and** sending no files leaves media unchanged; sending `remainingMedia=[]` with no files clears all media. Text fields `content`/`feeling` may be sent alongside.
 
 **Grouped posts:** A post may carry an optional `groupId`. When set, the post belongs to that group and is **excluded from the main feed** (`GET /posts`) — it surfaces only in the group feed (`GET /groups/:id/posts`). The main feed returns only ungrouped posts (`groupId IS NULL`). A non-existent `groupId` returns `404`.
 
@@ -167,9 +172,11 @@ When SMTP is **not** configured: in production the setup/reset link is **not** s
 | Method | Route | Auth | Description |
 |---|---|---|---|
 | GET | `/api/posts/:id/comments` | Bearer | Get threaded comments |
-| POST | `/api/posts/:id/comments` | Bearer | Add comment or reply |
+| POST | `/api/posts/:id/comments` | Bearer | Add comment or reply (optional `mentionedUserId`) |
 | PATCH | `/api/comments/:id` | Bearer | Edit own comment |
 | DELETE | `/api/comments/:id` | Bearer | Soft-delete own comment |
+
+**Mentions:** `POST /api/posts/:id/comments` accepts an optional `mentionedUserId`. When set to a valid user (404 if not found), it is stored on the comment and a `mention` notification (entityType `comment`) is sent to that user (self-mentions are skipped). Every comment in the response includes `mentionedUserId` and `mentionedUserName` (both `null` when there is no mention).
 
 ### Groups
 
@@ -354,6 +361,15 @@ Authorization: Bearer <token>
 ```
 
 Each accepts `?limit` & `?offset` and returns `{ notifications: [...], total: N, unreadCount: N }`, newest first.
+
+### Seed system notifications (dev/demo helper)
+
+```
+POST /api/notifications/seed-system
+Authorization: Bearer <token>
+```
+
+Idempotent helper that seeds a few `system`-type notifications for the current user so the frontend can render the System tab. Does nothing if the user already has system notifications. Returns `{ created: N }` (`201` when created, `200` when already present). Notification types are differentiated by the `type` field: `mention`, `system`, and the activity types (`post_liked`, `post_commented`, `comment_replied`, `group_joined`, `group_post_created`, `verification_updated`).
 
 ### Unread count
 

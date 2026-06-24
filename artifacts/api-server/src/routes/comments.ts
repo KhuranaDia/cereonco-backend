@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, isNull, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db, commentsTable, postsTable, usersTable } from "@workspace/db";
 import { createNotification } from "../utils/notify";
 import {
@@ -15,6 +16,9 @@ import { success, error } from "../utils/response";
 
 const router: IRouter = Router();
 
+// Second alias of users for joining the optionally-mentioned user.
+const mentionedUsers = alias(usersTable, "mentioned_user");
+
 type RawComment = {
   id: number;
   postId: number;
@@ -28,6 +32,8 @@ type RawComment = {
   authorName: string | null;
   authorRole: string | null;
   authorAvatarUrl: string | null;
+  mentionedUserId: number | null;
+  mentionedUserName: string | null;
 };
 
 function formatComment(row: RawComment) {
@@ -47,6 +53,8 @@ function formatComment(row: RawComment) {
     content: row.isDeleted ? "[deleted]" : row.content,
     parentCommentId: row.parentCommentId,
     isDeleted: row.isDeleted,
+    mentionedUserId: row.mentionedUserId,
+    mentionedUserName: row.mentionedUserName,
     author,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -68,9 +76,12 @@ async function fetchAllComments(postId: number): Promise<RawComment[]> {
       authorName: usersTable.name,
       authorRole: usersTable.role,
       authorAvatarUrl: usersTable.avatarUrl,
+      mentionedUserId: commentsTable.mentionedUserId,
+      mentionedUserName: mentionedUsers.name,
     })
     .from(commentsTable)
     .leftJoin(usersTable, eq(commentsTable.userId, usersTable.id))
+    .leftJoin(mentionedUsers, eq(commentsTable.mentionedUserId, mentionedUsers.id))
     .where(eq(commentsTable.postId, postId))
     .orderBy(commentsTable.createdAt);
 }
@@ -133,7 +144,7 @@ router.post("/posts/:id/comments", requireAuth, async (req, res): Promise<void> 
     return;
   }
 
-  const { content, parentCommentId } = parsed.data;
+  const { content, parentCommentId, mentionedUserId } = parsed.data;
   const postId = params.data.id;
 
   const [post] = await db
@@ -144,6 +155,20 @@ router.post("/posts/:id/comments", requireAuth, async (req, res): Promise<void> 
   if (!post) {
     error(res, "Post not found", 404);
     return;
+  }
+
+  // Validate the mentioned user (if any) and capture their name for the response.
+  let mentionedUser: { id: number; name: string } | null = null;
+  if (mentionedUserId !== undefined && mentionedUserId !== null) {
+    const [m] = await db
+      .select({ id: usersTable.id, name: usersTable.name })
+      .from(usersTable)
+      .where(eq(usersTable.id, mentionedUserId));
+    if (!m) {
+      error(res, "Mentioned user not found", 404);
+      return;
+    }
+    mentionedUser = m;
   }
 
   let parentAuthorId: number | null = null;
@@ -177,6 +202,7 @@ router.post("/posts/:id/comments", requireAuth, async (req, res): Promise<void> 
       userId: req.userId!,
       content,
       parentCommentId: parentCommentId ?? null,
+      mentionedUserId: mentionedUser?.id ?? null,
     })
     .returning();
 
@@ -205,6 +231,19 @@ router.post("/posts/:id/comments", requireAuth, async (req, res): Promise<void> 
     });
   }
 
+  // Notify the mentioned user (skip self-mentions; createNotification also
+  // no-ops when actor === recipient).
+  if (mentionedUser && mentionedUser.id !== req.userId) {
+    void createNotification({
+      userId: mentionedUser.id,
+      actorId: req.userId!,
+      type: "mention",
+      entityType: "comment",
+      entityId: inserted.id,
+      message: "mentioned you in a comment",
+    });
+  }
+
   const responseComment = {
     id: inserted.id,
     postId: inserted.postId,
@@ -212,6 +251,8 @@ router.post("/posts/:id/comments", requireAuth, async (req, res): Promise<void> 
     content: inserted.content,
     parentCommentId: inserted.parentCommentId,
     isDeleted: inserted.isDeleted,
+    mentionedUserId: inserted.mentionedUserId,
+    mentionedUserName: mentionedUser?.name ?? null,
     author: author[0] ?? null,
     createdAt: inserted.createdAt,
     updatedAt: inserted.updatedAt,

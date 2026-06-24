@@ -353,7 +353,8 @@ workspace/
 | Method | Route | Auth | Body | Response |
 |---|---|---|---|---|
 | GET | `/users/me` | Bearer | — | Full user object |
-| PATCH | `/users/me` | Bearer | See profile fields | Updated user |
+| PATCH | `/users/me` | Bearer | See profile fields (JSON or multipart `image`/`avatar` file, ≤20 MB) | Updated user (`imageUrl`+`avatarUrl`+`profilePhotoUrl` mirrored) |
+| GET | `/users/search` | Bearer | `?q=&limit=20&offset=0` (q ≥2 chars) | `{ users: [...safe fields incl. imageUrl], total }` |
 | GET | `/users/:id` | No | — | Full user object |
 
 ### Posts
@@ -361,10 +362,10 @@ workspace/
 | Method | Route | Auth | Description |
 |---|---|---|---|
 | GET | `/posts` | Optional | Feed with `commentCount`, `likeCount`, `bookmarkCount`, `isLiked`, `isBookmarked` (ungrouped only) |
-| POST | `/posts` | Bearer | Create post (JSON or multipart `media` files; optional `groupId`) |
+| POST | `/posts` | Bearer | Create post (JSON or multipart `media` files ≤50 MB, up to 10; optional `groupId`) |
 | GET | `/posts/saved` | Bearer | Current user's bookmarked posts (newest-saved first) |
 | GET | `/posts/:id` | Optional | Single post with all counts |
-| PATCH | `/posts/:id` | Bearer | Update own post |
+| PATCH | `/posts/:id` | Bearer | Update own post (JSON, or multipart `remainingMedia` + `media` to merge media) |
 | DELETE | `/posts/:id` | Bearer | Delete own post → `{ message: "Deleted successfully", data: {} }` |
 | POST | `/posts/:id/like` | Bearer | Like → `{ liked: true, likeCount }` |
 | DELETE | `/posts/:id/like` | Bearer | Unlike → `{ liked: false, likeCount }` |
@@ -375,8 +376,8 @@ workspace/
 
 | Method | Route | Auth | Body | Response |
 |---|---|---|---|---|
-| GET | `/posts/:id/comments` | Bearer | — | `{ comments, total }` — threaded |
-| POST | `/posts/:id/comments` | Bearer | `{ content, parentCommentId? }` | Created comment |
+| GET | `/posts/:id/comments` | Bearer | — | `{ comments, total }` — threaded; each has `mentionedUserId` + `mentionedUserName` |
+| POST | `/posts/:id/comments` | Bearer | `{ content, parentCommentId?, mentionedUserId? }` | Created comment (mention → `mention` notification) |
 | PATCH | `/comments/:id` | Bearer | `{ content }` | Updated comment |
 | DELETE | `/comments/:id` | Bearer | — | `{ message: "Deleted successfully", data: {} }` (soft delete) |
 
@@ -410,6 +411,7 @@ workspace/
 | GET | `/notifications/unread` | Bearer | Only unread notifications (paginated) |
 | GET | `/notifications/mentioned` | Bearer | Only `mention`-type notifications (paginated) |
 | GET | `/notifications/system` | Bearer | Only `system`-type notifications (paginated) |
+| POST | `/notifications/seed-system` | Bearer | Seed demo `system` notifications (idempotent) → `{ created }` |
 | GET | `/notifications/unread-count` | Bearer | `{ unreadCount }` |
 | PATCH | `/notifications/:id/read` | Bearer | Mark single as read (idempotent) → returns updated notification |
 | PATCH | `/notifications/read-all` | Bearer | Mark all unread as read → `{ updatedCount }` |
@@ -423,6 +425,8 @@ workspace/
 | User A replies to User B's comment | User B | `comment_replied` |
 | User A joins a group | All existing group members | `group_joined` |
 | User A creates a group post | All group members (excl. poster) | `group_post_created` |
+| User A mentions User B in a comment | User B | `mention` |
+| `POST /notifications/seed-system` (demo helper) | Current user | `system` |
 
 **Notification rules:**
 - Never notifies users about their own actions

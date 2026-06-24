@@ -300,49 +300,113 @@ router.get("/posts/:id", optionalAuth, async (req, res): Promise<void> => {
   success(res, "Post retrieved", post);
 });
 
-router.patch("/posts/:id", requireAuth, async (req, res): Promise<void> => {
-  const params = UpdatePostParams.safeParse(req.params);
+/**
+ * Parse the `remainingMedia` field from a multipart PATCH body. It can arrive
+ * as a JSON array string, repeated form fields (string[]), or a comma-separated
+ * string. Returns:
+ *   - undefined when the field was not sent at all (→ keep existing media)
+ *   - string[]  otherwise (an empty array explicitly clears media)
+ */
+function parseRemainingMedia(raw: unknown): string[] | undefined {
+  if (raw === undefined || raw === null) return undefined;
 
-  if (!params.success) {
-    error(res, "Invalid post ID", 400);
-    return;
+  const fromOne = (s: string): string[] => {
+    const t = s.trim();
+    if (t === "") return [];
+    if (t.startsWith("[")) {
+      try {
+        const arr = JSON.parse(t);
+        if (Array.isArray(arr)) return arr.map(String).filter((x) => x !== "");
+      } catch {
+        // fall through to comma-splitting
+      }
+    }
+    return t
+      .split(",")
+      .map((x) => x.trim())
+      .filter((x) => x !== "");
+  };
+
+  if (Array.isArray(raw)) {
+    return raw.flatMap((item) => (typeof item === "string" ? fromOne(item) : []));
   }
+  if (typeof raw === "string") return fromOne(raw);
+  return undefined;
+}
 
-  const parsed = UpdatePostBody.safeParse(req.body);
+router.patch(
+  "/posts/:id",
+  requireAuth,
+  uploadPostMedia,
+  async (req, res): Promise<void> => {
+    const params = UpdatePostParams.safeParse(req.params);
 
-  if (!parsed.success) {
-    error(res, parsed.error.issues.map((i) => i.message).join(", "), 400);
-    return;
-  }
+    if (!params.success) {
+      error(res, "Invalid post ID", 400);
+      return;
+    }
 
-  if (Object.keys(parsed.data).length === 0) {
-    error(res, "No fields provided to update", 400);
-    return;
-  }
+    // Validate only the text fields against the body schema; media is handled
+    // separately via remainingMedia + uploaded files.
+    const parsed = UpdatePostBody.safeParse({
+      content: req.body.content,
+      feeling: req.body.feeling,
+    });
 
-  const [existing] = await db
-    .select({ userId: postsTable.userId })
-    .from(postsTable)
-    .where(eq(postsTable.id, params.data.id));
+    if (!parsed.success) {
+      error(res, parsed.error.issues.map((i) => i.message).join(", "), 400);
+      return;
+    }
 
-  if (!existing) {
-    error(res, "Post not found", 404);
-    return;
-  }
+    // Build the final media list per the merge rules.
+    const uploaded = Array.isArray(req.files)
+      ? (req.files as Express.Multer.File[]).map((f) => publicUrl("posts", f.filename))
+      : [];
+    const remaining = parseRemainingMedia(req.body.remainingMedia);
 
-  if (existing.userId !== req.userId) {
-    error(res, "Forbidden — you do not own this post", 403);
-    return;
-  }
+    let finalMediaUrls: string[] | undefined;
+    if (remaining !== undefined && uploaded.length > 0) {
+      finalMediaUrls = [...remaining, ...uploaded];
+    } else if (uploaded.length > 0) {
+      finalMediaUrls = uploaded;
+    } else if (remaining !== undefined) {
+      finalMediaUrls = remaining; // empty array clears media
+    } else {
+      finalMediaUrls = undefined; // neither provided → leave unchanged
+    }
 
-  const [updated] = await db
-    .update(postsTable)
-    .set(parsed.data)
-    .where(eq(postsTable.id, params.data.id))
-    .returning();
+    const updates: Record<string, unknown> = { ...parsed.data };
+    if (finalMediaUrls !== undefined) updates.mediaUrls = finalMediaUrls;
 
-  success(res, "Post updated", { ...updated, mediaUrls: updated.mediaUrls ?? [] });
-});
+    if (Object.keys(updates).length === 0) {
+      error(res, "No fields provided to update", 400);
+      return;
+    }
+
+    const [existing] = await db
+      .select({ userId: postsTable.userId })
+      .from(postsTable)
+      .where(eq(postsTable.id, params.data.id));
+
+    if (!existing) {
+      error(res, "Post not found", 404);
+      return;
+    }
+
+    if (existing.userId !== req.userId) {
+      error(res, "Forbidden — you do not own this post", 403);
+      return;
+    }
+
+    const [updated] = await db
+      .update(postsTable)
+      .set(updates)
+      .where(eq(postsTable.id, params.data.id))
+      .returning();
+
+    success(res, "Post updated", { ...updated, mediaUrls: updated.mediaUrls ?? [] });
+  },
+);
 
 router.delete("/posts/:id", requireAuth, async (req, res): Promise<void> => {
   const params = DeletePostParams.safeParse(req.params);

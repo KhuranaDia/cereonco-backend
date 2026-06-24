@@ -16,6 +16,13 @@ export interface CommentReply {
   content: string;
   parentCommentId: number;
   isDeleted: boolean;
+  /** @nullable */
+  mentionedUserId?: number | null;
+  /**
+     * Name of the mentioned user (joined from users), or null.
+     * @nullable
+     */
+  mentionedUserName?: string | null;
   author?: CommentAuthor | null;
   createdAt: Date;
   updatedAt: Date;

@@ -1,9 +1,9 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, or, ilike, sql } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
-import { UpdateMeBody, GetUserParams } from "@workspace/api-zod";
+import { UpdateMeBody, GetUserParams, SearchUsersQueryParams } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
-import { uploadAvatar, publicUrl } from "../middlewares/upload";
+import { uploadAvatar, pickProfileImage, publicUrl } from "../middlewares/upload";
 import { safeUser } from "../utils/safeUser";
 import { success, error } from "../utils/response";
 
@@ -35,13 +35,13 @@ router.patch(
 
   const updates = parsed.data;
 
-  // Multipart avatar upload: store the public URL on both avatarUrl and the
-  // legacy profilePhotoUrl so existing clients keep working.
-  const avatarPath = req.file
-    ? publicUrl("avatars", req.file.filename)
-    : undefined;
+  // Multipart image upload: accept the new `image` field (preferred) or the
+  // legacy `avatar` field, and mirror the public URL onto imageUrl, avatarUrl
+  // and profilePhotoUrl so every client variant keeps working.
+  const file = pickProfileImage(req);
+  const imagePath = file ? publicUrl("avatars", file.filename) : undefined;
 
-  if (Object.keys(updates).length === 0 && !avatarPath) {
+  if (Object.keys(updates).length === 0 && !imagePath) {
     error(res, "No fields provided to update", 400);
     return;
   }
@@ -61,12 +61,14 @@ router.patch(
   // for the first time (verificationStatus is currently 'none'), set status to 'pending'
   const finalUpdates: typeof updates & {
     verificationStatus?: "pending";
+    imageUrl?: string;
     avatarUrl?: string;
     profilePhotoUrl?: string;
   } = { ...updates };
-  if (avatarPath) {
-    finalUpdates.avatarUrl = avatarPath;
-    finalUpdates.profilePhotoUrl = avatarPath;
+  if (imagePath) {
+    finalUpdates.imageUrl = imagePath;
+    finalUpdates.avatarUrl = imagePath;
+    finalUpdates.profilePhotoUrl = imagePath;
   }
   if (
     current.role === "medical_professional" &&
@@ -88,6 +90,45 @@ router.patch(
     return;
   }
   success(res, "Profile updated", safeUser(updated));
+});
+
+// GET /users/search?q=&limit=&offset= — must precede /users/:id so "search"
+// is not captured as an :id. Case-insensitive match on name OR email; returns
+// only safe public fields plus a total count of all matches.
+router.get("/users/search", requireAuth, async (req, res): Promise<void> => {
+  const query = SearchUsersQueryParams.safeParse(req.query);
+  if (!query.success) {
+    error(res, "Query 'q' must be at least 2 characters", 400);
+    return;
+  }
+
+  const { q, limit, offset } = query.data;
+  const pattern = `%${q}%`;
+  const match = or(ilike(usersTable.name, pattern), ilike(usersTable.email, pattern));
+
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select({
+        id: usersTable.id,
+        name: usersTable.name,
+        email: usersTable.email,
+        role: usersTable.role,
+        avatarUrl: usersTable.avatarUrl,
+        profilePhotoUrl: usersTable.profilePhotoUrl,
+        imageUrl: usersTable.imageUrl,
+      })
+      .from(usersTable)
+      .where(match)
+      .orderBy(usersTable.name)
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ total: sql<number>`cast(count(*) as integer)` })
+      .from(usersTable)
+      .where(match),
+  ]);
+
+  success(res, "Users retrieved successfully", { users: rows, total });
 });
 
 router.get("/users/:id", async (req, res): Promise<void> => {

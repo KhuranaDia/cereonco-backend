@@ -79,13 +79,13 @@ export function publicUrl(subdir: string, filename: string): string {
 
 const avatarUpload = multer({
   storage: buildStorage("avatars"),
-  limits: { fileSize: 5 * MB, files: 1 },
+  limits: { fileSize: 20 * MB, files: 1 },
   fileFilter: makeFileFilter({ images: true, videos: false }),
 });
 
 const postMediaUpload = multer({
   storage: buildStorage("posts"),
-  limits: { fileSize: 10 * MB, files: 10 },
+  limits: { fileSize: 50 * MB, files: 10 },
   fileFilter: makeFileFilter({ images: true, videos: true }),
 });
 
@@ -126,13 +126,31 @@ function wrap(mw: RequestHandler, kind: "avatar" | "post media"): RequestHandler
   };
 }
 
-/** PATCH /users/me — single optional `avatar` file. */
+/**
+ * PATCH /users/me — single optional profile image. Accepts the preferred new
+ * field name `image` and the legacy `avatar` for backward compatibility. Use
+ * `pickProfileImage(req)` in the handler to get whichever was sent.
+ */
 export const uploadAvatar: RequestHandler = wrap(
-  avatarUpload.single("avatar"),
+  avatarUpload.fields([
+    { name: "image", maxCount: 1 },
+    { name: "avatar", maxCount: 1 },
+  ]),
   "avatar",
 );
 
-/** POST /posts — multiple optional `media` files. */
+/**
+ * Extract the uploaded profile image from a request handled by `uploadAvatar`,
+ * preferring the new `image` field and falling back to the legacy `avatar`.
+ */
+export function pickProfileImage(req: Request): Express.Multer.File | undefined {
+  const files = req.files as
+    | Record<string, Express.Multer.File[]>
+    | undefined;
+  return files?.image?.[0] ?? files?.avatar?.[0];
+}
+
+/** POST /posts and PATCH /posts/:id — multiple optional `media` files. */
 export const uploadPostMedia: RequestHandler = wrap(
   postMediaUpload.array("media", 10),
   "post media",

@@ -16,6 +16,11 @@ export const commentsTable = pgTable("comments", {
     (): AnyPgColumn => commentsTable.id,
     { onDelete: "set null" },
   ),
+  // Optional user mentioned in this comment (frontend sends mentionedUserId).
+  mentionedUserId: integer("mentioned_user_id").references(
+    () => usersTable.id,
+    { onDelete: "set null" },
+  ),
   isDeleted: boolean("is_deleted").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })

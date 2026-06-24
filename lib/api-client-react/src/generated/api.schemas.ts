@@ -47,6 +47,8 @@ export interface User {
   avatarUrl?: string | null;
   /** @nullable */
   profilePhotoUrl?: string | null;
+  /** @nullable */
+  imageUrl?: string | null;
   onboardingCompleted: boolean;
   /** @nullable */
   cancerType?: string | null;
@@ -147,6 +149,13 @@ export interface CommentReply {
   content: string;
   parentCommentId: number;
   isDeleted: boolean;
+  /** @nullable */
+  mentionedUserId?: number | null;
+  /**
+     * Name of the mentioned user (joined from users), or null.
+     * @nullable
+     */
+  mentionedUserName?: string | null;
   author?: CommentAuthor | null;
   createdAt: string;
   updatedAt: string;
@@ -162,6 +171,13 @@ export interface Comment {
   /** @nullable */
   parentCommentId?: number | null;
   isDeleted: boolean;
+  /** @nullable */
+  mentionedUserId?: number | null;
+  /**
+     * Name of the mentioned user (joined from users), or null.
+     * @nullable
+     */
+  mentionedUserName?: string | null;
   author?: CommentAuthor | null;
   replyCount: number;
   replies?: CommentReply[];
@@ -218,6 +234,7 @@ export interface UserProfileUpdate {
   location?: string;
   avatarUrl?: string;
   profilePhotoUrl?: string;
+  imageUrl?: string;
   onboardingCompleted?: boolean;
   cancerType?: string;
   treatmentStage?: string;
@@ -225,6 +242,29 @@ export interface UserProfileUpdate {
   specialty?: string;
   hospitalAffiliation?: string;
   medicalLicenseNumber?: string;
+}
+
+export interface UserSearchResult {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  /** @nullable */
+  avatarUrl?: string | null;
+  /** @nullable */
+  profilePhotoUrl?: string | null;
+  /** @nullable */
+  imageUrl?: string | null;
+}
+
+export interface UserSearchResponse {
+  users: UserSearchResult[];
+  total: number;
+}
+
+export interface SeedSystemNotificationsResponse {
+  /** Number of system notifications created (0 if they already existed). */
+  created: number;
 }
 
 export interface PostInput {
@@ -254,6 +294,8 @@ export interface CommentInput {
   /** @minLength 1 */
   content: string;
   parentCommentId?: number;
+  /** Optional id of a user mentioned in this comment. When set, a mention notification is created for that user. */
+  mentionedUserId?: number;
 }
 
 export interface CommentUpdate {
@@ -516,6 +558,15 @@ export interface RsvpResponse {
  * Standard envelope for resource deletions.
  */
 export interface DeleteResponse { [key: string]: unknown }
+
+export type SearchUsersParams = {
+/**
+ * @minLength 2
+ */
+q: string;
+limit?: number;
+offset?: number;
+};
 
 export type GetFeedParams = {
 limit?: number;

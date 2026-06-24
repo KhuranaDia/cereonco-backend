@@ -295,6 +295,51 @@ router.patch("/notifications/:id/read", requireAuth, async (req, res): Promise<v
   });
 });
 
+// POST /notifications/seed-system — dev/demo helper that seeds a few "system"
+// notifications for the current user so the frontend can render that tab.
+// Idempotent: does nothing if the user already has system notifications.
+// Uses a direct insert (not createNotification, which no-ops on self actor).
+router.post("/notifications/seed-system", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.userId!;
+
+  const [{ existing }] = await db
+    .select({ existing: sql<number>`cast(count(*) as integer)` })
+    .from(notificationsTable)
+    .where(
+      and(
+        eq(notificationsTable.userId, userId),
+        eq(notificationsTable.type, "system"),
+      ),
+    );
+
+  if (existing > 0) {
+    success(res, "System notifications already present", { created: 0 });
+    return;
+  }
+
+  const messages = [
+    "Welcome to CereOnco Community! Complete your profile to get started.",
+    "Your privacy matters — review your notification settings any time.",
+    "New support groups are available. Explore communities that fit your journey.",
+  ];
+
+  const inserted = await db
+    .insert(notificationsTable)
+    .values(
+      messages.map((message) => ({
+        userId,
+        actorId: userId,
+        type: "system" as const,
+        entityType: "user" as const,
+        entityId: userId,
+        message,
+      })),
+    )
+    .returning({ id: notificationsTable.id });
+
+  success(res, "System notifications seeded", { created: inserted.length });
+});
+
 router.patch("/notifications/read-all", requireAuth, async (req, res): Promise<void> => {
   const result = await db
     .update(notificationsTable)

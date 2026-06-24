@@ -10,4 +10,6 @@ export interface CommentInput {
   /** @minLength 1 */
   content: string;
   parentCommentId?: number;
+  /** Optional id of a user mentioned in this comment. When set, a mention notification is created for that user. */
+  mentionedUserId?: number;
 }

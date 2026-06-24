@@ -13,6 +13,7 @@ export interface UserProfileUpdate {
   location?: string;
   avatarUrl?: string;
   profilePhotoUrl?: string;
+  imageUrl?: string;
   onboardingCompleted?: boolean;
   cancerType?: string;
   treatmentStage?: string;

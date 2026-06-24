@@ -1,0 +1,260 @@
+Continue the existing CereOnco backend. Do NOT rebuild or refactor completed modules.
+
+Priority: Implement Sudip’s latest frontend-blocking fixes only.
+
+Do NOT start Twilio.
+Do NOT work on live messaging.
+Do NOT redesign existing modules.
+
+Current stack:
+Node.js, Express, TypeScript, PostgreSQL, Drizzle ORM, JWT, multer, Swagger/OpenAPI, Postman, Render.
+
+Keep existing response format:
+Success:
+{ "success": true, "message": "", "data": {} }
+
+Error:
+{ "success": false, "message": "" }
+
+Tasks to complete in this pass:
+
+==================================================
+
+1. File upload limit changes
+   ==================================================
+
+Posts:
+
+* Keep support for multiple files under field name media.
+* Allow up to 10 files.
+* Increase file size limit to 50MB per file.
+* Do NOT fully remove limits because that can crash the server.
+* Support images and videos.
+
+Profile picture:
+
+* Increase profile image upload limit to 20MB.
+* Support jpg, jpeg, png, webp.
+
+==================================================
+2. PATCH /users/me profile image upload
+=======================================
+
+Frontend will send profile picture using field name:
+
+image
+
+Update PATCH /users/me to support multipart/form-data with:
+
+image = file
+
+Important:
+
+* Previously avatar was used. Keep backward compatibility if avatar exists.
+* Preferred new key is image.
+* Upload handling should work the same way as post media upload.
+* Save uploaded file locally.
+* Generate URL/path.
+* Store generated URL in imageUrl if user schema has it.
+* Also set avatarUrl/profilePhotoUrl if those fields exist for backward compatibility.
+* Return updated user with imageUrl/avatarUrl/profilePhotoUrl where available.
+
+If users table does not currently have imageUrl, add nullable imageUrl column safely.
+
+==================================================
+3. Post Update API media merge logic
+====================================
+
+Update PATCH /posts/:id.
+
+Frontend sends:
+
+remainingMedia = array of URLs that should remain after edit
+media = newly uploaded files
+
+Required behavior:
+
+* Accept multipart/form-data.
+* Parse remainingMedia.
+* remainingMedia may arrive as:
+
+  * JSON string array
+  * repeated form-data fields
+  * comma-separated string
+* Upload new files under media.
+* Generate URLs for uploaded files.
+* Merge:
+  finalMediaUrls = [...remainingMedia, ...newUploadedUrls]
+* Save finalMediaUrls into mediaUrls.
+* Keep content and feeling update support.
+* If no new files, save only remainingMedia.
+* If no remainingMedia but new files exist, save only uploaded file URLs.
+* If neither is provided, keep existing mediaUrls unchanged unless frontend explicitly sends empty remainingMedia.
+
+Return updated post with final mediaUrls.
+
+==================================================
+4. User Search API
+==================
+
+Create:
+
+GET /users/search?q=&limit=&offset=
+
+Requirements:
+
+* Auth required.
+* Search by name and email.
+* Case-insensitive.
+* Minimum q length: 2 characters.
+* Default limit 20.
+* Default offset 0.
+* Return only safe user fields:
+  id, name, email, role, avatarUrl, profilePhotoUrl, imageUrl if available
+* Do not return passwordHash or tokens.
+
+Response:
+{
+"success": true,
+"message": "Users retrieved successfully",
+"data": {
+"users": [],
+"total": 0
+}
+}
+
+==================================================
+5. Dummy system notifications
+=============================
+
+Add a safe way to create dummy system notifications for testing.
+
+Either:
+A. Seed a few system notifications if none exist, OR
+B. Create admin/dev endpoint:
+POST /notifications/seed-system
+
+Preferred:
+Make it auth required. If no admin system exists, keep it safe and simple.
+
+Dummy examples:
+
+* Welcome to CereOnco
+* Your profile is ready
+* New community features are available
+
+Type/category should be:
+system
+
+==================================================
+6. Notification differentiation
+===============================
+
+Clearly define notification categorization in code and docs:
+
+/notifications/mentioned:
+
+* returns notifications where type/category = mentioned
+* created when a user is mentioned in comments/posts
+
+/notifications/system:
+
+* returns notifications where type/category = system
+* created for platform/system messages
+
+/notifications/unread:
+
+* returns notifications where readAt is null or isRead false depending on existing schema
+
+Make sure existing endpoints:
+GET /notifications/unread
+GET /notifications/mentioned
+GET /notifications/system
+
+work and are documented.
+
+==================================================
+7. Comments mentionedUserId + mentionedUserName
+===============================================
+
+For comment creation, frontend sends:
+
+mentionedUserId
+
+Update comment creation API:
+
+* Accept mentionedUserId.
+* Save mentionedUserId if schema supports it.
+* If schema does not support it, add nullable mentionedUserId column safely.
+* If mentionedUserId is present, optionally create a mentioned notification for that user.
+
+Update Get Comments API for a post:
+
+* Include mentionedUserId
+* Include mentionedUserName
+* mentionedUserName should come from users table join.
+* If no mention, return null.
+
+==================================================
+8. OpenAPI / Swagger
+====================
+
+Update both:
+
+* lib/api-spec/openapi.yaml
+* artifacts/api-server/src/openapi-spec.ts
+
+Document:
+
+* PATCH /users/me with image file
+* PATCH /posts/:id with remainingMedia + media files
+* GET /users/search
+* notification category behavior
+* comment mentionedUserId and mentionedUserName
+* seed system notification endpoint if created
+
+Keep both OpenAPI specs in sync.
+
+==================================================
+9. Postman
+==========
+
+Update Postman collection with requests:
+
+* Update Profile Image using image field
+* Update Post with remainingMedia + new media
+* User Search
+* Seed System Notifications
+* Get Mentioned Notifications
+* Get System Notifications
+* Create Comment with mentionedUserId
+* Get Comments showing mentionedUserName
+
+==================================================
+10. Build only
+==============
+
+Run:
+
+pnpm --filter @workspace/api-server build
+
+Do not run long E2E tests.
+Do not run socket tests.
+
+==================================================
+Deliverables
+============
+
+At the end, summarize:
+
+1. Files changed
+2. Endpoints added/updated
+3. DB changes/migration needed
+4. Exact migration or Drizzle push command if needed
+5. Manual Postman testing steps
+6. Known limitations
+7. Commit message suggestion
+
+Stop after these fixes.
+Do not start Twilio.
+Do not work on live messaging.

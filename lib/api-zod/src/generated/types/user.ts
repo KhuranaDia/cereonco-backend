@@ -26,6 +26,8 @@ export interface User {
   avatarUrl?: string | null;
   /** @nullable */
   profilePhotoUrl?: string | null;
+  /** @nullable */
+  imageUrl?: string | null;
   onboardingCompleted: boolean;
   /** @nullable */
   cancerType?: string | null;

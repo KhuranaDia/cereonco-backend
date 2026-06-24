@@ -150,6 +150,12 @@ export const openApiSpec = {
               "null"
             ]
           },
+          "imageUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "onboardingCompleted": {
             "type": "boolean"
           },
@@ -489,6 +495,19 @@ export const openApiSpec = {
           "isDeleted": {
             "type": "boolean"
           },
+          "mentionedUserId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "mentionedUserName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of the mentioned user (joined from users), or null."
+          },
           "author": {
             "oneOf": [
               {
@@ -546,6 +565,19 @@ export const openApiSpec = {
           },
           "isDeleted": {
             "type": "boolean"
+          },
+          "mentionedUserId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "mentionedUserName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Name of the mentioned user (joined from users), or null."
           },
           "author": {
             "oneOf": [
@@ -729,6 +761,9 @@ export const openApiSpec = {
           "profilePhotoUrl": {
             "type": "string"
           },
+          "imageUrl": {
+            "type": "string"
+          },
           "onboardingCompleted": {
             "type": "boolean"
           },
@@ -752,6 +787,77 @@ export const openApiSpec = {
           },
           "medicalLicenseNumber": {
             "type": "string"
+          }
+        }
+      },
+      "UserSearchResult": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "email",
+          "role"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          },
+          "avatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "profilePhotoUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imageUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "UserSearchResponse": {
+        "type": "object",
+        "required": [
+          "users",
+          "total"
+        ],
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserSearchResult"
+            }
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "SeedSystemNotificationsResponse": {
+        "type": "object",
+        "required": [
+          "created"
+        ],
+        "properties": {
+          "created": {
+            "type": "integer",
+            "description": "Number of system notifications created (0 if they already existed)."
           }
         }
       },
@@ -825,6 +931,10 @@ export const openApiSpec = {
           },
           "parentCommentId": {
             "type": "integer"
+          },
+          "mentionedUserId": {
+            "type": "integer",
+            "description": "Optional id of a user mentioned in this comment. When set, a mention notification is created for that user."
           }
         }
       },
@@ -1848,8 +1958,8 @@ export const openApiSpec = {
         "tags": [
           "users"
         ],
-        "summary": "Update current user profile (JSON or multipart avatar upload)",
-        "description": "Accepts application/json (profile fields) or multipart/form-data with an optional `avatar` file (jpg/jpeg/png/webp, max 5MB) plus any profile fields. Uploading an avatar updates both avatarUrl and profilePhotoUrl.\n",
+        "summary": "Update current user profile (JSON or multipart image upload)",
+        "description": "Accepts application/json (profile fields) or multipart/form-data with an optional profile image plus any profile fields. The image field is `image` (preferred); the legacy `avatar` field is still accepted for backward compatibility. Allowed types jpg/jpeg/png/webp, max 20MB. Uploading an image sets imageUrl, avatarUrl, and profilePhotoUrl.\n",
         "security": [
           {
             "bearerAuth": []
@@ -1875,6 +1985,66 @@ export const openApiSpec = {
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/users/search": {
+      "get": {
+        "operationId": "searchUsers",
+        "tags": [
+          "users"
+        ],
+        "summary": "Search users by name or email",
+        "description": "Case-insensitive search over name and email. Requires q of at least 2 characters. Returns only safe public fields (never passwordHash/tokens).\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching users",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error (q too short)"
           },
           "401": {
             "description": "Unauthorized"
@@ -1968,7 +2138,7 @@ export const openApiSpec = {
           "posts"
         ],
         "summary": "Create a post (JSON or multipart media upload)",
-        "description": "Accepts application/json or multipart/form-data with up to 10 `media` files (images jpg/jpeg/png/webp or videos mp4/mov/webm, max 10MB each) plus text fields. Uploaded file URLs are merged into mediaUrls.\n",
+        "description": "Accepts application/json or multipart/form-data with up to 10 `media` files (images jpg/jpeg/png/webp or videos mp4/mov/webm, max 50MB each) plus text fields. Uploaded file URLs are merged into mediaUrls.\n",
         "security": [
           {
             "bearerAuth": []
@@ -2094,7 +2264,8 @@ export const openApiSpec = {
         "tags": [
           "posts"
         ],
-        "summary": "Update own post",
+        "summary": "Update own post (JSON or multipart media merge)",
+        "description": "Accepts application/json or multipart/form-data. For media edits send `remainingMedia` (the URLs to keep — a JSON array string, repeated fields, or a comma-separated string) and/or up to 10 new `media` files (max 50MB each). The final mediaUrls = [...remainingMedia, ...newly uploaded]. Sending an empty remainingMedia with no files clears all media. If neither remainingMedia nor files are sent, existing media is left unchanged. content and feeling are still updatable.\n",
         "security": [
           {
             "bearerAuth": []
@@ -2364,6 +2535,7 @@ export const openApiSpec = {
           "comments"
         ],
         "summary": "Add a comment or reply to a post",
+        "description": "Optionally include mentionedUserId to mention a user; when present a mention notification is created for that user.\n",
         "security": [
           {
             "bearerAuth": []
@@ -3111,6 +3283,36 @@ export const openApiSpec = {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/NotificationsListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/notifications/seed-system": {
+      "post": {
+        "operationId": "seedSystemNotifications",
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Seed dummy system notifications for the current user (testing)",
+        "description": "Creates a few `system` category notifications for the authenticated user if they have none yet. Safe to call repeatedly — returns created:0 when system notifications already exist.\n",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Seed result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeedSystemNotificationsResponse"
                 }
               }
             }

@@ -59,6 +59,7 @@ export const SetPasswordResponse = zod.object({
   "location": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
   "profilePhotoUrl": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
   "onboardingCompleted": zod.boolean(),
   "cancerType": zod.string().nullish(),
   "treatmentStage": zod.string().nullish(),
@@ -103,6 +104,7 @@ export const LoginResponse = zod.object({
   "location": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
   "profilePhotoUrl": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
   "onboardingCompleted": zod.boolean(),
   "cancerType": zod.string().nullish(),
   "treatmentStage": zod.string().nullish(),
@@ -147,6 +149,7 @@ export const GetMeResponse = zod.object({
   "location": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
   "profilePhotoUrl": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
   "onboardingCompleted": zod.boolean(),
   "cancerType": zod.string().nullish(),
   "treatmentStage": zod.string().nullish(),
@@ -161,9 +164,9 @@ export const GetMeResponse = zod.object({
 
 
 /**
- * Accepts application/json (profile fields) or multipart/form-data with an optional `avatar` file (jpg/jpeg/png/webp, max 5MB) plus any profile fields. Uploading an avatar updates both avatarUrl and profilePhotoUrl.
+ * Accepts application/json (profile fields) or multipart/form-data with an optional profile image plus any profile fields. The image field is `image` (preferred); the legacy `avatar` field is still accepted for backward compatibility. Allowed types jpg/jpeg/png/webp, max 20MB. Uploading an image sets imageUrl, avatarUrl, and profilePhotoUrl.
 
- * @summary Update current user profile (JSON or multipart avatar upload)
+ * @summary Update current user profile (JSON or multipart image upload)
  */
 
 
@@ -174,6 +177,7 @@ export const UpdateMeBody = zod.object({
   "location": zod.string().optional(),
   "avatarUrl": zod.string().optional(),
   "profilePhotoUrl": zod.string().optional(),
+  "imageUrl": zod.string().optional(),
   "onboardingCompleted": zod.boolean().optional(),
   "cancerType": zod.string().optional(),
   "treatmentStage": zod.string().optional(),
@@ -195,6 +199,7 @@ export const UpdateMeResponse = zod.object({
   "location": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
   "profilePhotoUrl": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
   "onboardingCompleted": zod.boolean(),
   "cancerType": zod.string().nullish(),
   "treatmentStage": zod.string().nullish(),
@@ -205,6 +210,36 @@ export const UpdateMeResponse = zod.object({
   "verificationStatus": zod.enum(['none', 'pending', 'approved', 'rejected']),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * Case-insensitive search over name and email. Requires q of at least 2 characters. Returns only safe public fields (never passwordHash/tokens).
+
+ * @summary Search users by name or email
+ */
+export const searchUsersQueryQMin = 2;
+
+export const searchUsersQueryLimitDefault = 20;
+export const searchUsersQueryOffsetDefault = 0;
+
+export const SearchUsersQueryParams = zod.object({
+  "q": zod.coerce.string().min(searchUsersQueryQMin),
+  "limit": zod.coerce.number().default(searchUsersQueryLimitDefault),
+  "offset": zod.coerce.number().default(searchUsersQueryOffsetDefault)
+})
+
+export const SearchUsersResponse = zod.object({
+  "users": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
+  "avatarUrl": zod.string().nullish(),
+  "profilePhotoUrl": zod.string().nullish(),
+  "imageUrl": zod.string().nullish()
+})),
+  "total": zod.number()
 })
 
 
@@ -227,6 +262,7 @@ export const GetUserResponse = zod.object({
   "location": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
   "profilePhotoUrl": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
   "onboardingCompleted": zod.boolean(),
   "cancerType": zod.string().nullish(),
   "treatmentStage": zod.string().nullish(),
@@ -277,7 +313,7 @@ export const GetFeedResponse = zod.array(GetFeedResponseItem)
 
 
 /**
- * Accepts application/json or multipart/form-data with up to 10 `media` files (images jpg/jpeg/png/webp or videos mp4/mov/webm, max 10MB each) plus text fields. Uploaded file URLs are merged into mediaUrls.
+ * Accepts application/json or multipart/form-data with up to 10 `media` files (images jpg/jpeg/png/webp or videos mp4/mov/webm, max 50MB each) plus text fields. Uploaded file URLs are merged into mediaUrls.
 
  * @summary Create a post (JSON or multipart media upload)
  */
@@ -361,7 +397,9 @@ export const GetPostResponse = zod.object({
 
 
 /**
- * @summary Update own post
+ * Accepts application/json or multipart/form-data. For media edits send `remainingMedia` (the URLs to keep — a JSON array string, repeated fields, or a comma-separated string) and/or up to 10 new `media` files (max 50MB each). The final mediaUrls = [...remainingMedia, ...newly uploaded]. Sending an empty remainingMedia with no files clears all media. If neither remainingMedia nor files are sent, existing media is left unchanged. content and feeling are still updatable.
+
+ * @summary Update own post (JSON or multipart media merge)
  */
 export const UpdatePostParams = zod.object({
   "id": zod.coerce.number()
@@ -467,6 +505,8 @@ export const GetPostCommentsResponse = zod.object({
   "content": zod.string().describe('[deleted] when isDeleted is true'),
   "parentCommentId": zod.number().nullish(),
   "isDeleted": zod.boolean(),
+  "mentionedUserId": zod.number().nullish(),
+  "mentionedUserName": zod.string().nullish().describe('Name of the mentioned user (joined from users), or null.'),
   "author": zod.union([zod.object({
   "id": zod.number(),
   "name": zod.string(),
@@ -481,6 +521,8 @@ export const GetPostCommentsResponse = zod.object({
   "content": zod.string().describe('[deleted] when isDeleted is true'),
   "parentCommentId": zod.number(),
   "isDeleted": zod.boolean(),
+  "mentionedUserId": zod.number().nullish(),
+  "mentionedUserName": zod.string().nullish().describe('Name of the mentioned user (joined from users), or null.'),
   "author": zod.union([zod.object({
   "id": zod.number(),
   "name": zod.string(),
@@ -498,6 +540,8 @@ export const GetPostCommentsResponse = zod.object({
 
 
 /**
+ * Optionally include mentionedUserId to mention a user; when present a mention notification is created for that user.
+
  * @summary Add a comment or reply to a post
  */
 export const CreateCommentParams = zod.object({
@@ -509,7 +553,8 @@ export const CreateCommentParams = zod.object({
 
 export const CreateCommentBody = zod.object({
   "content": zod.string().min(1),
-  "parentCommentId": zod.number().optional()
+  "parentCommentId": zod.number().optional(),
+  "mentionedUserId": zod.number().optional().describe('Optional id of a user mentioned in this comment. When set, a mention notification is created for that user.')
 })
 
 
@@ -534,6 +579,8 @@ export const UpdateCommentResponse = zod.object({
   "content": zod.string().describe('[deleted] when isDeleted is true'),
   "parentCommentId": zod.number(),
   "isDeleted": zod.boolean(),
+  "mentionedUserId": zod.number().nullish(),
+  "mentionedUserName": zod.string().nullish().describe('Name of the mentioned user (joined from users), or null.'),
   "author": zod.union([zod.object({
   "id": zod.number(),
   "name": zod.string(),
@@ -873,6 +920,16 @@ export const ListSystemNotificationsResponse = zod.object({
 })),
   "total": zod.number(),
   "unreadCount": zod.number()
+})
+
+
+/**
+ * Creates a few `system` category notifications for the authenticated user if they have none yet. Safe to call repeatedly — returns created:0 when system notifications already exist.
+
+ * @summary Seed dummy system notifications for the current user (testing)
+ */
+export const SeedSystemNotificationsResponse = zod.object({
+  "created": zod.number().describe('Number of system notifications created (0 if they already existed).')
 })
 
 

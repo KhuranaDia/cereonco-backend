@@ -18,6 +18,13 @@ export interface Comment {
   /** @nullable */
   parentCommentId?: number | null;
   isDeleted: boolean;
+  /** @nullable */
+  mentionedUserId?: number | null;
+  /**
+     * Name of the mentioned user (joined from users), or null.
+     * @nullable
+     */
+  mentionedUserName?: string | null;
   author?: CommentAuthor | null;
   replyCount: number;
   replies?: CommentReply[];
