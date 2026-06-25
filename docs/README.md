@@ -251,12 +251,21 @@ When SMTP is **not** configured: in production the setup/reset link is **not** s
   "tagline": "Stronger together",
   "category": "breast_cancer",
   "imageUrl": null,
+  "creatorUserId": 12,
   "memberCount": 42,
   "isMember": true,
+  "isAdmin": true,
   "createdAt": "...",
   "updatedAt": "..."
 }
 ```
+
+`creatorUserId` is the user who created/owns the group (its admin). `isAdmin` is `true` when the authenticated user is that creator. `isMember` reflects the authenticated user's current membership status. `memberCount` counts all members.
+
+### Ownership & membership
+
+- Creating a group sets `creatorUserId` to the current user and inserts a `group_members` row for them with `role = "admin"`.
+- `group_members` maps `groupId → userId` with a `role` (`"admin"` for the creator, `"member"` otherwise) and a `unique(group_id, user_id)` constraint, so joining twice is idempotent.
 
 ### Create a group
 
@@ -272,9 +281,15 @@ Authorization: Bearer <token>
 }
 ```
 
-Returns the created group (`201`). The creator is automatically added as the first member (`memberCount: 1`, `isMember: true`). `tagline` and `imageUrl` are optional.
+Returns the created group (`201`). The creator is automatically added as the admin member (`memberCount: 1`, `isMember: true`, `isAdmin: true`, `creatorUserId` = caller). `tagline` and `imageUrl` are optional.
 
-`isMember` reflects the authenticated user's current membership status.
+### List my groups
+
+```
+GET /api/groups?limit=20&offset=0
+```
+
+Returns **only** groups where the authenticated user is the creator/admin **or** a member. Each item includes `creatorUserId`, `isAdmin`, `isMember`, and `memberCount`. Unrelated groups are not returned.
 
 ### Join / Leave
 
@@ -283,7 +298,7 @@ POST /api/groups/:id/join     → { joined: true,  memberCount: 43 }
 DELETE /api/groups/:id/join   → { joined: false, memberCount: 42 }
 ```
 
-Joining twice is idempotent — no duplicate rows created.
+Joining twice is idempotent — no duplicate rows created. The creator/admin **cannot** leave their own group — `DELETE /api/groups/:id/join` returns `403 "You cannot leave a group you created."`.
 
 ### Group Feed
 

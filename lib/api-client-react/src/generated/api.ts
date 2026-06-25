@@ -1960,7 +1960,8 @@ export const getListGroupsUrl = (params?: ListGroupsParams,) => {
 }
 
 /**
- * @summary List all groups
+ * Returns only groups where the authenticated user is the creator/admin OR a member. Each item includes creatorUserId, isAdmin, isMember and memberCount (count of all members). Unrelated groups are not returned.
+ * @summary List the current user's groups
  */
 export const listGroups = async (params?: ListGroupsParams, options?: RequestInit): Promise<GroupsListResponse> => {
 
@@ -2007,7 +2008,7 @@ export type ListGroupsQueryError = ErrorType<void>
 
 
 /**
- * @summary List all groups
+ * @summary List the current user's groups
  */
 
 export function useListGroups<TData = Awaited<ReturnType<typeof listGroups>>, TError = ErrorType<void>>(
@@ -2255,6 +2256,7 @@ export const getLeaveGroupUrl = (id: number,) => {
 }
 
 /**
+ * Removes the current user's membership. The group's creator/admin cannot leave their own group and receives a 403.
  * @summary Leave a group
  */
 export const leaveGroup = async (id: number, options?: RequestInit): Promise<MembershipToggle> => {

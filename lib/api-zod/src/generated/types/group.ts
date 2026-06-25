@@ -15,8 +15,15 @@ export interface Group {
   category: string;
   /** @nullable */
   imageUrl?: string | null;
+  /**
+     * ID of the user who created/owns the group (its admin). Null only for legacy rows with no recorded creator.
+     * @nullable
+     */
+  creatorUserId: number | null;
   memberCount: number;
   isMember: boolean;
+  /** True when the current authenticated user is the group's creator/admin. */
+  isAdmin: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

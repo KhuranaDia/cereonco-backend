@@ -1,0 +1,167 @@
+Continue the existing CereOnco backend. Do NOT rebuild or refactor completed modules.
+
+Priority Task: Update Groups APIs based on user ownership and membership.
+
+Do NOT work on live messaging.
+Do NOT work on Twilio.
+Do NOT touch CereConnect integration yet.
+
+Current stack:
+Node.js, Express, TypeScript, PostgreSQL, Drizzle ORM, JWT, Swagger/OpenAPI, Postman, Render.
+
+Requirement from frontend/Sudip:
+
+1. When a user creates a group, that user should automatically become the admin/creator of the group.
+
+2. While creating the group, save the creator's userId in the groups table.
+
+3. Add/use a groupMember table to map:
+
+* groupId
+* userId
+
+4. When a group is created:
+
+* insert group row with creatorUserId/current auth user id
+* insert groupMember row for same user and group
+* mark that member as admin if supported, or use creatorUserId as admin source
+
+5. Create/update Group List API so it returns only groups where current user is either:
+
+* the group admin/creator
+  OR
+* a group member
+
+6. Include flag in each group response:
+   isAdmin: true/false
+
+7. Keep existing isMember flag if already present.
+
+8. Preserve existing group APIs and response format.
+
+Expected group response example:
+{
+"id": 1,
+"name": "Breast Cancer Support",
+"description": "...",
+"tagline": "...",
+"category": "...",
+"imageUrl": "...",
+"creatorUserId": 12,
+"isAdmin": true,
+"isMember": true,
+"memberCount": 1
+}
+
+Implementation tasks:
+
+A. Inspect existing:
+
+* lib/db/src/schema/groups.ts
+* artifacts/api-server/src/routes/groups.ts
+* lib/api-spec/openapi.yaml
+* artifacts/api-server/src/openapi-spec.ts
+* docs/postman-collection.json
+
+B. Database:
+
+* Add creatorUserId / createdBy / adminUserId column to groups table if missing.
+  Preferred API field: creatorUserId.
+  DB column can be creator_user_id.
+* Ensure groupMembers table exists:
+  id
+  groupId
+  userId
+  role optional
+  createdAt
+* Add unique constraint:
+  groupId + userId
+* Add safe FK constraints to users and groups.
+* Create idempotent production migration:
+  lib/db/drizzle/phase_groups_user_membership.sql
+
+C. Create Group API:
+POST /groups
+
+* Auth required.
+* Create group with creatorUserId = req.user.id.
+* Insert creator into groupMembers.
+* Return group with:
+  isAdmin: true
+  isMember: true
+  memberCount
+
+D. Group List API:
+GET /groups
+
+* Auth required.
+* Return groups where current user is creator OR member.
+* Include:
+  isAdmin
+  isMember
+  memberCount
+* Do not return unrelated groups for this endpoint.
+
+E. Group Detail API:
+GET /groups/:id
+
+* Include:
+  creatorUserId
+  isAdmin
+  isMember
+  memberCount
+
+F. Join/Leave Group:
+
+* Keep existing behavior.
+* When joined, insert into groupMembers if not exists.
+* If creator/admin tries to leave their own group, either:
+
+  * block with clear error
+    OR
+  * allow only if another admin transfer exists.
+    For now, block creator leaving their own group:
+    "You cannot leave a group you created."
+
+G. Swagger/OpenAPI:
+Update both:
+
+* lib/api-spec/openapi.yaml
+* artifacts/api-server/src/openapi-spec.ts
+
+Document:
+
+* creatorUserId
+* isAdmin
+* isMember
+* memberCount
+* groupMembers behavior
+* GET /groups user-specific list behavior
+
+H. Postman:
+Update/add:
+
+* Create Group
+* List My Groups
+* Get Group Detail
+* Join Group
+* Leave Group
+
+I. Build:
+Run:
+pnpm --filter @workspace/api-server build
+
+Do not run long E2E tests.
+
+J. Deliverables:
+At the end summarize:
+
+1. Files changed
+2. DB changes
+3. Migration command for Render DB
+4. Endpoints updated
+5. Manual Postman testing steps
+6. Known limitations
+7. Commit message suggestion
+
+Stop after this group membership/admin task.

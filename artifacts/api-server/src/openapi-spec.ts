@@ -957,8 +957,10 @@ export const openApiSpec = {
           "name",
           "description",
           "category",
+          "creatorUserId",
           "memberCount",
           "isMember",
+          "isAdmin",
           "createdAt",
           "updatedAt"
         ],
@@ -987,11 +989,22 @@ export const openApiSpec = {
               "null"
             ]
           },
+          "creatorUserId": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "ID of the user who created/owns the group (its admin). Null only for legacy rows with no recorded creator."
+          },
           "memberCount": {
             "type": "integer"
           },
           "isMember": {
             "type": "boolean"
+          },
+          "isAdmin": {
+            "type": "boolean",
+            "description": "True when the current authenticated user is the group's creator/admin."
           },
           "createdAt": {
             "type": "string",
@@ -2691,7 +2704,8 @@ export const openApiSpec = {
         "tags": [
           "groups"
         ],
-        "summary": "List all groups",
+        "summary": "List the current user's groups",
+        "description": "Returns only groups where the authenticated user is the creator/admin OR a member. Each item includes creatorUserId, isAdmin, isMember and memberCount (count of all members). Unrelated groups are not returned.",
         "security": [
           {
             "bearerAuth": []
@@ -2858,6 +2872,7 @@ export const openApiSpec = {
           "groups"
         ],
         "summary": "Leave a group",
+        "description": "Removes the current user's membership. The group's creator/admin cannot leave their own group and receives a 403.",
         "security": [
           {
             "bearerAuth": []
@@ -2886,6 +2901,9 @@ export const openApiSpec = {
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Creator cannot leave their own group"
           },
           "404": {
             "description": "Group not found"

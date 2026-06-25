@@ -605,7 +605,8 @@ export const DeleteCommentResponse = zod.object({
 
 
 /**
- * @summary List all groups
+ * Returns only groups where the authenticated user is the creator/admin OR a member. Each item includes creatorUserId, isAdmin, isMember and memberCount (count of all members). Unrelated groups are not returned.
+ * @summary List the current user's groups
  */
 export const listGroupsQueryLimitDefault = 20;
 export const listGroupsQueryOffsetDefault = 0;
@@ -623,8 +624,10 @@ export const ListGroupsResponse = zod.object({
   "tagline": zod.string().nullish(),
   "category": zod.string(),
   "imageUrl": zod.string().nullish(),
+  "creatorUserId": zod.number().nullable().describe('ID of the user who created\/owns the group (its admin). Null only for legacy rows with no recorded creator.'),
   "memberCount": zod.number(),
   "isMember": zod.boolean(),
+  "isAdmin": zod.boolean().describe('True when the current authenticated user is the group\'s creator\/admin.'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })),
@@ -663,8 +666,10 @@ export const GetGroupResponse = zod.object({
   "tagline": zod.string().nullish(),
   "category": zod.string(),
   "imageUrl": zod.string().nullish(),
+  "creatorUserId": zod.number().nullable().describe('ID of the user who created\/owns the group (its admin). Null only for legacy rows with no recorded creator.'),
   "memberCount": zod.number(),
   "isMember": zod.boolean(),
+  "isAdmin": zod.boolean().describe('True when the current authenticated user is the group\'s creator\/admin.'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -684,6 +689,7 @@ export const JoinGroupResponse = zod.object({
 
 
 /**
+ * Removes the current user's membership. The group's creator/admin cannot leave their own group and receives a 403.
  * @summary Leave a group
  */
 export const LeaveGroupParams = zod.object({

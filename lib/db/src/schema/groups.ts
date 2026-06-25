@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, unique, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -10,6 +10,12 @@ export const groupsTable = pgTable("groups", {
   tagline: text("tagline"),
   category: text("category").notNull(),
   imageUrl: text("image_url"),
+  // The user who created the group (its admin). Nullable so existing rows and
+  // user deletion (ON DELETE SET NULL) never break.
+  creatorUserId: integer("creator_user_id").references(
+    (): AnyPgColumn => usersTable.id,
+    { onDelete: "set null" },
+  ),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
@@ -27,6 +33,8 @@ export const groupMembersTable = pgTable(
     userId: integer("user_id")
       .notNull()
       .references(() => usersTable.id, { onDelete: "cascade" }),
+    // "admin" for the creator, "member" otherwise.
+    role: text("role").notNull().default("member"),
     joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [unique().on(t.groupId, t.userId)],

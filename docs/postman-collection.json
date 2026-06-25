@@ -1072,6 +1072,9 @@
          "  const g = d.groups[0];",
          "  pm.test('Has memberCount', () => pm.expect(g).to.have.property('memberCount'));",
          "  pm.test('Has isMember', () => pm.expect(g).to.have.property('isMember'));",
+         "  pm.test('Has isAdmin', () => pm.expect(g).to.have.property('isAdmin'));",
+         "  pm.test('Has creatorUserId', () => pm.expect(g).to.have.property('creatorUserId'));",
+         "  pm.test('Only my groups (creator or member)', () => pm.expect(g.isMember === true || g.isAdmin === true).to.be.true);",
          "  pm.collectionVariables.set('group_id', g.id);",
          "}"
         ]
@@ -1105,9 +1108,13 @@
        "script": {
         "exec": [
          "pm.test('Status 201', () => pm.response.to.have.status(201));",
-         "pm.test('tagline present', () => pm.expect(pm.response.json().data).to.have.property('tagline'));",
-         "pm.test('creator auto-joined', () => pm.expect(pm.response.json().data.isMember).to.eql(true));",
-         "pm.collectionVariables.set('new_group_id', pm.response.json().data.id);"
+         "const d = pm.response.json().data;",
+         "pm.test('tagline present', () => pm.expect(d).to.have.property('tagline'));",
+         "pm.test('creator auto-joined', () => pm.expect(d.isMember).to.eql(true));",
+         "pm.test('creator is admin', () => pm.expect(d.isAdmin).to.eql(true));",
+         "pm.test('creatorUserId set', () => pm.expect(d.creatorUserId).to.be.a('number'));",
+         "pm.test('memberCount 1', () => pm.expect(d.memberCount).to.eql(1));",
+         "pm.collectionVariables.set('new_group_id', d.id);"
         ]
        }
       }
@@ -1151,7 +1158,9 @@
          "const g = pm.response.json().data;",
          "pm.test('Has id', () => pm.expect(g.id).to.be.a('number'));",
          "pm.test('Has memberCount', () => pm.expect(g.memberCount).to.be.a('number'));",
-         "pm.test('Has isMember', () => pm.expect(g).to.have.property('isMember'));"
+         "pm.test('Has isMember', () => pm.expect(g).to.have.property('isMember'));",
+         "pm.test('Has isAdmin', () => pm.expect(g).to.have.property('isAdmin'));",
+         "pm.test('Has creatorUserId', () => pm.expect(g).to.have.property('creatorUserId'));"
         ]
        }
       }
@@ -1562,6 +1571,30 @@
         "exec": [
          "pm.test('Status 200', () => pm.response.to.have.status(200));",
          "pm.test('joined false', () => pm.expect(pm.response.json().data.joined).to.eql(false));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "LEAVE OWN GROUP \u2014 403 creator cannot leave",
+     "request": {
+      "method": "DELETE",
+      "url": "{{base_url}}/groups/{{new_group_id}}/join",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ]
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 403', () => pm.response.to.have.status(403));",
+         "pm.test('blocked message', () => pm.expect(pm.response.json().message).to.include('cannot leave'));"
         ]
        }
       }

@@ -49,9 +49,10 @@ async function getIsMember(groupId: number, userId: number): Promise<boolean> {
 }
 
 function buildGroupResponse(
-  group: { id: number; name: string; description: string; tagline: string | null; category: string; imageUrl: string | null; createdAt: Date; updatedAt: Date },
+  group: { id: number; name: string; description: string; tagline: string | null; category: string; imageUrl: string | null; creatorUserId: number | null; createdAt: Date; updatedAt: Date },
   memberCount: number,
   isMember: boolean,
+  isAdmin: boolean,
 ) {
   return {
     id: group.id,
@@ -60,8 +61,10 @@ function buildGroupResponse(
     tagline: group.tagline,
     category: group.category,
     imageUrl: group.imageUrl,
+    creatorUserId: group.creatorUserId,
     memberCount,
     isMember,
+    isAdmin,
     createdAt: group.createdAt,
     updatedAt: group.updatedAt,
   };
@@ -73,6 +76,11 @@ router.get("/groups", requireAuth, async (req, res): Promise<void> => {
   const limit = query.success ? (query.data.limit ?? 20) : 20;
   const offset = query.success ? (query.data.offset ?? 0) : 0;
 
+  const userId = req.userId!;
+
+  // Only groups where the current user is the creator OR a member. We compute
+  // memberCount over ALL members via a correlated subquery so it isn't skewed
+  // by the membership filter join.
   const rows = await db
     .select({
       id: groupsTable.id,
@@ -81,37 +89,22 @@ router.get("/groups", requireAuth, async (req, res): Promise<void> => {
       tagline: groupsTable.tagline,
       category: groupsTable.category,
       imageUrl: groupsTable.imageUrl,
+      creatorUserId: groupsTable.creatorUserId,
       createdAt: groupsTable.createdAt,
       updatedAt: groupsTable.updatedAt,
-      memberCount: sql<number>`cast(count(distinct ${groupMembersTable.id}) as integer)`,
+      memberCount: sql<number>`cast((select count(*) from ${groupMembersTable} gm_all where gm_all.group_id = ${groupsTable.id}) as integer)`,
+      isMember: sql<boolean>`exists (select 1 from ${groupMembersTable} gm_me where gm_me.group_id = ${groupsTable.id} and gm_me.user_id = ${userId})`,
     })
     .from(groupsTable)
-    .leftJoin(groupMembersTable, eq(groupMembersTable.groupId, groupsTable.id))
-    .groupBy(groupsTable.id)
+    .where(
+      sql`(${groupsTable.creatorUserId} = ${userId} or exists (select 1 from ${groupMembersTable} gm where gm.group_id = ${groupsTable.id} and gm.user_id = ${userId}))`,
+    )
     .orderBy(desc(groupsTable.createdAt))
     .limit(limit)
     .offset(offset);
 
-  const userId = req.userId!;
-  const groupIds = rows.map((r) => r.id);
-
-  // Batch membership check
-  let memberSet = new Set<number>();
-  if (groupIds.length > 0) {
-    const memberships = await db
-      .select({ groupId: groupMembersTable.groupId })
-      .from(groupMembersTable)
-      .where(
-        and(
-          eq(groupMembersTable.userId, userId),
-          sql`${groupMembersTable.groupId} = ANY(${sql.raw(`ARRAY[${groupIds.join(",")}]::int[]`)})`,
-        ),
-      );
-    memberSet = new Set(memberships.map((m) => m.groupId));
-  }
-
   const groups = rows.map((r) =>
-    buildGroupResponse(r, r.memberCount, memberSet.has(r.id)),
+    buildGroupResponse(r, r.memberCount, r.isMember, r.creatorUserId === userId),
   );
 
   success(res, "Groups retrieved", { groups, total: groups.length });
@@ -133,16 +126,17 @@ router.post("/groups", requireAuth, async (req, res): Promise<void> => {
       tagline: parsed.data.tagline ?? null,
       category: parsed.data.category,
       imageUrl: parsed.data.imageUrl ?? null,
+      creatorUserId: req.userId!,
     })
     .returning();
 
-  // Creator auto-joins their own group.
+  // Creator auto-joins their own group as its admin.
   await db
     .insert(groupMembersTable)
-    .values({ groupId: created.id, userId: req.userId! })
+    .values({ groupId: created.id, userId: req.userId!, role: "admin" })
     .onConflictDoNothing();
 
-  success(res, "Group created", buildGroupResponse(created, 1, true), 201);
+  success(res, "Group created", buildGroupResponse(created, 1, true, true), 201);
 });
 
 // GET /groups/:id
@@ -168,7 +162,9 @@ router.get("/groups/:id", requireAuth, async (req, res): Promise<void> => {
     getIsMember(params.data.id, req.userId!),
   ]);
 
-  success(res, "Group retrieved", buildGroupResponse(group, memberCount, isMember));
+  const isAdmin = group.creatorUserId === req.userId;
+
+  success(res, "Group retrieved", buildGroupResponse(group, memberCount, isMember, isAdmin));
 });
 
 // POST /groups/:id/join
@@ -230,12 +226,18 @@ router.delete("/groups/:id/join", requireAuth, async (req, res): Promise<void> =
   }
 
   const [group] = await db
-    .select({ id: groupsTable.id })
+    .select({ id: groupsTable.id, creatorUserId: groupsTable.creatorUserId })
     .from(groupsTable)
     .where(eq(groupsTable.id, params.data.id));
 
   if (!group) {
     error(res, "Group not found", 404);
+    return;
+  }
+
+  // The creator/admin cannot abandon their own group.
+  if (group.creatorUserId === req.userId) {
+    error(res, "You cannot leave a group you created.", 403);
     return;
   }
 
