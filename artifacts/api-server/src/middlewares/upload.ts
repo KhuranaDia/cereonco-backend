@@ -60,10 +60,15 @@ function makeFileFilter(opts: {
 }): multer.Options["fileFilter"] {
   return (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
+    const mime = file.mimetype.toLowerCase();
+    // Lenient validation: accept when EITHER the extension OR the mimetype is
+    // recognized. Some clients send valid images with a generic mimetype (e.g.
+    // application/octet-stream) or omit the extension — we must not reject
+    // genuine jpg/jpeg/png/webp files in those cases.
     const okImage =
-      opts.images && IMAGE_EXTS.has(ext) && IMAGE_MIMES.has(file.mimetype);
+      opts.images && (IMAGE_EXTS.has(ext) || IMAGE_MIMES.has(mime));
     const okVideo =
-      opts.videos && VIDEO_EXTS.has(ext) && VIDEO_MIMES.has(file.mimetype);
+      opts.videos && (VIDEO_EXTS.has(ext) || VIDEO_MIMES.has(mime));
     if (okImage || okVideo) {
       cb(null, true);
       return;
@@ -109,11 +114,9 @@ function wrap(mw: RequestHandler, kind: "avatar" | "post media"): RequestHandler
         if (err.code === "LIMIT_UNEXPECTED_FILE") {
           error(
             res,
-            `Unsupported ${kind} file type or field. Allowed: ${
-              kind === "avatar"
-                ? "jpg, jpeg, png, webp"
-                : "jpg, jpeg, png, webp, mp4, mov, webm"
-            }`,
+            kind === "avatar"
+              ? "Unsupported profile image upload. Allowed fields: image, avatar. Allowed types: jpg, jpeg, png, webp"
+              : "Unsupported post media upload. Allowed field: media. Allowed types: jpg, jpeg, png, webp, mp4, mov, webm",
             400,
           );
           return;
