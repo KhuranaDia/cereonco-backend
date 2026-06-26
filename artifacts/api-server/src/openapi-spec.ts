@@ -685,6 +685,55 @@ export const openApiSpec = {
           }
         }
       },
+      "GoogleAuthInput": {
+        "type": "object",
+        "description": "Frontend-trusted Google profile payload. `sub` (the Google subject id) is the only required field; `email` is optional because some Google payloads omit it. SECURITY: production should verify a Google ID token server-side rather than trusting a raw profile from the client.",
+        "required": [
+          "sub"
+        ],
+        "properties": {
+          "sub": {
+            "type": "string",
+            "minLength": 1
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "given_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "family_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nickname": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "picture": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "TestEmailInput": {
         "type": "object",
         "required": [
@@ -1070,14 +1119,22 @@ export const openApiSpec = {
       },
       "GroupPost": {
         "type": "object",
+        "description": "A group post is a row in the shared posts table with a non-null groupId. It carries the same shape as a main-feed post (counts, media, feeling, author, like/bookmark state).",
         "required": [
           "id",
           "groupId",
           "userId",
           "content",
+          "feeling",
+          "mediaUrls",
           "createdAt",
           "updatedAt",
-          "author"
+          "author",
+          "likeCount",
+          "bookmarkCount",
+          "commentCount",
+          "isLiked",
+          "isBookmarked"
         ],
         "properties": {
           "id": {
@@ -1092,14 +1149,41 @@ export const openApiSpec = {
           "content": {
             "type": "string"
           },
+          "feeling": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "imageUrl": {
             "type": [
               "string",
               "null"
             ]
           },
+          "mediaUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "author": {
             "$ref": "#/components/schemas/PostAuthor"
+          },
+          "likeCount": {
+            "type": "integer"
+          },
+          "bookmarkCount": {
+            "type": "integer"
+          },
+          "commentCount": {
+            "type": "integer"
+          },
+          "isLiked": {
+            "type": "boolean"
+          },
+          "isBookmarked": {
+            "type": "boolean"
           },
           "createdAt": {
             "type": "string",
@@ -1139,8 +1223,20 @@ export const openApiSpec = {
             "type": "string",
             "minLength": 1
           },
+          "feeling": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "imageUrl": {
             "type": "string"
+          },
+          "mediaUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -1151,8 +1247,20 @@ export const openApiSpec = {
             "type": "string",
             "minLength": 1
           },
+          "feeling": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "imageUrl": {
             "type": "string"
+          },
+          "mediaUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -1830,6 +1938,51 @@ export const openApiSpec = {
         "responses": {
           "200": {
             "description": "Always returns success when the request is well-formed, even if no account matches the email, to avoid leaking which emails are registered. A reset link is emailed (or logged) only when a user exists."
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/auth/google": {
+      "post": {
+        "operationId": "googleAuth",
+        "tags": [
+          "auth"
+        ],
+        "summary": "Log in or register with a Google profile (frontend-trusted)",
+        "description": "Accepts a Google profile from the frontend. Looks up the user by email (when present) then by Google `sub`; creates the account if none exists. Returns the same auth payload as login. SECURITY: this trusts the client-supplied profile — production should verify a Google ID token server-side.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleAuthInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Logged in (existing user)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Registered and logged in (new user)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Validation error"

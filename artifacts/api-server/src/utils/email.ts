@@ -41,16 +41,43 @@ function sendResultMeta(info: SentMessageInfo): {
   };
 }
 
-function frontendBaseUrl(): string {
-  return (
-    process.env.FRONTEND_URL ??
-    process.env.APP_BASE_URL ??
-    "http://localhost:5173"
-  ).replace(/\/+$/, "");
+/**
+ * Validate that a candidate base URL is a well-formed http(s) URL. Only the
+ * request's Origin header (browser-controlled, not arbitrary request-body input)
+ * is ever passed here, so this guards against malformed/missing origins.
+ */
+function sanitizeOrigin(candidate: string | undefined): string | null {
+  if (!candidate) return null;
+  try {
+    const u = new URL(candidate);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    return u.origin;
+  } catch {
+    return null;
+  }
 }
 
-export function buildPasswordSetupUrl(token: string): string {
-  return `${frontendBaseUrl()}/set-password?token=${token}`;
+/**
+ * Resolve the frontend base URL used to build password setup/reset links.
+ * Preferred order:
+ *   1. req.headers.origin   (the calling frontend, e.g. http://localhost:5173)
+ *   2. process.env.FRONTEND_URL
+ *   3. process.env.TEST_FRONTEND_URL
+ *   4. http://localhost:5173
+ * Only the Origin header is trusted from the request — never request-body input.
+ */
+function frontendBaseUrl(req?: Request): string {
+  const fromOrigin = sanitizeOrigin(req?.headers.origin);
+  const base =
+    fromOrigin ??
+    process.env.FRONTEND_URL ??
+    process.env.TEST_FRONTEND_URL ??
+    "http://localhost:5173";
+  return base.replace(/\/+$/, "");
+}
+
+export function buildPasswordSetupUrl(token: string, req?: Request): string {
+  return `${frontendBaseUrl(req)}/set-password?token=${token}`;
 }
 
 /**
@@ -204,7 +231,7 @@ async function deliverPasswordLink(
   opts: { req: Request; to: string; name: string; token: string },
 ): Promise<void> {
   const { req, to, name, token } = opts;
-  const setupUrl = buildPasswordSetupUrl(token);
+  const setupUrl = buildPasswordSetupUrl(token, req);
 
   if (smtpConfigured()) {
     const { subject, text, html } = renderEmail(kind, name, setupUrl);

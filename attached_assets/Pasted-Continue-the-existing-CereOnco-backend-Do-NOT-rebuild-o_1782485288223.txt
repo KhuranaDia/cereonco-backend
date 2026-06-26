@@ -1,0 +1,298 @@
+Continue the existing CereOnco backend. Do NOT rebuild or refactor completed modules.
+
+Priority fixes from Sudip. Work only on these items.
+
+Current stack:
+Node.js, Express, TypeScript, PostgreSQL, Drizzle ORM, JWT, bcrypt, Swagger/OpenAPI, Postman, Render.
+
+Keep standard response format:
+Success:
+{ "success": true, "message": "", "data": {} }
+
+Error:
+{ "success": false, "message": "" }
+
+==================================================
+
+1. Posts + Group Posts
+   ==================================================
+
+Requirement:
+There should NOT be a separate table for group posts.
+
+Use existing posts table only.
+
+Posts table must have nullable groupId column.
+
+Rules:
+
+* Regular/main feed post: groupId = null
+* Group post: groupId = group id
+
+APIs:
+
+Main Feed:
+GET /api/posts
+Return only posts where groupId IS NULL.
+
+Group Feed:
+GET /api/groups/:groupId/posts
+Return only posts where groupId = :groupId.
+
+Example:
+GET /api/groups/123/posts
+
+Tasks:
+
+* Inspect current posts/group posts implementation.
+* Remove/avoid separate group posts table usage if currently used.
+* Ensure create group post inserts into posts table with groupId.
+* Ensure normal create post keeps groupId null unless provided.
+* Ensure response includes groupId.
+* Ensure counts/media/feeling/author still work.
+
+==================================================
+2. Create Group Validation Errors
+=================================
+
+Current issue:
+Create Group API returns unknown "required" error.
+
+Requirement:
+Validation errors must be descriptive.
+
+For missing/invalid fields, return clear message:
+
+* which field is missing/invalid
+* why validation failed
+* what user needs to correct
+
+Example:
+Instead of:
+"Required"
+
+Return:
+"name is required. Please enter a group name."
+
+Tasks:
+
+* Inspect CreateGroup validation schema and route.
+* Improve Zod/error formatting.
+* Test POST /groups in Postman with:
+
+  * empty body
+  * missing name
+  * missing description/tagline/category if required
+  * invalid imageUrl if URL validation exists
+* Return standard error format.
+* Do not expose raw Zod messages like "Required".
+
+==================================================
+3. Dynamic Frontend URL for Emails
+==================================
+
+Current:
+Email reset/setup links use static FRONTEND_URL.
+
+Requirement:
+Determine frontend URL dynamically from request origin if possible.
+
+Logic:
+
+* If request has Origin header, use Origin as frontend URL.
+  Example:
+  Origin: http://localhost:5173
+  Then reset link:
+  http://localhost:5173/set-password?token=...
+
+* If Origin is missing, fallback to configured TEST frontend URL.
+  Use env:
+  FRONTEND_URL
+  or
+  TEST_FRONTEND_URL
+
+Preferred order:
+
+1. req.headers.origin
+2. process.env.FRONTEND_URL
+3. process.env.TEST_FRONTEND_URL
+4. http://localhost:5173
+
+Tasks:
+
+* Inspect email utility and auth register/forgot-password calls.
+* Ensure sendPasswordSetupEmail/sendPasswordResetEmail receive req and derive frontend URL from request origin.
+* Keep security sane: only use Origin as base URL, not arbitrary body input.
+* Document env fallback.
+
+==================================================
+4. Google Login Endpoint
+========================
+
+Create endpoint:
+
+POST /auth/google
+
+Frontend payload example:
+{
+"sub": "google-oauth2|112769949771598725292",
+"given_name": "Sudip",
+"family_name": "Debnath",
+"nickname": "sudipdebnath.ve",
+"name": "Sudip Debnath",
+"picture": "https://lh3.googleusercontent.com/a/ACg8ocIAfLXnLX3LtawdmzpJeETv6k5T42fLGbeobA-RktpfUrw_Kg=s96-c",
+"updated_at": "2026-06-26T13:27:37.523Z"
+}
+
+Backend behavior:
+
+* If user already exists, log them in.
+* If user does not exist, create user.
+* Return same auth response as normal login:
+  {
+  "success": true,
+  "message": "Logged in successfully",
+  "data": {
+  "token": "...",
+  "user": {}
+  }
+  }
+
+Important:
+Payload does NOT include email in the example.
+But backend normally needs email to identify user.
+
+Implement defensively:
+
+* If email exists in payload, use email as primary lookup.
+* Else use google sub.
+* Add googleSub column to users table if missing.
+* If user found by googleSub, login.
+* If user found by email, attach googleSub if missing, then login.
+* If no email and no existing googleSub, create user using available profile:
+  name = payload.name || given_name + family_name || nickname
+  email = generated placeholder only if existing system requires email:
+  `${sub}@google.local` after sanitizing sub
+  role = patient/default
+  avatarUrl/profilePhotoUrl/imageUrl = payload.picture if columns exist
+  emailVerified = true
+
+Security note:
+Since frontend is sending profile directly, this is frontend-trusted login. Add TODO/comment: production should verify Google ID token server-side if frontend can send ID token later.
+
+Update schema:
+
+* users.googleSub nullable unique text if missing.
+
+==================================================
+5. Set Password Invalid Token Fix
+=================================
+
+Current issue:
+Forgot-password email arrives with reset link and token, but POST /auth/set-password returns "Invalid token".
+
+Investigate and fix.
+
+Likely causes:
+
+* token in URL is URL-encoded/decoded incorrectly
+* frontend sends full URL instead of token
+* token hash mismatch
+* forgot-password stores hashed token but set-password compares raw token incorrectly
+* token expires incorrectly
+* token field overwritten
+* old token cleared too early
+
+Requirements:
+
+* Forgot-password generated token must be accepted by /auth/set-password.
+* Registration setup token must still work.
+* /auth/set-password should accept:
+  { "token": "rawToken", "password": "..." }
+* It should also tolerate token accidentally sent as full URL:
+  "http://localhost:5173/set-password?token=rawToken"
+  and extract token safely.
+* Validate expiry.
+* Hash token using same hash function used when storing.
+* After success:
+
+  * update passwordHash
+  * emailVerified = true
+  * clear passwordSetupToken
+  * clear passwordSetupTokenExpiresAt
+  * return token + user like login
+
+Add logs in dev only:
+
+* token hash lookup attempted
+* token found / not found
+  Do NOT log raw token in production.
+
+==================================================
+6. OpenAPI / Swagger / Postman / Docs
+=====================================
+
+Update both OpenAPI specs:
+
+* lib/api-spec/openapi.yaml
+* artifacts/api-server/src/openapi-spec.ts
+
+Document:
+
+* POST /auth/google
+* updated set-password behavior
+* dynamic frontend URL note
+* group posts API using posts table
+* group validation messages
+
+Update Postman:
+
+* Google Login
+* Forgot Password
+* Set Password
+* Create Group validation test
+* Create Group Post
+* Main Feed
+* Group Feed
+
+==================================================
+7. DB Migration
+===============
+
+Create idempotent production-safe SQL migration if needed:
+
+* posts.group_id
+* users.google_sub
+* any missing fields needed for image/profile compatibility
+
+Save as:
+lib/db/drizzle/phase_google_group_email_fixes.sql
+
+Migration must be safe to re-run.
+
+==================================================
+8. Build
+========
+
+Run:
+pnpm --filter @workspace/api-server build
+
+Do not run long E2E tests.
+
+==================================================
+Deliverables
+============
+
+At the end summarize:
+
+1. Files changed
+2. Endpoints added/updated
+3. DB changes
+4. Migration command for Render DB
+5. Manual Postman testing steps
+6. Known limitations
+7. Commit message suggestion
+
+Stop after these fixes.
+Do not work on Twilio.
+Do not work on CereConnect/live messaging in this prompt.

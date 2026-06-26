@@ -41,6 +41,7 @@ import type {
   GetFeedParams,
   GetGroupFeedParams,
   GetSavedPostsParams,
+  GoogleAuthInput,
   Group,
   GroupPost,
   GroupPostInput,
@@ -382,6 +383,78 @@ export const useForgotPassword = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getForgotPasswordMutationOptions(options));
+    }
+
+export const getGoogleAuthUrl = () => {
+
+
+
+
+  return `/api/auth/google`
+}
+
+/**
+ * Accepts a Google profile from the frontend. Looks up the user by email (when present) then by Google `sub`; creates the account if none exists. Returns the same auth payload as login. SECURITY: this trusts the client-supplied profile — production should verify a Google ID token server-side.
+ * @summary Log in or register with a Google profile (frontend-trusted)
+ */
+export const googleAuth = async (googleAuthInput: GoogleAuthInput, options?: RequestInit): Promise<AuthResponse> => {
+
+  return customFetch<AuthResponse>(getGoogleAuthUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      googleAuthInput,)
+  }
+);}
+
+
+
+
+export const getGoogleAuthMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof googleAuth>>, TError,{data: BodyType<GoogleAuthInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof googleAuth>>, TError,{data: BodyType<GoogleAuthInput>}, TContext> => {
+
+const mutationKey = ['googleAuth'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof googleAuth>>, {data: BodyType<GoogleAuthInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  googleAuth(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GoogleAuthMutationResult = NonNullable<Awaited<ReturnType<typeof googleAuth>>>
+    export type GoogleAuthMutationBody = BodyType<GoogleAuthInput>
+    export type GoogleAuthMutationError = ErrorType<void>
+
+    /**
+ * @summary Log in or register with a Google profile (frontend-trusted)
+ */
+export const useGoogleAuth = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof googleAuth>>, TError,{data: BodyType<GoogleAuthInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof googleAuth>>,
+        TError,
+        {data: BodyType<GoogleAuthInput>},
+        TContext
+      > => {
+      return useMutation(getGoogleAuthMutationOptions(options));
     }
 
 export const getLoginUrl = () => {

@@ -1,10 +1,13 @@
 import { Router, type IRouter } from "express";
-import { eq, and, sql, desc, ne } from "drizzle-orm";
+import { eq, and, sql, desc, ne, inArray } from "drizzle-orm";
 import {
   db,
   groupsTable,
   groupMembersTable,
-  groupPostsTable,
+  postsTable,
+  likesTable,
+  bookmarksTable,
+  commentsTable,
   usersTable,
 } from "@workspace/db";
 import { createNotifications } from "../utils/notify";
@@ -70,6 +73,205 @@ function buildGroupResponse(
   };
 }
 
+type RawGroupPost = {
+  id: number;
+  groupId: number | null;
+  userId: number;
+  content: string;
+  feeling: string | null;
+  imageUrl: string | null;
+  mediaUrls: string[] | null;
+  createdAt: Date;
+  updatedAt: Date;
+  authorId: number;
+  authorName: string;
+  authorRole: string;
+  authorAvatarUrl: string | null;
+  likeCount: number;
+  bookmarkCount: number;
+  commentCount: number;
+};
+
+/**
+ * Select group posts (posts rows with a non-null groupId) for one group, with
+ * the same author + counts shape as the main feed. `postId` narrows to a single
+ * post (used after create/update); otherwise paginate the group feed.
+ */
+async function queryGroupPosts(opts: {
+  groupId: number;
+  limit?: number;
+  offset?: number;
+  postId?: number;
+}): Promise<RawGroupPost[]> {
+  const where =
+    opts.postId !== undefined
+      ? and(
+          eq(postsTable.groupId, opts.groupId),
+          eq(postsTable.id, opts.postId),
+        )
+      : eq(postsTable.groupId, opts.groupId);
+
+  const base = db
+    .select({
+      id: postsTable.id,
+      groupId: postsTable.groupId,
+      userId: postsTable.userId,
+      content: postsTable.content,
+      feeling: postsTable.feeling,
+      imageUrl: postsTable.imageUrl,
+      mediaUrls: postsTable.mediaUrls,
+      createdAt: postsTable.createdAt,
+      updatedAt: postsTable.updatedAt,
+      authorId: usersTable.id,
+      authorName: usersTable.name,
+      authorRole: usersTable.role,
+      authorAvatarUrl: usersTable.avatarUrl,
+      likeCount: sql<number>`cast(count(distinct ${likesTable.id}) as integer)`,
+      bookmarkCount: sql<number>`cast(count(distinct ${bookmarksTable.id}) as integer)`,
+      commentCount: sql<number>`cast(count(distinct ${commentsTable.id}) filter (where not ${commentsTable.isDeleted}) as integer)`,
+    })
+    .from(postsTable)
+    .innerJoin(usersTable, eq(postsTable.userId, usersTable.id))
+    .leftJoin(likesTable, eq(likesTable.postId, postsTable.id))
+    .leftJoin(bookmarksTable, eq(bookmarksTable.postId, postsTable.id))
+    .leftJoin(commentsTable, eq(commentsTable.postId, postsTable.id))
+    .where(where)
+    .groupBy(postsTable.id, usersTable.id)
+    .orderBy(desc(postsTable.createdAt));
+
+  if (opts.postId === undefined) {
+    return base.limit(opts.limit ?? 20).offset(opts.offset ?? 0);
+  }
+  return base;
+}
+
+/** Shape raw group posts with per-user isLiked/isBookmarked flags. */
+async function buildGroupPosts(
+  rawPosts: RawGroupPost[],
+  currentUserId?: number,
+) {
+  let likedPostIds = new Set<number>();
+  let bookmarkedPostIds = new Set<number>();
+
+  if (currentUserId && rawPosts.length > 0) {
+    const postIds = rawPosts.map((p) => p.id);
+    const [likes, bookmarks] = await Promise.all([
+      db
+        .select({ postId: likesTable.postId })
+        .from(likesTable)
+        .where(
+          and(
+            eq(likesTable.userId, currentUserId),
+            inArray(likesTable.postId, postIds),
+          ),
+        ),
+      db
+        .select({ postId: bookmarksTable.postId })
+        .from(bookmarksTable)
+        .where(
+          and(
+            eq(bookmarksTable.userId, currentUserId),
+            inArray(bookmarksTable.postId, postIds),
+          ),
+        ),
+    ]);
+    likedPostIds = new Set(likes.map((l) => l.postId));
+    bookmarkedPostIds = new Set(bookmarks.map((b) => b.postId));
+  }
+
+  return rawPosts.map((p) => ({
+    id: p.id,
+    groupId: p.groupId,
+    userId: p.userId,
+    content: p.content,
+    feeling: p.feeling,
+    imageUrl: p.imageUrl,
+    mediaUrls: p.mediaUrls ?? [],
+    author: {
+      id: p.authorId,
+      name: p.authorName,
+      role: p.authorRole,
+      avatarUrl: p.authorAvatarUrl,
+    },
+    likeCount: p.likeCount,
+    bookmarkCount: p.bookmarkCount,
+    commentCount: p.commentCount,
+    isLiked: likedPostIds.has(p.id),
+    isBookmarked: bookmarkedPostIds.has(p.id),
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+  }));
+}
+
+/**
+ * Build descriptive, user-facing validation messages for Create Group instead
+ * of raw Zod text like "Required". Returns an empty array when valid.
+ */
+function validateCreateGroup(body: unknown): {
+  errors: string[];
+  data?: {
+    name: string;
+    description: string;
+    tagline: string | null;
+    category: string;
+    imageUrl: string | null;
+  };
+} {
+  const errors: string[] = [];
+  const b = (body ?? {}) as Record<string, unknown>;
+
+  const asTrimmed = (v: unknown): string =>
+    typeof v === "string" ? v.trim() : "";
+
+  const name = asTrimmed(b.name);
+  const description = asTrimmed(b.description);
+  const category = asTrimmed(b.category);
+
+  if (!name) errors.push("name is required. Please enter a group name.");
+  if (!description)
+    errors.push(
+      "description is required. Please describe what the group is about.",
+    );
+  if (!category)
+    errors.push(
+      "category is required. Please choose or enter a category for the group.",
+    );
+
+  let tagline: string | null = null;
+  if (b.tagline !== undefined && b.tagline !== null) {
+    if (typeof b.tagline !== "string") {
+      errors.push("tagline must be text.");
+    } else {
+      tagline = b.tagline.trim() || null;
+    }
+  }
+
+  let imageUrl: string | null = null;
+  if (b.imageUrl !== undefined && b.imageUrl !== null && b.imageUrl !== "") {
+    if (typeof b.imageUrl !== "string") {
+      errors.push("imageUrl must be a valid URL string.");
+    } else {
+      try {
+        const u = new URL(b.imageUrl.trim());
+        if (u.protocol !== "http:" && u.protocol !== "https:") {
+          errors.push(
+            "imageUrl must be a valid http(s) URL, e.g. https://example.com/image.png.",
+          );
+        } else {
+          imageUrl = b.imageUrl.trim();
+        }
+      } catch {
+        errors.push(
+          "imageUrl must be a valid URL, e.g. https://example.com/image.png.",
+        );
+      }
+    }
+  }
+
+  if (errors.length > 0) return { errors };
+  return { errors, data: { name, description, tagline, category, imageUrl } };
+}
+
 // GET /groups
 router.get("/groups", requireAuth, async (req, res): Promise<void> => {
   const query = ListGroupsQueryParams.safeParse(req.query);
@@ -112,20 +314,22 @@ router.get("/groups", requireAuth, async (req, res): Promise<void> => {
 
 // POST /groups
 router.post("/groups", requireAuth, async (req, res): Promise<void> => {
-  const parsed = CreateGroupBody.safeParse(req.body);
-  if (!parsed.success) {
-    error(res, parsed.error.issues.map((i) => i.message).join(", "), 400);
+  // Use a descriptive validator (not raw Zod "Required" messages) so the client
+  // gets actionable, field-level guidance.
+  const { errors, data } = validateCreateGroup(req.body);
+  if (!data) {
+    error(res, errors.join(" "), 400);
     return;
   }
 
   const [created] = await db
     .insert(groupsTable)
     .values({
-      name: parsed.data.name,
-      description: parsed.data.description,
-      tagline: parsed.data.tagline ?? null,
-      category: parsed.data.category,
-      imageUrl: parsed.data.imageUrl ?? null,
+      name: data.name,
+      description: data.description,
+      tagline: data.tagline,
+      category: data.category,
+      imageUrl: data.imageUrl,
       creatorUserId: req.userId!,
     })
     .returning();
@@ -276,42 +480,12 @@ router.get("/groups/:id/posts", requireAuth, async (req, res): Promise<void> => 
   const limit = query.success ? (query.data.limit ?? 20) : 20;
   const offset = query.success ? (query.data.offset ?? 0) : 0;
 
-  const posts = await db
-    .select({
-      id: groupPostsTable.id,
-      groupId: groupPostsTable.groupId,
-      userId: groupPostsTable.userId,
-      content: groupPostsTable.content,
-      imageUrl: groupPostsTable.imageUrl,
-      createdAt: groupPostsTable.createdAt,
-      updatedAt: groupPostsTable.updatedAt,
-      authorId: usersTable.id,
-      authorName: usersTable.name,
-      authorRole: usersTable.role,
-      authorAvatarUrl: usersTable.avatarUrl,
-    })
-    .from(groupPostsTable)
-    .innerJoin(usersTable, eq(groupPostsTable.userId, usersTable.id))
-    .where(eq(groupPostsTable.groupId, params.data.id))
-    .orderBy(desc(groupPostsTable.createdAt))
-    .limit(limit)
-    .offset(offset);
-
-  const formatted = posts.map((p) => ({
-    id: p.id,
-    groupId: p.groupId,
-    userId: p.userId,
-    content: p.content,
-    imageUrl: p.imageUrl,
-    author: {
-      id: p.authorId,
-      name: p.authorName,
-      role: p.authorRole,
-      avatarUrl: p.authorAvatarUrl,
-    },
-    createdAt: p.createdAt,
-    updatedAt: p.updatedAt,
-  }));
+  const rawPosts = await queryGroupPosts({
+    groupId: params.data.id,
+    limit,
+    offset,
+  });
+  const formatted = await buildGroupPosts(rawPosts, req.userId);
 
   success(res, "Group feed retrieved", { posts: formatted, total: formatted.length });
 });
@@ -340,20 +514,19 @@ router.post("/groups/:id/posts", requireAuth, async (req, res): Promise<void> =>
     return;
   }
 
+  // Group posts now live in the shared posts table with groupId set, so they
+  // get the same likes/bookmarks/comments behaviour as the main feed.
   const [inserted] = await db
-    .insert(groupPostsTable)
+    .insert(postsTable)
     .values({
       groupId: params.data.id,
       userId: req.userId!,
       content: parsed.data.content,
+      feeling: parsed.data.feeling ?? null,
       imageUrl: parsed.data.imageUrl ?? null,
+      mediaUrls: parsed.data.mediaUrls ?? [],
     })
     .returning();
-
-  const [author] = await db
-    .select({ id: usersTable.id, name: usersTable.name, role: usersTable.role, avatarUrl: usersTable.avatarUrl })
-    .from(usersTable)
-    .where(eq(usersTable.id, req.userId!));
 
   const groupMembers = await db
     .select({ userId: groupMembersTable.userId })
@@ -378,21 +551,13 @@ router.post("/groups/:id/posts", requireAuth, async (req, res): Promise<void> =>
     );
   }
 
-  success(
-    res,
-    "Group post created",
-    {
-      id: inserted.id,
-      groupId: inserted.groupId,
-      userId: inserted.userId,
-      content: inserted.content,
-      imageUrl: inserted.imageUrl,
-      author,
-      createdAt: inserted.createdAt,
-      updatedAt: inserted.updatedAt,
-    },
-    201,
-  );
+  const rawPosts = await queryGroupPosts({
+    groupId: params.data.id,
+    postId: inserted.id,
+  });
+  const [formatted] = await buildGroupPosts(rawPosts, req.userId);
+
+  success(res, "Group post created", formatted, 201);
 });
 
 // PATCH /groups/posts/:postId
@@ -409,17 +574,27 @@ router.patch("/groups/posts/:postId", requireAuth, async (req, res): Promise<voi
     return;
   }
 
-  if (!parsed.data.content && parsed.data.imageUrl === undefined) {
+  if (
+    parsed.data.content === undefined &&
+    parsed.data.feeling === undefined &&
+    parsed.data.imageUrl === undefined &&
+    parsed.data.mediaUrls === undefined
+  ) {
     error(res, "No fields provided to update", 400);
     return;
   }
 
+  // Group posts are posts rows with a non-null groupId.
   const [existing] = await db
-    .select({ id: groupPostsTable.id, userId: groupPostsTable.userId })
-    .from(groupPostsTable)
-    .where(eq(groupPostsTable.id, params.data.postId));
+    .select({
+      id: postsTable.id,
+      userId: postsTable.userId,
+      groupId: postsTable.groupId,
+    })
+    .from(postsTable)
+    .where(eq(postsTable.id, params.data.postId));
 
-  if (!existing) {
+  if (!existing || existing.groupId === null) {
     error(res, "Post not found", 404);
     return;
   }
@@ -429,31 +604,29 @@ router.patch("/groups/posts/:postId", requireAuth, async (req, res): Promise<voi
     return;
   }
 
-  const updateData: Partial<{ content: string; imageUrl: string | null }> = {};
+  const updateData: Partial<{
+    content: string;
+    feeling: string | null;
+    imageUrl: string | null;
+    mediaUrls: string[];
+  }> = {};
   if (parsed.data.content !== undefined) updateData.content = parsed.data.content;
+  if (parsed.data.feeling !== undefined) updateData.feeling = parsed.data.feeling ?? null;
   if (parsed.data.imageUrl !== undefined) updateData.imageUrl = parsed.data.imageUrl;
+  if (parsed.data.mediaUrls !== undefined) updateData.mediaUrls = parsed.data.mediaUrls;
 
-  const [updated] = await db
-    .update(groupPostsTable)
+  await db
+    .update(postsTable)
     .set(updateData)
-    .where(eq(groupPostsTable.id, params.data.postId))
-    .returning();
+    .where(eq(postsTable.id, params.data.postId));
 
-  const [author] = await db
-    .select({ id: usersTable.id, name: usersTable.name, role: usersTable.role, avatarUrl: usersTable.avatarUrl })
-    .from(usersTable)
-    .where(eq(usersTable.id, req.userId!));
-
-  success(res, "Group post updated", {
-    id: updated.id,
-    groupId: updated.groupId,
-    userId: updated.userId,
-    content: updated.content,
-    imageUrl: updated.imageUrl,
-    author,
-    createdAt: updated.createdAt,
-    updatedAt: updated.updatedAt,
+  const rawPosts = await queryGroupPosts({
+    groupId: existing.groupId,
+    postId: params.data.postId,
   });
+  const [formatted] = await buildGroupPosts(rawPosts, req.userId);
+
+  success(res, "Group post updated", formatted);
 });
 
 // DELETE /groups/posts/:postId
@@ -465,11 +638,15 @@ router.delete("/groups/posts/:postId", requireAuth, async (req, res): Promise<vo
   }
 
   const [existing] = await db
-    .select({ id: groupPostsTable.id, userId: groupPostsTable.userId })
-    .from(groupPostsTable)
-    .where(eq(groupPostsTable.id, params.data.postId));
+    .select({
+      id: postsTable.id,
+      userId: postsTable.userId,
+      groupId: postsTable.groupId,
+    })
+    .from(postsTable)
+    .where(eq(postsTable.id, params.data.postId));
 
-  if (!existing) {
+  if (!existing || existing.groupId === null) {
     error(res, "Post not found", 404);
     return;
   }
@@ -479,7 +656,7 @@ router.delete("/groups/posts/:postId", requireAuth, async (req, res): Promise<vo
     return;
   }
 
-  await db.delete(groupPostsTable).where(eq(groupPostsTable.id, params.data.postId));
+  await db.delete(postsTable).where(eq(postsTable.id, params.data.postId));
   success(res, "Deleted successfully", {});
 });
 

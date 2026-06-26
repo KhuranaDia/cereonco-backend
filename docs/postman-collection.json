@@ -498,6 +498,96 @@
        }
       }
      ]
+    },
+    {
+     "name": "Google Sign-in \u2014 new user (201)",
+     "request": {
+      "method": "POST",
+      "url": "{{base_url}}/auth/google",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"sub\": \"google-sub-{{$timestamp}}\",\n  \"email\": \"google.user.{{$timestamp}}@example.com\",\n  \"name\": \"Google User\",\n  \"picture\": \"https://example.com/avatar.jpg\"\n}"
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 201', () => pm.response.to.have.status(201));",
+         "const d = pm.response.json().data;",
+         "pm.test('JWT returned', () => pm.expect(d.token).to.be.a('string'));",
+         "pm.test('emailVerified true', () => pm.expect(d.user.emailVerified).to.be.true);",
+         "pm.collectionVariables.set('google_token', d.token);",
+         "pm.collectionVariables.set('google_sub', JSON.parse(pm.request.body.raw).sub);",
+         "pm.collectionVariables.set('google_email', JSON.parse(pm.request.body.raw).email);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Google Sign-in \u2014 existing user (200)",
+     "request": {
+      "method": "POST",
+      "url": "{{base_url}}/auth/google",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"sub\": \"{{google_sub}}\",\n  \"email\": \"{{google_email}}\",\n  \"name\": \"Google User\"\n}"
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 200', () => pm.response.to.have.status(200));",
+         "const d = pm.response.json().data;",
+         "pm.test('JWT returned', () => pm.expect(d.token).to.be.a('string'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Google Sign-in \u2014 missing sub (400)",
+     "request": {
+      "method": "POST",
+      "url": "{{base_url}}/auth/google",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"email\": \"no.sub@example.com\"\n}"
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 400', () => pm.response.to.have.status(400));",
+         "pm.test('success false', () => pm.expect(pm.response.json().success).to.be.false);"
+        ]
+       }
+      }
+     ]
     }
    ]
   },
@@ -1327,7 +1417,7 @@
       ],
       "body": {
        "mode": "raw",
-       "raw": "{\n  \"content\": \"Excited to be part of this community!\"\n}"
+       "raw": "{\n  \"content\": \"Excited to be part of this community!\",\n  \"feeling\": \"hopeful\",\n  \"mediaUrls\": [\"https://example.com/a.jpg\"]\n}"
       }
      },
      "event": [
@@ -1339,6 +1429,12 @@
          "const d = pm.response.json().data;",
          "pm.test('Has author', () => pm.expect(d.author).to.be.an('object'));",
          "pm.test('Has groupId', () => pm.expect(d.groupId).to.be.a('number'));",
+         "pm.test('Has likeCount', () => pm.expect(d.likeCount).to.be.a('number'));",
+         "pm.test('Has commentCount', () => pm.expect(d.commentCount).to.be.a('number'));",
+         "pm.test('isLiked is boolean', () => pm.expect(d.isLiked).to.be.a('boolean'));",
+         "pm.test('isBookmarked is boolean', () => pm.expect(d.isBookmarked).to.be.a('boolean'));",
+         "pm.test('mediaUrls is array', () => pm.expect(d.mediaUrls).to.be.an('array'));",
+         "pm.test('feeling persisted', () => pm.expect(d.feeling).to.eql('hopeful'));",
          "pm.collectionVariables.set('group_post_id', d.id);"
         ]
        }

@@ -16,6 +16,10 @@ export const usersTable = pgTable("users", {
   passwordHash: text("password_hash"),
   role: text("role").$type<UserRole>().notNull().default("patient"),
 
+  // Google sign-in subject ("sub" claim). Nullable so password/email users are
+  // unaffected; unique so a Google account maps to exactly one user.
+  googleSub: text("google_sub").unique(),
+
   // Contact
   countryCode: text("country_code"),
   phoneNumber: text("phone_number").unique(),

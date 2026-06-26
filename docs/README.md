@@ -100,6 +100,21 @@ Registration no longer collects a password. The flow is:
 
 3. **Login** works for any registered user with a password — email verification is independent and does not block login.
 
+**Set-password token tolerance:** `POST /api/auth/set-password` accepts the `token` field as the raw token, a `?token=...` query fragment, or the full setup URL (e.g. `https://app.example.com/set-password?token=abc`). The handler extracts the token, trims it, hashes it with the same SHA-256 function used at issue time, validates expiry, clears `passwordSetupToken` + `passwordSetupTokenExpiresAt`, and returns `{ token, user }`. This removes the previous "Invalid token" failure when the frontend posted the full link.
+
+#### Google sign-in
+
+```json
+POST /api/auth/google
+{ "sub": "1234567890", "email": "user@gmail.com", "name": "Jane Doe", "picture": "https://..." }
+```
+
+- **Frontend-trusted**: the frontend sends a Google profile. `sub` (Google subject id) is the only required field; `email`, `name`, `given_name`, `family_name`, `nickname`, and `picture` are optional.
+- **Lookup order**: by `email` first (when present), then by `googleSub`. If neither matches, a new account is created (`role = patient`, `emailVerified = true`, `passwordHash` stays null). When Google omits an email, a placeholder `${sanitizedSub}@google.local` is generated to satisfy the unique-email constraint.
+- **Existing users** get their `googleSub` and profile photo backfilled if missing.
+- **Returns** `{ token, user }` — `201` when a new account was created, `200` for an existing one. Missing `sub` returns `400`.
+- **SECURITY/TODO**: this trusts a raw client-supplied profile. For production, the frontend should send a Google **ID token** and the server should verify it (e.g. `google-auth-library` `verifyIdToken`) before trusting any field.
+
 #### Forgot password flow
 
 Password reset reuses the exact same token mechanism as registration — there is no separate reset endpoint to set the new password.
@@ -127,7 +142,9 @@ Password reset reuses the exact same token mechanism as registration — there i
 - `SMTP_USER` — username/credential
 - `SMTP_PASS` **or** `SMTP_PASSWORD` — password (both names supported; `SMTP_PASS` wins if both set)
 - `SMTP_FROM` — optional From address; falls back to `SMTP_USER`
-- `FRONTEND_URL` (or `APP_BASE_URL`) — base for the `/set-password?token=...` link (default `http://localhost:5173`)
+- `FRONTEND_URL` (or `APP_BASE_URL`) — fallback base for the `/set-password?token=...` link
+
+**Dynamic frontend URL:** the setup/reset link base is resolved per-request in priority order: the request's `Origin` header (so links point back to whichever frontend made the call) → `FRONTEND_URL` → `TEST_FRONTEND_URL` → `http://localhost:5173`. The chosen origin is sanitized (scheme + host only, trailing slash stripped) before the `/set-password?token=...` path is appended.
 
 When SMTP is **not** configured: in production the setup/reset link is **not** sent and only a non-sensitive warning is logged (fail-closed, token never logged); in development the full link is logged via pino for testing. Verify credentials end-to-end with the admin-only `POST /api/auth/test-email`.
 
@@ -191,6 +208,10 @@ When SMTP is **not** configured: in production the setup/reset link is **not** s
 | POST | `/api/groups/:id/posts` | Bearer | Create a group post |
 | PATCH | `/api/groups/posts/:postId` | Bearer | Edit own group post |
 | DELETE | `/api/groups/posts/:postId` | Bearer | Delete own group post |
+
+**Group posts live in the posts table:** there is no separate `group_posts` table in the data model anymore. A group post is a `posts` row with a non-null `groupId`. As a result, group posts get the **same shape and behaviour as main-feed posts**: `feeling`, `mediaUrls` (array), `imageUrl`, `author`, `likeCount`, `bookmarkCount`, `commentCount`, and per-user `isLiked` / `isBookmarked`. They support likes, bookmarks, and comments through the standard `/posts/:id/...` endpoints. `POST`/`PATCH /api/groups/:id/posts` accept `content`, `feeling`, `imageUrl`, and `mediaUrls`. Creating a group post still notifies other group members (`group_post_created`). Edit/delete remain owner-only (`403` otherwise); a post that isn't a group post returns `404` on the group-post edit/delete routes.
+
+**Create-group validation:** `POST /api/groups` returns descriptive, field-level messages instead of raw Zod text. Missing `name`, `description`, or `category` each yield an actionable message (e.g. `"name is required. Please enter a group name."`), and a malformed `imageUrl` is rejected with a URL-format hint. Optional `tagline` and `imageUrl` are normalized (trimmed; empty → null).
 
 ---
 

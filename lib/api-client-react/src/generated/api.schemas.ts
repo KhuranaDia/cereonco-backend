@@ -211,6 +211,26 @@ export interface ForgotPasswordInput {
   email: string;
 }
 
+/**
+ * Frontend-trusted Google profile payload. `sub` (the Google subject id) is the only required field; `email` is optional because some Google payloads omit it. SECURITY: production should verify a Google ID token server-side rather than trusting a raw profile from the client.
+ */
+export interface GoogleAuthInput {
+  /** @minLength 1 */
+  sub: string;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  name?: string | null;
+  /** @nullable */
+  given_name?: string | null;
+  /** @nullable */
+  family_name?: string | null;
+  /** @nullable */
+  nickname?: string | null;
+  /** @nullable */
+  picture?: string | null;
+}
+
 export interface TestEmailInput {
   to: string;
 }
@@ -343,14 +363,25 @@ export interface CreateGroupInput {
   imageUrl?: string | null;
 }
 
+/**
+ * A group post is a row in the shared posts table with a non-null groupId. It carries the same shape as a main-feed post (counts, media, feeling, author, like/bookmark state).
+ */
 export interface GroupPost {
   id: number;
   groupId: number;
   userId: number;
   content: string;
   /** @nullable */
+  feeling: string | null;
+  /** @nullable */
   imageUrl?: string | null;
+  mediaUrls: string[];
   author: PostAuthor;
+  likeCount: number;
+  bookmarkCount: number;
+  commentCount: number;
+  isLiked: boolean;
+  isBookmarked: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -363,13 +394,19 @@ export interface GroupPostsListResponse {
 export interface GroupPostInput {
   /** @minLength 1 */
   content: string;
+  /** @nullable */
+  feeling?: string | null;
   imageUrl?: string;
+  mediaUrls?: string[];
 }
 
 export interface GroupPostUpdate {
   /** @minLength 1 */
   content?: string;
+  /** @nullable */
+  feeling?: string | null;
   imageUrl?: string;
+  mediaUrls?: string[];
 }
 
 export interface MembershipToggle {

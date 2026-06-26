@@ -9,5 +9,8 @@
 export interface GroupPostUpdate {
   /** @minLength 1 */
   content?: string;
+  /** @nullable */
+  feeling?: string | null;
   imageUrl?: string;
+  mediaUrls?: string[];
 }

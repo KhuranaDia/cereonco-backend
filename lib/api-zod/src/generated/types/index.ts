@@ -32,6 +32,7 @@ export * from './forgotPasswordInput';
 export * from './getFeedParams';
 export * from './getGroupFeedParams';
 export * from './getSavedPostsParams';
+export * from './googleAuthInput';
 export * from './group';
 export * from './groupPost';
 export * from './groupPostInput';

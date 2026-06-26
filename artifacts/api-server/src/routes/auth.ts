@@ -8,12 +8,14 @@ import {
   SetPasswordBody,
   ForgotPasswordBody,
   TestEmailBody,
+  GoogleAuthBody,
 } from "@workspace/api-zod";
 import {
   generateToken,
   generateSetupToken,
   generateTempPassword,
   hashSetupToken,
+  extractSetupToken,
 } from "../utils/token";
 import {
   sendPasswordSetupEmail,
@@ -121,13 +123,30 @@ router.post("/auth/set-password", async (req, res): Promise<void> => {
     return;
   }
 
-  const { token, password } = parsed.data;
+  const { password } = parsed.data;
+  // Tolerate a token sent as a full link or query fragment, not just the raw
+  // value — a common frontend mistake that otherwise yields "Invalid token".
+  const token = extractSetupToken(parsed.data.token);
   const tokenHash = hashSetupToken(token);
+
+  if (process.env.NODE_ENV !== "production") {
+    req.log.info(
+      { tokenHashPrefix: tokenHash.slice(0, 8) },
+      "[auth] set-password token hash lookup attempted",
+    );
+  }
 
   const [user] = await db
     .select()
     .from(usersTable)
     .where(eq(usersTable.passwordSetupToken, tokenHash));
+
+  if (process.env.NODE_ENV !== "production") {
+    req.log.info(
+      { found: Boolean(user) },
+      "[auth] set-password token lookup result",
+    );
+  }
 
   if (
     !user ||
@@ -244,6 +263,108 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     token,
     user: safeUser(user),
   });
+});
+
+/**
+ * Google sign-in (frontend-trusted).
+ *
+ * SECURITY/TODO: this endpoint trusts a Google profile sent directly by the
+ * frontend. For production hardening, the frontend should send a Google ID
+ * token and this handler should verify it server-side (e.g. google-auth-library
+ * `verifyIdToken`) before trusting any of these fields.
+ */
+router.post("/auth/google", async (req, res): Promise<void> => {
+  const parsed = GoogleAuthBody.safeParse(req.body);
+
+  if (!parsed.success) {
+    error(res, parsed.error.issues.map((i) => i.message).join(", "), 400);
+    return;
+  }
+
+  const { sub, email, name, given_name, family_name, nickname, picture } =
+    parsed.data;
+
+  const normalizedEmail = email?.trim().toLowerCase() || null;
+
+  // Lookup order: email first (when present), then Google sub.
+  let user = null as typeof usersTable.$inferSelect | null;
+
+  if (normalizedEmail) {
+    const [byEmail] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.email, normalizedEmail));
+    user = byEmail ?? null;
+  }
+
+  if (!user) {
+    const [bySub] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.googleSub, sub));
+    user = bySub ?? null;
+  }
+
+  let created = false;
+
+  if (user) {
+    // Existing user — attach googleSub / picture if missing so future logins
+    // can resolve by sub and the profile photo stays populated.
+    const updates: Partial<typeof usersTable.$inferInsert> = {};
+    if (!user.googleSub) updates.googleSub = sub;
+    if (picture && !user.avatarUrl) updates.avatarUrl = picture;
+    if (picture && !user.profilePhotoUrl) updates.profilePhotoUrl = picture;
+    if (picture && !user.imageUrl) updates.imageUrl = picture;
+
+    if (Object.keys(updates).length > 0) {
+      const [updated] = await db
+        .update(usersTable)
+        .set(updates)
+        .where(eq(usersTable.id, user.id))
+        .returning();
+      user = updated;
+    }
+  } else {
+    // No match by email or sub → create the account from the available profile.
+    const resolvedName =
+      name?.trim() ||
+      [given_name, family_name].filter(Boolean).join(" ").trim() ||
+      nickname?.trim() ||
+      "Google User";
+
+    // Generate a placeholder email only when Google did not supply one — the
+    // schema requires a unique, non-null email.
+    const sanitizedSub = sub.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+    const finalEmail = normalizedEmail ?? `${sanitizedSub}@google.local`;
+
+    const [createdUser] = await db
+      .insert(usersTable)
+      .values({
+        name: resolvedName,
+        email: finalEmail,
+        googleSub: sub,
+        role: "patient",
+        emailVerified: true,
+        avatarUrl: picture ?? null,
+        profilePhotoUrl: picture ?? null,
+        imageUrl: picture ?? null,
+        // passwordHash stays null — Google users have no local password until
+        // they explicitly set one via the password-setup flow.
+      })
+      .returning();
+
+    user = createdUser;
+    created = true;
+  }
+
+  const token = generateToken({ userId: user.id });
+
+  success(
+    res,
+    created ? "Account created and logged in" : "Logged in successfully",
+    { token, user: safeUser(user) },
+    created ? 201 : 200,
+  );
 });
 
 router.post("/auth/logout", (_req, res): void => {

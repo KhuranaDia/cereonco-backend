@@ -83,6 +83,52 @@ export const ForgotPasswordBody = zod.object({
 
 
 /**
+ * Accepts a Google profile from the frontend. Looks up the user by email (when present) then by Google `sub`; creates the account if none exists. Returns the same auth payload as login. SECURITY: this trusts the client-supplied profile — production should verify a Google ID token server-side.
+ * @summary Log in or register with a Google profile (frontend-trusted)
+ */
+
+
+
+export const GoogleAuthBody = zod.object({
+  "sub": zod.string().min(1),
+  "email": zod.string().nullish(),
+  "name": zod.string().nullish(),
+  "given_name": zod.string().nullish(),
+  "family_name": zod.string().nullish(),
+  "nickname": zod.string().nullish(),
+  "picture": zod.string().nullish()
+}).describe('Frontend-trusted Google profile payload. `sub` (the Google subject id) is the only required field; `email` is optional because some Google payloads omit it. SECURITY: production should verify a Google ID token server-side rather than trusting a raw profile from the client.')
+
+export const GoogleAuthResponse = zod.object({
+  "token": zod.string(),
+  "user": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
+  "countryCode": zod.string().nullish(),
+  "phoneNumber": zod.string().nullish(),
+  "emailVerified": zod.boolean(),
+  "bio": zod.string().nullish(),
+  "location": zod.string().nullish(),
+  "avatarUrl": zod.string().nullish(),
+  "profilePhotoUrl": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "onboardingCompleted": zod.boolean(),
+  "cancerType": zod.string().nullish(),
+  "treatmentStage": zod.string().nullish(),
+  "interests": zod.union([zod.array(zod.string()),zod.null()]).optional(),
+  "specialty": zod.string().nullish(),
+  "hospitalAffiliation": zod.string().nullish(),
+  "medicalLicenseNumber": zod.string().nullish(),
+  "verificationStatus": zod.enum(['none', 'pending', 'approved', 'rejected']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+})
+
+
+/**
  * @summary Login
  */
 export const LoginBody = zod.object({
@@ -723,16 +769,23 @@ export const GetGroupFeedResponse = zod.object({
   "groupId": zod.number(),
   "userId": zod.number(),
   "content": zod.string(),
+  "feeling": zod.string().nullable(),
   "imageUrl": zod.string().nullish(),
+  "mediaUrls": zod.array(zod.string()),
   "author": zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
   "avatarUrl": zod.string().nullish()
 }),
+  "likeCount": zod.number(),
+  "bookmarkCount": zod.number(),
+  "commentCount": zod.number(),
+  "isLiked": zod.boolean(),
+  "isBookmarked": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
-})),
+}).describe('A group post is a row in the shared posts table with a non-null groupId. It carries the same shape as a main-feed post (counts, media, feeling, author, like\/bookmark state).')),
   "total": zod.number()
 })
 
@@ -749,7 +802,9 @@ export const CreateGroupPostParams = zod.object({
 
 export const CreateGroupPostBody = zod.object({
   "content": zod.string().min(1),
-  "imageUrl": zod.string().optional()
+  "feeling": zod.string().nullish(),
+  "imageUrl": zod.string().optional(),
+  "mediaUrls": zod.array(zod.string()).optional()
 })
 
 
@@ -765,7 +820,9 @@ export const UpdateGroupPostParams = zod.object({
 
 export const UpdateGroupPostBody = zod.object({
   "content": zod.string().min(1).optional(),
-  "imageUrl": zod.string().optional()
+  "feeling": zod.string().nullish(),
+  "imageUrl": zod.string().optional(),
+  "mediaUrls": zod.array(zod.string()).optional()
 })
 
 export const UpdateGroupPostResponse = zod.object({
@@ -773,16 +830,23 @@ export const UpdateGroupPostResponse = zod.object({
   "groupId": zod.number(),
   "userId": zod.number(),
   "content": zod.string(),
+  "feeling": zod.string().nullable(),
   "imageUrl": zod.string().nullish(),
+  "mediaUrls": zod.array(zod.string()),
   "author": zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "role": zod.enum(['patient', 'caregiver', 'medical_professional', 'admin']),
   "avatarUrl": zod.string().nullish()
 }),
+  "likeCount": zod.number(),
+  "bookmarkCount": zod.number(),
+  "commentCount": zod.number(),
+  "isLiked": zod.boolean(),
+  "isBookmarked": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
-})
+}).describe('A group post is a row in the shared posts table with a non-null groupId. It carries the same shape as a main-feed post (counts, media, feeling, author, like\/bookmark state).')
 
 
 /**

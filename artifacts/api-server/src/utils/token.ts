@@ -33,6 +33,49 @@ export function hashSetupToken(token: string): string {
 }
 
 /**
+ * Normalize a setup/reset token that a client may send in several shapes:
+ *   - the raw token: "abc123..."
+ *   - a full link:   "http://localhost:5173/set-password?token=abc123..."
+ *   - a query frag:  "?token=abc123..." or "token=abc123..."
+ * Extracts the `token` query param when present, URL-decodes, and trims.
+ * Returns the cleaned token (or the trimmed input if no token param is found).
+ */
+export function extractSetupToken(raw: string): string {
+  const trimmed = raw.trim();
+
+  const fromQuery = (qs: string): string | null => {
+    const params = new URLSearchParams(qs);
+    const t = params.get("token");
+    return t ? t.trim() : null;
+  };
+
+  // Full URL form.
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const u = new URL(trimmed);
+      const t = u.searchParams.get("token");
+      if (t) return t.trim();
+    } catch {
+      // fall through
+    }
+  }
+
+  // Bare query string form ("token=..." or "?token=...").
+  if (trimmed.includes("token=")) {
+    const qs = trimmed.startsWith("?") ? trimmed.slice(1) : trimmed;
+    const t = fromQuery(qs);
+    if (t) return t;
+  }
+
+  // Already a raw token — decode any stray percent-encoding defensively.
+  try {
+    return decodeURIComponent(trimmed);
+  } catch {
+    return trimmed;
+  }
+}
+
+/**
  * Generate a random throwaway password. Used as the temp password at
  * registration so passwordHash is never null; the user replaces it via
  * the setup-token flow. The raw value is never persisted or returned.

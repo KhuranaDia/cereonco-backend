@@ -1,1 +1,1 @@
-- [openapi-spec.ts sync](openapi-spec-sync.md) — after editing openapi.yaml, regen the server's Swagger mirror (openapi-spec.ts) + codegen + reset api-zod barrel, or Swagger/contract drift.
+- [/auth/google frontend-trusted](auth-google-frontend-trusted.md) — Google login trusts raw client profile by design; account-takeover risk is known/documented, harden only on request.

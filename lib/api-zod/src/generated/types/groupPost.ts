@@ -7,14 +7,25 @@
  */
 import type { PostAuthor } from './postAuthor';
 
+/**
+ * A group post is a row in the shared posts table with a non-null groupId. It carries the same shape as a main-feed post (counts, media, feeling, author, like/bookmark state).
+ */
 export interface GroupPost {
   id: number;
   groupId: number;
   userId: number;
   content: string;
   /** @nullable */
+  feeling: string | null;
+  /** @nullable */
   imageUrl?: string | null;
+  mediaUrls: string[];
   author: PostAuthor;
+  likeCount: number;
+  bookmarkCount: number;
+  commentCount: number;
+  isLiked: boolean;
+  isBookmarked: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
