@@ -396,8 +396,8 @@ export const getGoogleAuthUrl = () => {
 }
 
 /**
- * Accepts a Google profile from the frontend. Looks up the user by email (when present) then by Google `sub`; creates the account if none exists. Returns the same auth payload as login. SECURITY: this trusts the client-supplied profile — production should verify a Google ID token server-side.
- * @summary Log in or register with a Google profile (frontend-trusted)
+ * Accepts an Auth0 `accessToken` from the frontend, verifies it against the Auth0 `/userinfo` endpoint, then looks up the user by email (when present) then by Google `sub`; creates the account if none exists. Returns the same auth payload as login. Requires the `AUTH0_DOMAIN` env var (503 if unset); an invalid or expired token returns 401.
+ * @summary Log in or register with an Auth0 access token
  */
 export const googleAuth = async (googleAuthInput: GoogleAuthInput, options?: RequestInit): Promise<AuthResponse> => {
 
@@ -446,7 +446,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type GoogleAuthMutationError = ErrorType<void>
 
     /**
- * @summary Log in or register with a Google profile (frontend-trusted)
+ * @summary Log in or register with an Auth0 access token
  */
 export const useGoogleAuth = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof googleAuth>>, TError,{data: BodyType<GoogleAuthInput>}, TContext>, request?: SecondParameter<typeof customFetch>}

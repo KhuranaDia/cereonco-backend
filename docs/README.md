@@ -102,18 +102,19 @@ Registration no longer collects a password. The flow is:
 
 **Set-password token tolerance:** `POST /api/auth/set-password` accepts the `token` field as the raw token, a `?token=...` query fragment, or the full setup URL (e.g. `https://app.example.com/set-password?token=abc`). The handler extracts the token, trims it, hashes it with the same SHA-256 function used at issue time, validates expiry, clears `passwordSetupToken` + `passwordSetupTokenExpiresAt`, and returns `{ token, user }`. This removes the previous "Invalid token" failure when the frontend posted the full link.
 
-#### Google sign-in
+#### Google / Auth0 sign-in
 
 ```json
 POST /api/auth/google
-{ "sub": "1234567890", "email": "user@gmail.com", "name": "Jane Doe", "picture": "https://..." }
+{ "accessToken": "<auth0-access-token>" }
 ```
 
-- **Frontend-trusted**: the frontend sends a Google profile. `sub` (Google subject id) is the only required field; `email`, `name`, `given_name`, `family_name`, `nickname`, and `picture` are optional.
-- **Lookup order**: by `email` first (when present), then by `googleSub`. If neither matches, a new account is created (`role = patient`, `emailVerified = true`, `passwordHash` stays null). When Google omits an email, a placeholder `${sanitizedSub}@google.local` is generated to satisfy the unique-email constraint.
+- **Auth0 access-token verified**: the frontend authenticates the user with Auth0 (which can broker Google), obtains an Auth0 **access token**, and sends it as `accessToken`. The server verifies it against the Auth0 `/userinfo` endpoint and trusts ONLY the profile Auth0 returns (`sub`, `email`, `name`, `picture`, …) — never a raw client-supplied profile.
+- **Configuration**: requires the `AUTH0_DOMAIN` env var (e.g. `your-tenant.auth0.com`). The access token is the client's bearer credential; the domain is non-secret config.
+- **Lookup order**: by `email` first (when present), then by `googleSub`. If neither matches, a new account is created (`role = patient`, `emailVerified = true`, `passwordHash` stays null). When the profile omits an email, a placeholder `${sanitizedSub}@google.local` is generated to satisfy the unique-email constraint.
 - **Existing users** get their `googleSub` and profile photo backfilled if missing.
-- **Returns** `{ token, user }` — `201` when a new account was created, `200` for an existing one. Missing `sub` returns `400`.
-- **SECURITY/TODO**: this trusts a raw client-supplied profile. For production, the frontend should send a Google **ID token** and the server should verify it (e.g. `google-auth-library` `verifyIdToken`) before trusting any field.
+- **Returns** `{ token, user }` — `201` when a new account was created, `200` for an existing one.
+- **Errors**: missing `accessToken` → `400`; invalid/expired token → `401`; `AUTH0_DOMAIN` not configured → `503`.
 
 #### Forgot password flow
 

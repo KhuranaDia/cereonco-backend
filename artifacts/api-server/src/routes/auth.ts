@@ -24,6 +24,10 @@ import {
   smtpConfigured,
 } from "../utils/email";
 import { safeUser } from "../utils/safeUser";
+import {
+  verifyAuth0AccessToken,
+  Auth0NotConfiguredError,
+} from "../utils/auth0";
 import { success, error } from "../utils/response";
 import { requireAuth } from "../middlewares/auth";
 
@@ -314,12 +318,15 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 });
 
 /**
- * Google sign-in (frontend-trusted).
+ * Google / Auth0 sign-in.
  *
- * SECURITY/TODO: this endpoint trusts a Google profile sent directly by the
- * frontend. For production hardening, the frontend should send a Google ID
- * token and this handler should verify it server-side (e.g. google-auth-library
- * `verifyIdToken`) before trusting any of these fields.
+ * The frontend authenticates with Auth0 (which can broker Google), obtains an
+ * Auth0 access token, and sends it as `accessToken`. We verify the token via the
+ * Auth0 `/userinfo` endpoint and trust ONLY the profile Auth0 returns — never a
+ * raw client-supplied profile. On success we resolve (or create) the local user
+ * and return the SAME `{ token, user }` payload as POST /auth/login.
+ *
+ * Requires the `AUTH0_DOMAIN` env var. If unset, the endpoint returns 503.
  */
 router.post("/auth/google", async (req, res): Promise<void> => {
   const parsed = GoogleAuthBody.safeParse(req.body);
@@ -329,8 +336,24 @@ router.post("/auth/google", async (req, res): Promise<void> => {
     return;
   }
 
+  // Verify the Auth0 access token server-side and trust only its profile.
+  let profile;
+  try {
+    profile = await verifyAuth0AccessToken(parsed.data.accessToken);
+  } catch (err) {
+    if (err instanceof Auth0NotConfiguredError) {
+      req.log.error(
+        "POST /auth/google attempted but AUTH0_DOMAIN is not configured",
+      );
+      error(res, "Google sign-in is not configured on the server.", 503);
+      return;
+    }
+    error(res, "Invalid or expired Auth0 access token.", 401);
+    return;
+  }
+
   const { sub, email, name, given_name, family_name, nickname, picture } =
-    parsed.data;
+    profile;
 
   const normalizedEmail = email?.trim().toLowerCase() || null;
 

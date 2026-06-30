@@ -12,6 +12,11 @@
    "type": "string"
   },
   {
+   "key": "auth0_access_token",
+   "value": "",
+   "type": "string"
+  },
+  {
    "key": "token",
    "value": "",
    "type": "string"
@@ -735,7 +740,7 @@
      ]
     },
     {
-     "name": "Google Sign-in \u2014 new user (201)",
+     "name": "Auth0 Sign-in \u2014 with real Auth0 token (200/201)",
      "request": {
       "method": "POST",
       "url": "{{base_url}}/auth/google",
@@ -747,28 +752,29 @@
       ],
       "body": {
        "mode": "raw",
-       "raw": "{\n  \"sub\": \"google-sub-{{$timestamp}}\",\n  \"email\": \"google.user.{{$timestamp}}@example.com\",\n  \"name\": \"Google User\",\n  \"picture\": \"https://example.com/avatar.jpg\"\n}"
-      }
+       "raw": "{\n  \"accessToken\": \"{{auth0_access_token}}\"\n}"
+      },
+      "description": "Set the {{auth0_access_token}} collection variable to a real Auth0 access token and ensure AUTH0_DOMAIN is configured on the server. New users return 201, existing users return 200."
      },
      "event": [
       {
        "listen": "test",
        "script": {
         "exec": [
-         "pm.test('Status 201', () => pm.response.to.have.status(201));",
-         "const d = pm.response.json().data;",
-         "pm.test('JWT returned', () => pm.expect(d.token).to.be.a('string'));",
-         "pm.test('emailVerified true', () => pm.expect(d.user.emailVerified).to.be.true);",
-         "pm.collectionVariables.set('google_token', d.token);",
-         "pm.collectionVariables.set('google_sub', JSON.parse(pm.request.body.raw).sub);",
-         "pm.collectionVariables.set('google_email', JSON.parse(pm.request.body.raw).email);"
+         "pm.test('Status 200 or 201', () => pm.expect([200, 201]).to.include(pm.response.code));",
+         "if (pm.response.code < 400) {",
+         "  const d = pm.response.json().data;",
+         "  pm.test('JWT returned', () => pm.expect(d.token).to.be.a('string'));",
+         "  pm.test('emailVerified true', () => pm.expect(d.user.emailVerified).to.be.true);",
+         "  pm.collectionVariables.set('google_token', d.token);",
+         "}"
         ]
        }
       }
      ]
     },
     {
-     "name": "Google Sign-in \u2014 existing user (200)",
+     "name": "Auth0 Sign-in \u2014 invalid token (401 or 503)",
      "request": {
       "method": "POST",
       "url": "{{base_url}}/auth/google",
@@ -780,24 +786,24 @@
       ],
       "body": {
        "mode": "raw",
-       "raw": "{\n  \"sub\": \"{{google_sub}}\",\n  \"email\": \"{{google_email}}\",\n  \"name\": \"Google User\"\n}"
-      }
+       "raw": "{\n  \"accessToken\": \"definitely-not-a-valid-auth0-token\"\n}"
+      },
+      "description": "Returns 401 when AUTH0_DOMAIN is configured (token rejected by Auth0), or 503 when AUTH0_DOMAIN is not configured."
      },
      "event": [
       {
        "listen": "test",
        "script": {
         "exec": [
-         "pm.test('Status 200', () => pm.response.to.have.status(200));",
-         "const d = pm.response.json().data;",
-         "pm.test('JWT returned', () => pm.expect(d.token).to.be.a('string'));"
+         "pm.test('Status 401 or 503', () => pm.expect([401, 503]).to.include(pm.response.code));",
+         "pm.test('success false', () => pm.expect(pm.response.json().success).to.be.false);"
         ]
        }
       }
      ]
     },
     {
-     "name": "Google Sign-in \u2014 missing sub (400)",
+     "name": "Auth0 Sign-in \u2014 missing accessToken (400)",
      "request": {
       "method": "POST",
       "url": "{{base_url}}/auth/google",
@@ -809,7 +815,7 @@
       ],
       "body": {
        "mode": "raw",
-       "raw": "{\n  \"email\": \"no.sub@example.com\"\n}"
+       "raw": "{}"
       }
      },
      "event": [

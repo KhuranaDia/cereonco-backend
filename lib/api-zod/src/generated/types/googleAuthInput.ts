@@ -7,21 +7,12 @@
  */
 
 /**
- * Frontend-trusted Google profile payload. `sub` (the Google subject id) is the only required field; `email` is optional because some Google payloads omit it. SECURITY: production should verify a Google ID token server-side rather than trusting a raw profile from the client.
+ * Auth0 access-token sign-in payload. The frontend authenticates the user with Auth0 (which can broker Google), obtains an Auth0 access token, and sends it as `accessToken`. The server verifies the token against the Auth0 `/userinfo` endpoint and trusts ONLY the profile Auth0 returns — never a raw client-supplied profile. Requires the `AUTH0_DOMAIN` env var.
  */
 export interface GoogleAuthInput {
-  /** @minLength 1 */
-  sub: string;
-  /** @nullable */
-  email?: string | null;
-  /** @nullable */
-  name?: string | null;
-  /** @nullable */
-  given_name?: string | null;
-  /** @nullable */
-  family_name?: string | null;
-  /** @nullable */
-  nickname?: string | null;
-  /** @nullable */
-  picture?: string | null;
+  /**
+     * Auth0 access token obtained by the frontend after login.
+     * @minLength 1
+     */
+  accessToken: string;
 }

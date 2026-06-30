@@ -84,21 +84,15 @@ export const ForgotPasswordBody = zod.object({
 
 
 /**
- * Accepts a Google profile from the frontend. Looks up the user by email (when present) then by Google `sub`; creates the account if none exists. Returns the same auth payload as login. SECURITY: this trusts the client-supplied profile — production should verify a Google ID token server-side.
- * @summary Log in or register with a Google profile (frontend-trusted)
+ * Accepts an Auth0 `accessToken` from the frontend, verifies it against the Auth0 `/userinfo` endpoint, then looks up the user by email (when present) then by Google `sub`; creates the account if none exists. Returns the same auth payload as login. Requires the `AUTH0_DOMAIN` env var (503 if unset); an invalid or expired token returns 401.
+ * @summary Log in or register with an Auth0 access token
  */
 
 
 
 export const GoogleAuthBody = zod.object({
-  "sub": zod.string().min(1),
-  "email": zod.string().nullish(),
-  "name": zod.string().nullish(),
-  "given_name": zod.string().nullish(),
-  "family_name": zod.string().nullish(),
-  "nickname": zod.string().nullish(),
-  "picture": zod.string().nullish()
-}).describe('Frontend-trusted Google profile payload. `sub` (the Google subject id) is the only required field; `email` is optional because some Google payloads omit it. SECURITY: production should verify a Google ID token server-side rather than trusting a raw profile from the client.')
+  "accessToken": zod.string().min(1).describe('Auth0 access token obtained by the frontend after login.')
+}).describe('Auth0 access-token sign-in payload. The frontend authenticates the user with Auth0 (which can broker Google), obtains an Auth0 access token, and sends it as `accessToken`. The server verifies the token against the Auth0 `\/userinfo` endpoint and trusts ONLY the profile Auth0 returns — never a raw client-supplied profile. Requires the `AUTH0_DOMAIN` env var.')
 
 export const GoogleAuthResponse = zod.object({
   "token": zod.string(),

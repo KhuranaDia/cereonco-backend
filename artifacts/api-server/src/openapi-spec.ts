@@ -689,50 +689,15 @@ export const openApiSpec = {
       },
       "GoogleAuthInput": {
         "type": "object",
-        "description": "Frontend-trusted Google profile payload. `sub` (the Google subject id) is the only required field; `email` is optional because some Google payloads omit it. SECURITY: production should verify a Google ID token server-side rather than trusting a raw profile from the client.",
+        "description": "Auth0 access-token sign-in payload. The frontend authenticates the user with Auth0 (which can broker Google), obtains an Auth0 access token, and sends it as `accessToken`. The server verifies the token against the Auth0 `/userinfo` endpoint and trusts ONLY the profile Auth0 returns — never a raw client-supplied profile. Requires the `AUTH0_DOMAIN` env var.",
         "required": [
-          "sub"
+          "accessToken"
         ],
         "properties": {
-          "sub": {
+          "accessToken": {
             "type": "string",
-            "minLength": 1
-          },
-          "email": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "name": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "given_name": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "family_name": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "nickname": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "picture": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "minLength": 1,
+            "description": "Auth0 access token obtained by the frontend after login."
           }
         }
       },
@@ -1957,8 +1922,8 @@ export const openApiSpec = {
         "tags": [
           "auth"
         ],
-        "summary": "Log in or register with a Google profile (frontend-trusted)",
-        "description": "Accepts a Google profile from the frontend. Looks up the user by email (when present) then by Google `sub`; creates the account if none exists. Returns the same auth payload as login. SECURITY: this trusts the client-supplied profile — production should verify a Google ID token server-side.",
+        "summary": "Log in or register with an Auth0 access token",
+        "description": "Accepts an Auth0 `accessToken` from the frontend, verifies it against the Auth0 `/userinfo` endpoint, then looks up the user by email (when present) then by Google `sub`; creates the account if none exists. Returns the same auth payload as login. Requires the `AUTH0_DOMAIN` env var (503 if unset); an invalid or expired token returns 401.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1991,7 +1956,13 @@ export const openApiSpec = {
             }
           },
           "400": {
-            "description": "Validation error"
+            "description": "Validation error (missing accessToken)"
+          },
+          "401": {
+            "description": "Invalid or expired Auth0 access token"
+          },
+          "503": {
+            "description": "Google sign-in is not configured (AUTH0_DOMAIN unset)"
           }
         }
       }
