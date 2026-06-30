@@ -1,0 +1,164 @@
+Continue the existing CereOnco backend.
+
+All requested feature implementations are now complete.
+
+Do NOT add any new functionality.
+
+Your task is to perform a final backend audit and verification.
+
+## Goal
+
+Verify that every requested feature has been implemented correctly and consistently.
+
+Do not modify working code unless a bug is found.
+
+---
+
+## Verify these features
+
+### Posts
+
+✓ Uses only the existing posts table.
+
+✓ groupId is nullable.
+
+✓ GET /posts returns only posts where groupId IS NULL.
+
+✓ GET /groups/:groupId/posts returns only posts belonging to that group.
+
+✓ Create/Edit/Delete group posts work correctly.
+
+✓ Swagger and Postman updated.
+
+---
+
+### Groups
+
+✓ Create Group validation returns descriptive messages.
+
+✓ No raw Zod errors.
+
+✓ Missing fields clearly identify:
+
+* field
+* reason
+* correction
+
+---
+
+### Email
+
+✓ Frontend URL determined from request Origin.
+
+Fallback order:
+
+1. Origin header
+
+2. FRONTEND_URL
+
+3. TEST_FRONTEND_URL
+
+4. localhost
+
+Verify every email uses the helper consistently.
+
+---
+
+### Google Login
+
+✓ POST /auth/google implemented.
+
+✓ Receives Auth0 token.
+
+✓ Fetches verified profile from Auth0.
+
+✓ Finds or creates user.
+
+✓ Returns identical response to normal login.
+
+✓ Invalid token handling verified.
+
+---
+
+### Password Reset
+
+✓ Forgot password
+
+✓ Reset email
+
+✓ Token validation
+
+✓ Password update
+
+✓ Token cleanup
+
+✓ Login with new password
+
+Verify complete flow.
+
+---
+
+## Code Quality
+
+Look for:
+
+* duplicated code
+* unused helper functions
+* dead endpoints
+* duplicated validation
+* duplicated serializers
+* unreachable code
+* unused imports
+* unused migrations
+* inconsistent response formats
+
+Remove only if safe.
+
+---
+
+## OpenAPI
+
+Ensure documentation matches implementation.
+
+Verify:
+
+* request bodies
+* response schemas
+* examples
+* status codes
+
+---
+
+## Postman
+
+Verify every modified endpoint exists.
+
+Update any outdated examples.
+
+---
+
+## Build
+
+Run:
+
+pnpm --filter @workspace/api-server build
+
+Fix every TypeScript warning/error.
+
+---
+
+## Deliverables
+
+Provide a final report with:
+
+1. Features verified
+2. Bugs found (if any)
+3. Bugs fixed
+4. Files modified during audit
+5. Manual Postman checklist
+6. Production deployment checklist
+7. Suggested commit message
+
+Stop after the audit.
+
+Do not implement any additional features.

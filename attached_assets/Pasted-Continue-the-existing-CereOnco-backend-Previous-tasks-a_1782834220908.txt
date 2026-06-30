@@ -1,0 +1,306 @@
+Continue the existing CereOnco backend.
+
+Previous tasks are complete.
+
+Do NOT work on any other pending items.
+
+## Task 5: Fix Password Reset Token Validation
+
+Current issue:
+
+Forgot Password works correctly.
+
+The email is sent successfully.
+
+The reset link is received successfully.
+
+However, when opening the link and calling:
+
+POST /auth/set-password
+
+the backend returns:
+
+"Invalid token"
+
+even though the token is freshly generated.
+
+---
+
+## Goal
+
+Investigate the entire password reset flow.
+
+Do NOT patch blindly.
+
+Find the actual root cause.
+
+---
+
+## Trace the complete flow
+
+Inspect:
+
+* forgot-password controller
+* set-password controller
+* email service
+* token generation
+* token hashing
+* token storage
+* token lookup
+* expiry validation
+* email link generation
+
+Verify that every step is consistent.
+
+---
+
+## Check for these common issues
+
+### 1.
+
+Raw token stored
+
+but hashed token compared.
+
+---
+
+### 2.
+
+Hashed token stored
+
+but raw token searched.
+
+---
+
+### 3.
+
+Token gets URL encoded
+
+but decoded incorrectly.
+
+Example:
+
+%2F
+
+%3D
+
+etc.
+
+---
+
+### 4.
+
+Frontend sends
+
+entire URL
+
+instead of raw token.
+
+Support both.
+
+If request contains:
+
+```text
+http://localhost:5173/set-password?token=abc123
+```
+
+extract:
+
+```text
+abc123
+```
+
+automatically.
+
+---
+
+### 5.
+
+Expiry comparison
+
+timezone issue.
+
+Verify timestamps.
+
+---
+
+### 6.
+
+Token cleared
+
+before password update.
+
+---
+
+### 7.
+
+Wrong hashing algorithm
+
+used in one endpoint.
+
+Both forgot-password and set-password must use the exact same hashing logic.
+
+---
+
+## Required Behavior
+
+Forgot Password
+
+↓
+
+Email sent
+
+↓
+
+User opens email
+
+↓
+
+Frontend extracts token
+
+↓
+
+POST /auth/set-password
+
+↓
+
+Password updated successfully
+
+↓
+
+Reset token cleared
+
+↓
+
+User receives normal login response.
+
+---
+
+## Response
+
+Return the same authentication response used by normal login.
+
+Example:
+
+```json
+{
+  "success": true,
+  "message": "Password updated successfully.",
+  "data": {
+    "token": "...",
+    "user": {}
+  }
+}
+```
+
+---
+
+## Error Handling
+
+Expired token:
+
+410
+
+"Reset link has expired."
+
+---
+
+Invalid token:
+
+400
+
+"Invalid password reset token."
+
+---
+
+Already used token:
+
+400
+
+"This reset link has already been used."
+
+---
+
+## Development Logs
+
+Add temporary debug logs only in development.
+
+Log:
+
+* token generated
+* hashed token generated
+* lookup hash
+* expiry timestamp
+* current timestamp
+
+Never log raw passwords.
+
+Never log sensitive values in production.
+
+---
+
+## Swagger
+
+Update:
+
+POST /auth/set-password
+
+Document:
+
+Accepted payload:
+
+```json
+{
+  "token": "...",
+  "password": "NewPassword123!"
+}
+```
+
+Mention that the endpoint also tolerates receiving the complete reset URL and extracts the token automatically.
+
+---
+
+## Postman
+
+Add complete flow:
+
+1.
+
+POST /auth/forgot-password
+
+↓
+
+2.
+
+Copy token from email
+
+↓
+
+3.
+
+POST /auth/set-password
+
+↓
+
+4.
+
+POST /auth/login
+
+Verify login works using the new password.
+
+---
+
+## Build
+
+Run:
+
+pnpm --filter @workspace/api-server build
+
+Stop after this task.
+
+Provide:
+
+1. Root cause found.
+2. Files changed.
+3. How the issue was fixed.
+4. Manual Postman testing steps.

@@ -299,6 +299,232 @@
      ]
     },
     {
+     "name": "Reset Flow \u2014 1. Register reset-demo user",
+     "request": {
+      "method": "POST",
+      "url": "{{base_url}}/auth/register",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"name\": \"Reset Demo\",\n  \"email\": \"{{rf_email}}\",\n  \"role\": \"patient\"\n}"
+      },
+      "description": "Step 1 of the full password-reset flow. A pre-request script generates a unique email so the flow can be re-run. Saves the registration setup token to complete initial account setup."
+     },
+     "event": [
+      {
+       "listen": "prerequest",
+       "script": {
+        "exec": [
+         "pm.collectionVariables.set('rf_email', 'reset-demo-' + Date.now() + '@example.com');"
+        ]
+       }
+      },
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 201', () => pm.response.to.have.status(201));",
+         "const d = pm.response.json().data;",
+         "if (d.setupToken) { pm.collectionVariables.set('rf_setup_token', d.setupToken); }"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Reset Flow \u2014 2. Set initial password",
+     "request": {
+      "method": "POST",
+      "url": "{{base_url}}/auth/set-password",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"token\": \"{{rf_setup_token}}\",\n  \"password\": \"InitialPass123!\"\n}"
+      },
+      "description": "Step 2: complete passwordless registration so the account has a known starting password before we exercise the reset flow."
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 200', () => pm.response.to.have.status(200));",
+         "pm.test('Message is Password updated successfully.', () => pm.expect(pm.response.json().message).to.eql('Password updated successfully.'));",
+         "pm.test('Account verified', () => pm.expect(pm.response.json().data.user.emailVerified).to.be.true);"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Reset Flow \u2014 3. Forgot Password (capture reset token)",
+     "request": {
+      "method": "POST",
+      "url": "{{base_url}}/auth/forgot-password",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Origin",
+        "value": "http://localhost:5173",
+        "description": "Reset email link host = this Origin (allowlisted), e.g. http://localhost:5173/reset-password?token=... In production, copy the token from the server logs / email."
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"email\": \"{{rf_email}}\"\n}"
+      },
+      "description": "Step 3: request a reset link. In non-production the raw reset token is returned as data.setupToken and saved for the next step; the full link (http://localhost:5173/reset-password?token=...) is also logged by the server."
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 200', () => pm.response.to.have.status(200));",
+         "const d = pm.response.json().data;",
+         "if (d.setupToken) {",
+         "  pm.collectionVariables.set('rf_reset_token', d.setupToken);",
+         "  pm.collectionVariables.set('rf_reset_url', 'http://localhost:5173/reset-password?token=' + d.setupToken);",
+         "}"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Reset Flow \u2014 4. Set Password via FULL reset URL",
+     "request": {
+      "method": "POST",
+      "url": "{{base_url}}/auth/set-password",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"token\": \"{{rf_reset_url}}\",\n  \"password\": \"NewPassword123!\"\n}"
+      },
+      "description": "Step 4: complete the reset. Demonstrates that the endpoint tolerates the COMPLETE reset URL in the token field (not just the raw token) and extracts the token automatically. Returns a normal login response."
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 200', () => pm.response.to.have.status(200));",
+         "pm.test('Message is Password updated successfully.', () => pm.expect(pm.response.json().message).to.eql('Password updated successfully.'));",
+         "const d = pm.response.json().data;",
+         "pm.test('JWT returned (auto-login)', () => pm.expect(d.token).to.be.a('string'));",
+         "pm.test('User returned', () => pm.expect(d.user).to.be.an('object'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Reset Flow \u2014 5. Login with NEW password",
+     "request": {
+      "method": "POST",
+      "url": "{{base_url}}/auth/login",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"email\": \"{{rf_email}}\",\n  \"password\": \"NewPassword123!\"\n}"
+      },
+      "description": "Step 5: verify the reset worked by logging in with the new password."
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 200', () => pm.response.to.have.status(200));",
+         "pm.test('Login succeeds with new password', () => pm.expect(pm.response.json().data.token).to.be.a('string'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Reset Flow \u2014 6. Reuse reset token (400 already used)",
+     "request": {
+      "method": "POST",
+      "url": "{{base_url}}/auth/set-password",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"token\": \"{{rf_reset_token}}\",\n  \"password\": \"AnotherPass123!\"\n}"
+      },
+      "description": "Negative case: replaying a consumed reset link returns 400 with the message 'This reset link has already been used.' (the token hash is retained but its expiry is nulled on use)."
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 400', () => pm.response.to.have.status(400));",
+         "pm.test('success false', () => pm.expect(pm.response.json().success).to.be.false);",
+         "pm.test('Message is already used', () => pm.expect(pm.response.json().message).to.eql('This reset link has already been used.'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "Reset Flow \u2014 7. Invalid token (400)",
+     "request": {
+      "method": "POST",
+      "url": "{{base_url}}/auth/set-password",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"token\": \"this-token-was-never-issued\",\n  \"password\": \"NewPassword123!\"\n}"
+      },
+      "description": "Negative case: a token that does not match any stored hash returns 400 with the message 'Invalid password reset token.' Note: an EXPIRED (but valid) token instead returns 410 'Reset link has expired.' \u2014 not easily reproducible in Postman without waiting out the 24h TTL."
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 400', () => pm.response.to.have.status(400));",
+         "pm.test('Message is invalid token', () => pm.expect(pm.response.json().message).to.eql('Invalid password reset token.'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
      "name": "Test Email (admin only \u2014 verify SMTP)",
      "request": {
       "method": "POST",

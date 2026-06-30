@@ -253,7 +253,8 @@ export const getSetPasswordUrl = () => {
 }
 
 /**
- * @summary Set password via setup token (completes passwordless registration)
+ * Completes passwordless registration AND finishes the forgot-password reset flow (both flows mint the same kind of single-use token). Accepts a payload of `{ token, password }`. The `token` may be the raw token OR the complete reset/setup URL the user received (e.g. `http://localhost:5173/reset-password?token=abc123...`) — the server extracts, URL-decodes, and trims the `token` value automatically, so a frontend can safely forward the whole link. On success the account is verified, the token is consumed (it can never be used again), and a normal login response (`{ token, user }`) is returned.
+ * @summary Set or reset password via a setup/reset token
  */
 export const setPassword = async (setPasswordInput: SetPasswordInput, options?: RequestInit): Promise<AuthResponse> => {
 
@@ -302,7 +303,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type SetPasswordMutationError = ErrorType<void>
 
     /**
- * @summary Set password via setup token (completes passwordless registration)
+ * @summary Set or reset password via a setup/reset token
  */
 export const useSetPassword = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setPassword>>, TError,{data: BodyType<SetPasswordInput>}, TContext>, request?: SecondParameter<typeof customFetch>}

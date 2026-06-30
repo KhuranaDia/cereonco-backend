@@ -33,7 +33,8 @@ export const RegisterBody = zod.object({
 
 
 /**
- * @summary Set password via setup token (completes passwordless registration)
+ * Completes passwordless registration AND finishes the forgot-password reset flow (both flows mint the same kind of single-use token). Accepts a payload of `{ token, password }`. The `token` may be the raw token OR the complete reset/setup URL the user received (e.g. `http://localhost:5173/reset-password?token=abc123...`) — the server extracts, URL-decodes, and trims the `token` value automatically, so a frontend can safely forward the whole link. On success the account is verified, the token is consumed (it can never be used again), and a normal login response (`{ token, user }`) is returned.
+ * @summary Set or reset password via a setup/reset token
  */
 
 export const setPasswordBodyPasswordMin = 6;
@@ -41,8 +42,8 @@ export const setPasswordBodyPasswordMin = 6;
 
 
 export const SetPasswordBody = zod.object({
-  "token": zod.string().min(1),
-  "password": zod.string().min(setPasswordBodyPasswordMin)
+  "token": zod.string().min(1).describe('The single-use token from the password setup\/reset email. May be sent as the raw token (e.g. `abc123...`) OR as the complete link the user received (e.g. `http:\/\/localhost:5173\/reset-password?token=abc123...`) or a bare query fragment (`?token=abc123...`); the server extracts, URL-decodes, and trims the `token` value automatically.'),
+  "password": zod.string().min(setPasswordBodyPasswordMin).describe('The new password (min 6 characters).')
 })
 
 export const SetPasswordResponse = zod.object({

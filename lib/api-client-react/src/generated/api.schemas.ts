@@ -201,9 +201,15 @@ export interface UserRegisterInput {
 }
 
 export interface SetPasswordInput {
-  /** @minLength 1 */
+  /**
+     * The single-use token from the password setup/reset email. May be sent as the raw token (e.g. `abc123...`) OR as the complete link the user received (e.g. `http://localhost:5173/reset-password?token=abc123...`) or a bare query fragment (`?token=abc123...`); the server extracts, URL-decodes, and trims the `token` value automatically.
+     * @minLength 1
+     */
   token: string;
-  /** @minLength 6 */
+  /**
+     * The new password (min 6 characters).
+     * @minLength 6
+     */
   password: string;
 }
 

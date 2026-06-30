@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { and, eq, gt, isNotNull } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import {
   RegisterBody,
@@ -128,10 +128,14 @@ router.post("/auth/set-password", async (req, res): Promise<void> => {
   // value — a common frontend mistake that otherwise yields "Invalid token".
   const token = extractSetupToken(parsed.data.token);
   const tokenHash = hashSetupToken(token);
+  const now = Date.now();
 
   if (process.env.NODE_ENV !== "production") {
     req.log.info(
-      { tokenHashPrefix: tokenHash.slice(0, 8) },
+      {
+        lookupHashPrefix: tokenHash.slice(0, 8),
+        currentTimestamp: new Date(now).toISOString(),
+      },
       "[auth] set-password token hash lookup attempted",
     );
   }
@@ -143,36 +147,69 @@ router.post("/auth/set-password", async (req, res): Promise<void> => {
 
   if (process.env.NODE_ENV !== "production") {
     req.log.info(
-      { found: Boolean(user) },
+      {
+        found: Boolean(user),
+        storedExpiry: user?.passwordSetupTokenExpiresAt?.toISOString() ?? null,
+        currentTimestamp: new Date(now).toISOString(),
+      },
       "[auth] set-password token lookup result",
     );
   }
 
-  if (
-    !user ||
-    !user.passwordSetupTokenExpiresAt ||
-    user.passwordSetupTokenExpiresAt.getTime() < Date.now()
-  ) {
-    error(res, "Invalid or expired token", 400);
+  // No row matches this token hash: the token never existed, was mistyped, or
+  // was superseded by a newer reset request that overwrote the stored hash.
+  if (!user) {
+    error(res, "Invalid password reset token.", 400);
+    return;
+  }
+
+  // A consumed token keeps its hash but has its expiry nulled (see the update
+  // below), so a matching row with no expiry means the link was already used
+  // to set a password.
+  if (!user.passwordSetupTokenExpiresAt) {
+    error(res, "This reset link has already been used.", 400);
+    return;
+  }
+
+  // The 24h window elapsed before the link was opened.
+  if (user.passwordSetupTokenExpiresAt.getTime() < now) {
+    error(res, "Reset link has expired.", 410);
     return;
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
 
+  // Consume the token atomically: the WHERE clause re-checks the hash and a
+  // still-valid (non-null, future) expiry, so two concurrent requests with the
+  // same token cannot both succeed — only the first matches a row. The expiry
+  // is nulled (it can never authenticate again) but the one-way SHA-256 hash is
+  // KEPT so a replay is reported as "already used" rather than "invalid token".
   const [updated] = await db
     .update(usersTable)
     .set({
       passwordHash,
       emailVerified: true,
-      passwordSetupToken: null,
       passwordSetupTokenExpiresAt: null,
     })
-    .where(eq(usersTable.id, user.id))
+    .where(
+      and(
+        eq(usersTable.id, user.id),
+        eq(usersTable.passwordSetupToken, tokenHash),
+        isNotNull(usersTable.passwordSetupTokenExpiresAt),
+        gt(usersTable.passwordSetupTokenExpiresAt, new Date()),
+      ),
+    )
     .returning();
+
+  // A concurrent request consumed the token between our read and this write.
+  if (!updated) {
+    error(res, "This reset link has already been used.", 400);
+    return;
+  }
 
   const jwt = generateToken({ userId: updated.id });
 
-  success(res, "Password set successfully", {
+  success(res, "Password updated successfully.", {
     token: jwt,
     user: safeUser(updated),
   });
@@ -205,6 +242,17 @@ router.post("/auth/forgot-password", async (req, res): Promise<void> => {
   }
 
   const { token: setupToken, tokenHash, expiresAt } = generateSetupToken();
+
+  if (process.env.NODE_ENV !== "production") {
+    req.log.info(
+      {
+        tokenGeneratedPrefix: setupToken.slice(0, 8),
+        tokenHashPrefix: tokenHash.slice(0, 8),
+        expiresAt: expiresAt.toISOString(),
+      },
+      "[auth] forgot-password reset token generated",
+    );
+  }
 
   await db
     .update(usersTable)

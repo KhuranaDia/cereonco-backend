@@ -665,11 +665,13 @@ export const openApiSpec = {
         "properties": {
           "token": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "description": "The single-use token from the password setup/reset email. May be sent as the raw token (e.g. `abc123...`) OR as the complete link the user received (e.g. `http://localhost:5173/reset-password?token=abc123...`) or a bare query fragment (`?token=abc123...`); the server extracts, URL-decodes, and trims the `token` value automatically."
           },
           "password": {
             "type": "string",
-            "minLength": 6
+            "minLength": 6,
+            "description": "The new password (min 6 characters)."
           }
         }
       },
@@ -1890,7 +1892,8 @@ export const openApiSpec = {
         "tags": [
           "auth"
         ],
-        "summary": "Set password via setup token (completes passwordless registration)",
+        "summary": "Set or reset password via a setup/reset token",
+        "description": "Completes passwordless registration AND finishes the forgot-password reset flow (both flows mint the same kind of single-use token). Accepts a payload of `{ token, password }`. The `token` may be the raw token OR the complete reset/setup URL the user received (e.g. `http://localhost:5173/reset-password?token=abc123...`) — the server extracts, URL-decodes, and trims the `token` value automatically, so a frontend can safely forward the whole link. On success the account is verified, the token is consumed (it can never be used again), and a normal login response (`{ token, user }`) is returned.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1903,7 +1906,7 @@ export const openApiSpec = {
         },
         "responses": {
           "200": {
-            "description": "Password set; account verified and logged in",
+            "description": "Password updated; account verified and logged in. Returns the same `{ token, user }` envelope as login with the message \"Password updated successfully.\"",
             "content": {
               "application/json": {
                 "schema": {
@@ -1913,7 +1916,10 @@ export const openApiSpec = {
             }
           },
           "400": {
-            "description": "Invalid or expired token"
+            "description": "Validation failed, the token is invalid (\"Invalid password reset token.\"), or the link was already used (\"This reset link has already been used.\")."
+          },
+          "410": {
+            "description": "The reset link has expired (\"Reset link has expired.\")."
           }
         }
       }

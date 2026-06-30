@@ -7,3 +7,4 @@
 - [Socket.IO real-time layer](socketio-realtime.md) — real-time messaging shares the Express HTTP server (path /api/socket.io); stays consistent with REST.
 - [/auth/google frontend-trusted](auth-google-frontend-trusted.md) — Google login trusts raw client profile by design; account-takeover risk is known/documented, harden only on request.
 - [Email link host allowlist](email-link-host-allowlist.md) — email link host comes from getFrontendBaseUrl with an Origin allowlist (not raw Origin) to block reset-token poisoning.
+- [set-password token consume](set-password-token-consume.md) — keep the SHA-256 hash, null only expiry on use (to detect already-used 400 vs invalid 400 vs expired 410); consume atomically.
