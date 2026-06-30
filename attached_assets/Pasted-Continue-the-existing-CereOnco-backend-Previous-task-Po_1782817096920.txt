@@ -1,0 +1,184 @@
+Continue the existing CereOnco backend.
+
+Previous task (Posts using existing posts table) is complete.
+
+Do NOT work on any other pending items.
+
+## Task 2: Improve Create Group validation
+
+Current issue:
+
+POST /groups
+
+returns an unknown:
+
+"Required"
+
+or generic validation error.
+
+This should never happen.
+
+---
+
+### Goal
+
+Every validation error must clearly tell the frontend:
+
+* which field failed
+* why it failed
+* how to fix it
+
+Example:
+
+Instead of:
+
+```json
+{
+  "success": false,
+  "message": "Required"
+}
+```
+
+Return:
+
+```json
+{
+  "success": false,
+  "message": "Group name is required. Please enter a group name."
+}
+```
+
+Another example:
+
+```json
+{
+  "success": false,
+  "message": "Category is invalid. Please select a valid category."
+}
+```
+
+---
+
+### Inspect
+
+Find:
+
+* CreateGroupInput
+* Zod schema
+* route validation
+* validation middleware
+* error formatter
+
+Do NOT expose raw Zod errors.
+
+---
+
+### Implement
+
+Create a reusable validation formatter.
+
+Convert Zod issues into human-readable messages.
+
+Examples:
+
+name
+
+↓
+
+"Group name is required."
+
+description
+
+↓
+
+"Group description is required."
+
+category
+
+↓
+
+"Please select a valid category."
+
+imageUrl
+
+↓
+
+"Image URL must be a valid URL."
+
+---
+
+### API behavior
+
+POST /groups
+
+should return:
+
+400
+
+```json
+{
+  "success": false,
+  "message": "<clear validation message>"
+}
+```
+
+Never:
+
+* Required
+* Invalid input
+* Unknown error
+* Raw Zod array
+
+---
+
+### Postman testing
+
+Test:
+
+1.
+
+```json
+{}
+```
+
+2.
+
+Missing name
+
+3.
+
+Invalid category
+
+4.
+
+Invalid image URL
+
+5.
+
+Valid payload
+
+Ensure every response contains a descriptive message.
+
+---
+
+### Swagger
+
+Update examples if required.
+
+---
+
+### Build
+
+Run:
+
+pnpm --filter @workspace/api-server build
+
+Stop after this task.
+
+Do NOT start:
+
+* Email origin
+* Google login
+* Password reset
+* Group feed
+* Anything else

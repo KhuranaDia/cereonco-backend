@@ -40,22 +40,9 @@ export const groupMembersTable = pgTable(
   (t) => [unique().on(t.groupId, t.userId)],
 );
 
-export const groupPostsTable = pgTable("group_posts", {
-  id: serial("id").primaryKey(),
-  groupId: integer("group_id")
-    .notNull()
-    .references(() => groupsTable.id, { onDelete: "cascade" }),
-  userId: integer("user_id")
-    .notNull()
-    .references(() => usersTable.id, { onDelete: "cascade" }),
-  content: text("content").notNull(),
-  imageUrl: text("image_url"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow()
-    .$onUpdate(() => new Date()),
-});
+// NOTE: group posts are NOT a separate table. They are rows in the shared
+// `posts` table with a non-null `groupId`. The old `group_posts` table has
+// been removed — everything uses `postsTable`.
 
 export const insertGroupSchema = createInsertSchema(groupsTable).omit({
   id: true,
@@ -66,4 +53,3 @@ export const insertGroupSchema = createInsertSchema(groupsTable).omit({
 export type InsertGroup = z.infer<typeof insertGroupSchema>;
 export type Group = typeof groupsTable.$inferSelect;
 export type GroupMember = typeof groupMembersTable.$inferSelect;
-export type GroupPost = typeof groupPostsTable.$inferSelect;

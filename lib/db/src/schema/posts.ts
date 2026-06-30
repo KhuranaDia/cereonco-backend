@@ -20,8 +20,10 @@ export const postsTable = pgTable("posts", {
 
   // Nullable: regular posts have groupId = null; group posts carry the group id.
   // Unified storage — group-scoped posts live in the same posts table.
+  // ON DELETE SET NULL: deleting a group detaches its posts (they remain as
+  // normal posts) rather than cascade-deleting them.
   groupId: integer("group_id").references(() => groupsTable.id, {
-    onDelete: "cascade",
+    onDelete: "set null",
   }),
 
   content: text("content").notNull(),

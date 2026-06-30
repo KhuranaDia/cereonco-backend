@@ -118,7 +118,7 @@ The **CereOnco Community** backend is a modular REST API powering a support plat
 
 > **Note:** Primary keys in this project are **serial integers**, not UUIDs. Foreign keys are integers accordingly.
 
-- **`posts.group_id`** — nullable `integer`, FK → `groups.id` `ON DELETE CASCADE`. `NULL` = main-feed post; non-null = group post.
+- **`posts.group_id`** — nullable `integer`, FK → `groups.id` **`ON DELETE SET NULL`**. `NULL` = main-feed post; non-null = group post. Deleting a group detaches its posts (they remain as normal posts) instead of cascade-deleting them.
 - **`posts.feeling`** — nullable `text` (reused by group posts).
 - **`posts.media_urls`** — `jsonb` array of strings, default `[]` (reused by group posts).
 - **`users.google_sub`** — nullable, **unique** `text` (the Google subject id).
@@ -132,7 +132,9 @@ The **CereOnco Community** backend is a modular REST API powering a support plat
   - `groups.creator_user_id` → `users.id` (group owner/admin)
   - `group_members(group_id, user_id)` — unique membership pair with a `role` column
 
-**Migration file:** `lib/db/drizzle/phase_google_group_email_fixes.sql` — idempotent (`IF NOT EXISTS` / guarded `DO` blocks), adds `users.google_sub` + unique constraint, ensures `posts.group_id` / `feeling` / `media_urls`, and backfills any legacy `group_posts` rows into `posts` without dropping the old table.
+**Migration files (idempotent, Render-compatible):**
+- `lib/db/drizzle/phase_google_group_email_fixes.sql` — adds `users.google_sub` + unique constraint, ensures `posts.group_id` / `feeling` / `media_urls`, and backfills legacy `group_posts` rows into `posts`.
+- `lib/db/drizzle/phase_group_posts_unify.sql` — re-points the `posts.group_id` FK to **`ON DELETE SET NULL`**, performs a final safety backfill, and **drops the now-unused `group_posts` table**. Group posts are exclusively `posts` rows from here on.
 
 ---
 
