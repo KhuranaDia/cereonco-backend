@@ -1211,6 +1211,143 @@
      ]
     },
     {
+     "name": "CREATE GROUP \u2014 400 empty body",
+     "request": {
+      "method": "POST",
+      "url": "{{base_url}}/groups",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{}"
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 400', () => pm.response.to.have.status(400));",
+         "const b = pm.response.json();",
+         "pm.test('success false', () => pm.expect(b.success).to.eql(false));",
+         "pm.test('descriptive message', () => pm.expect(b.message).to.eql('Group name is required. Please enter a group name.'));",
+         "pm.test('not a raw Zod message', () => pm.expect(b.message).to.not.match(/^Required$|^Invalid input$/));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "CREATE GROUP \u2014 400 missing name",
+     "request": {
+      "method": "POST",
+      "url": "{{base_url}}/groups",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"description\": \"No name provided\",\n  \"category\": \"general\"\n}"
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 400', () => pm.response.to.have.status(400));",
+         "const b = pm.response.json();",
+         "pm.test('success false', () => pm.expect(b.success).to.eql(false));",
+         "pm.test('name message', () => pm.expect(b.message).to.eql('Group name is required. Please enter a group name.'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "CREATE GROUP \u2014 400 invalid category",
+     "request": {
+      "method": "POST",
+      "url": "{{base_url}}/groups",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"name\": \"Valid name\",\n  \"description\": \"Valid description\",\n  \"category\": \"\"\n}"
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 400', () => pm.response.to.have.status(400));",
+         "const b = pm.response.json();",
+         "pm.test('success false', () => pm.expect(b.success).to.eql(false));",
+         "pm.test('category message', () => pm.expect(b.message).to.eql('Category is invalid. Please select a valid category.'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "name": "CREATE GROUP \u2014 400 invalid imageUrl",
+     "request": {
+      "method": "POST",
+      "url": "{{base_url}}/groups",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"name\": \"Valid name\",\n  \"description\": \"Valid description\",\n  \"category\": \"general\",\n  \"imageUrl\": \"not-a-url\"\n}"
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 400', () => pm.response.to.have.status(400));",
+         "const b = pm.response.json();",
+         "pm.test('success false', () => pm.expect(b.success).to.eql(false));",
+         "pm.test('imageUrl message', () => pm.expect(b.message).to.eql('Image URL must be a valid URL, e.g. https://example.com/image.png.'));"
+        ]
+       }
+      }
+     ]
+    },
+    {
      "name": "LIST GROUPS \u2014 401 no token",
      "request": {
       "method": "GET",

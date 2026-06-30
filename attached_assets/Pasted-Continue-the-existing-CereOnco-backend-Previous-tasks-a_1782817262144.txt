@@ -1,0 +1,198 @@
+Continue the existing CereOnco backend.
+
+Previous tasks are complete.
+
+Do NOT work on any other pending items.
+
+## Task 3: Dynamic Frontend URL for Email Links
+
+Current issue:
+
+The backend uses a static FRONTEND_URL while generating:
+
+* Password reset links
+* Password setup links
+* Any future email action links
+
+Requirement from frontend:
+
+If the request comes from:
+
+http://localhost:5173
+
+then generate links using:
+
+http://localhost:5173
+
+Otherwise use the TEST frontend URL (via environment variable).
+
+---
+
+### Preferred Logic
+
+Determine frontend URL in this order:
+
+1.
+
+Use incoming request Origin header if present.
+
+Example:
+
+Origin:
+
+http://localhost:5173
+
+↓
+
+Email link:
+
+http://localhost:5173/set-password?token=...
+
+---
+
+2.
+
+If Origin header is missing,
+
+use
+
+process.env.FRONTEND_URL
+
+---
+
+3.
+
+If FRONTEND_URL is missing,
+
+use
+
+process.env.TEST_FRONTEND_URL
+
+---
+
+4.
+
+If both are missing,
+
+fallback to
+
+http://localhost:5173
+
+---
+
+### Implementation
+
+Find every place where email links are generated.
+
+This includes:
+
+* forgot password
+* setup password
+* invitation emails
+* future auth emails if applicable
+
+Create a reusable helper:
+
+getFrontendBaseUrl(req)
+
+which returns the correct frontend URL.
+
+Do NOT duplicate logic.
+
+---
+
+### Security
+
+Do NOT trust any value from request body.
+
+Only use:
+
+req.headers.origin
+
+Ignore any body parameter attempting to override the frontend URL.
+
+---
+
+### Email Examples
+
+Forgot Password:
+
+Origin:
+
+http://localhost:5173
+
+↓
+
+Generated email:
+
+http://localhost:5173/reset-password?token=...
+
+---
+
+Production:
+
+Origin absent
+
+↓
+
+Use:
+
+TEST_FRONTEND_URL
+
+---
+
+### Environment
+
+Support:
+
+FRONTEND_URL
+
+TEST_FRONTEND_URL
+
+Document both.
+
+---
+
+### Postman Testing
+
+Test:
+
+Request with:
+
+Origin:
+
+http://localhost:5173
+
+↓
+
+Verify generated email uses localhost.
+
+---
+
+Request without Origin
+
+↓
+
+Verify generated email uses TEST_FRONTEND_URL.
+
+---
+
+### Swagger
+
+Update documentation if required.
+
+---
+
+### Build
+
+Run:
+
+pnpm --filter @workspace/api-server build
+
+Stop after this task.
+
+Do NOT work on:
+
+* Google Login
+* Password reset token fix
+* Any other pending feature

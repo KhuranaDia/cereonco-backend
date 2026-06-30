@@ -27,6 +27,8 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import { success, error } from "../utils/response";
+import { formatZodError } from "../utils/validation";
+import { z } from "zod/v4";
 
 const router: IRouter = Router();
 
@@ -203,74 +205,60 @@ async function buildGroupPosts(
   }));
 }
 
-/**
- * Build descriptive, user-facing validation messages for Create Group instead
- * of raw Zod text like "Required". Returns an empty array when valid.
- */
-function validateCreateGroup(body: unknown): {
-  errors: string[];
-  data?: {
-    name: string;
-    description: string;
-    tagline: string | null;
-    category: string;
-    imageUrl: string | null;
-  };
-} {
-  const errors: string[] = [];
-  const b = (body ?? {}) as Record<string, unknown>;
-
-  const asTrimmed = (v: unknown): string =>
-    typeof v === "string" ? v.trim() : "";
-
-  const name = asTrimmed(b.name);
-  const description = asTrimmed(b.description);
-  const category = asTrimmed(b.category);
-
-  if (!name) errors.push("name is required. Please enter a group name.");
-  if (!description)
-    errors.push(
-      "description is required. Please describe what the group is about.",
-    );
-  if (!category)
-    errors.push(
-      "category is required. Please choose or enter a category for the group.",
-    );
-
-  let tagline: string | null = null;
-  if (b.tagline !== undefined && b.tagline !== null) {
-    if (typeof b.tagline !== "string") {
-      errors.push("tagline must be text.");
-    } else {
-      tagline = b.tagline.trim() || null;
-    }
+/** True only for well-formed http(s) URLs. */
+function isHttpUrl(value: string): boolean {
+  try {
+    const u = new URL(value);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
   }
-
-  let imageUrl: string | null = null;
-  if (b.imageUrl !== undefined && b.imageUrl !== null && b.imageUrl !== "") {
-    if (typeof b.imageUrl !== "string") {
-      errors.push("imageUrl must be a valid URL string.");
-    } else {
-      try {
-        const u = new URL(b.imageUrl.trim());
-        if (u.protocol !== "http:" && u.protocol !== "https:") {
-          errors.push(
-            "imageUrl must be a valid http(s) URL, e.g. https://example.com/image.png.",
-          );
-        } else {
-          imageUrl = b.imageUrl.trim();
-        }
-      } catch {
-        errors.push(
-          "imageUrl must be a valid URL, e.g. https://example.com/image.png.",
-        );
-      }
-    }
-  }
-
-  if (errors.length > 0) return { errors };
-  return { errors, data: { name, description, tagline, category, imageUrl } };
 }
+
+/**
+ * Zod schema for Create Group. Inputs are trimmed; optional string fields treat
+ * empty/whitespace as "not provided". `imageUrl`, when present, must be a valid
+ * http(s) URL. Raw Zod messages here are never sent to the client — they are
+ * mapped to friendly text by `CREATE_GROUP_FIELD_MESSAGES` via `formatZodError`.
+ */
+const createGroupSchema = z.object({
+  name: z.string().trim().min(1),
+  description: z.string().trim().min(1),
+  category: z.string().trim().min(1),
+  tagline: z
+    .string()
+    .trim()
+    .nullish()
+    .transform((v) => (v ? v : null)),
+  imageUrl: z
+    .string()
+    .trim()
+    .nullish()
+    .transform((v) => (v ? v : null))
+    .refine((v) => v === null || isHttpUrl(v), { message: "invalid_url" }),
+});
+
+/**
+ * Friendly, actionable message per field for Create Group. Keyed by field path
+ * so the reusable `formatZodError` can surface exactly one clear message and
+ * never the raw Zod array, "Required", or "Invalid input".
+ */
+const CREATE_GROUP_FIELD_MESSAGES = {
+  name: "Group name is required. Please enter a group name.",
+  description: "Group description is required. Please enter a group description.",
+  category: "Category is invalid. Please select a valid category.",
+  imageUrl:
+    "Image URL must be a valid URL, e.g. https://example.com/image.png.",
+  tagline: "Tagline must be text.",
+} as const;
+
+const CREATE_GROUP_FIELD_ORDER = [
+  "name",
+  "description",
+  "category",
+  "imageUrl",
+  "tagline",
+];
 
 // GET /groups
 router.get("/groups", requireAuth, async (req, res): Promise<void> => {
@@ -314,13 +302,22 @@ router.get("/groups", requireAuth, async (req, res): Promise<void> => {
 
 // POST /groups
 router.post("/groups", requireAuth, async (req, res): Promise<void> => {
-  // Use a descriptive validator (not raw Zod "Required" messages) so the client
-  // gets actionable, field-level guidance.
-  const { errors, data } = validateCreateGroup(req.body);
-  if (!data) {
-    error(res, errors.join(" "), 400);
+  // Parse with the Zod schema, then convert any issues into a single friendly,
+  // field-level message via the reusable formatter — never a raw Zod array or
+  // "Required"/"Invalid input".
+  const parsed = createGroupSchema.safeParse(req.body);
+  if (!parsed.success) {
+    error(
+      res,
+      formatZodError(parsed.error, {
+        fields: CREATE_GROUP_FIELD_MESSAGES,
+        order: CREATE_GROUP_FIELD_ORDER,
+      }),
+      400,
+    );
     return;
   }
+  const data = parsed.data;
 
   const [created] = await db
     .insert(groupsTable)

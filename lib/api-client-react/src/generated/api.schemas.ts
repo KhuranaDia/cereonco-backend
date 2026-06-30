@@ -627,6 +627,11 @@ limit?: number;
 offset?: number;
 };
 
+export type CreateGroup400 = {
+  success: boolean;
+  message: string;
+};
+
 export type GetGroupFeedParams = {
 limit?: number;
 offset?: number;

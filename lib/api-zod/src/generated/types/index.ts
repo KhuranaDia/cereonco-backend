@@ -18,6 +18,7 @@ export * from './conversation';
 export * from './conversationListResponse';
 export * from './conversationParticipant';
 export * from './createConversationInput';
+export * from './createGroup400';
 export * from './createGroupInput';
 export * from './deleteResponse';
 export * from './entityType';

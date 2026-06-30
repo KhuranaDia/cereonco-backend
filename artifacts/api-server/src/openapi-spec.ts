@@ -2930,6 +2930,41 @@ export const openApiSpec = {
               }
             }
           },
+          "400": {
+            "description": "Validation failed. `message` is a single, human-readable, field-level explanation (never a raw Zod array or \"Required\").",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "message": { "type": "string" }
+                  },
+                  "required": ["success", "message"]
+                },
+                "examples": {
+                  "missingName": {
+                    "value": {
+                      "success": false,
+                      "message": "Group name is required. Please enter a group name."
+                    }
+                  },
+                  "invalidCategory": {
+                    "value": {
+                      "success": false,
+                      "message": "Category is invalid. Please select a valid category."
+                    }
+                  },
+                  "invalidImageUrl": {
+                    "value": {
+                      "success": false,
+                      "message": "Image URL must be a valid URL, e.g. https://example.com/image.png."
+                    }
+                  }
+                }
+              }
+            }
+          },
           "401": {
             "description": "Unauthorized"
           }

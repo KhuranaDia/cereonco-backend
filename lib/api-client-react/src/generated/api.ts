@@ -29,6 +29,7 @@ import type {
   Conversation,
   ConversationListResponse,
   CreateConversationInput,
+  CreateGroup400,
   CreateGroupInput,
   DeleteResponse,
   Event,
@@ -2128,7 +2129,7 @@ export const createGroup = async (createGroupInput: CreateGroupInput, options?: 
 
 
 
-export const getCreateGroupMutationOptions = <TError = ErrorType<void>,
+export const getCreateGroupMutationOptions = <TError = ErrorType<CreateGroup400 | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGroup>>, TError,{data: BodyType<CreateGroupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createGroup>>, TError,{data: BodyType<CreateGroupInput>}, TContext> => {
 
@@ -2157,12 +2158,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CreateGroupMutationResult = NonNullable<Awaited<ReturnType<typeof createGroup>>>
     export type CreateGroupMutationBody = BodyType<CreateGroupInput>
-    export type CreateGroupMutationError = ErrorType<void>
+    export type CreateGroupMutationError = ErrorType<CreateGroup400 | void>
 
     /**
  * @summary Create a community group
  */
-export const useCreateGroup = <TError = ErrorType<void>,
+export const useCreateGroup = <TError = ErrorType<CreateGroup400 | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGroup>>, TError,{data: BodyType<CreateGroupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createGroup>>,
