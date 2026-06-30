@@ -1,1 +1,9 @@
+- [Dual OpenAPI specs](dual-openapi-spec.md) — two OpenAPI documents exist (lib/api-spec/openapi.yaml + api-server openapi-spec.ts); update BOTH on any contract change.
+- [openapi-spec.ts sync](openapi-spec-sync.md) — how to keep the server Swagger source in sync with openapi.yaml after edits.
+- [api-zod codegen overwrites barrel](codegen-barrel-overwrite.md) — orval rewrites lib/api-zod/src/index.ts re-adding types export; reset barrel to export only generated/api.
+- [api-zod TS2308 collision](api-zod-collision.md) — operations with both path AND query params generate duplicate XxxParams; don't re-export generated/types.
+- [drizzle push phone drift](db-push-phone-drift.md) — `db run push` can't complete in dev DB (phone_number drift); add new tables via direct DDL.
+- [Posts feeling & mediaUrls storage](posts-mediaurls-storage.md) — media_urls is jsonb (not text[]); how responses normalize it.
+- [Socket.IO real-time layer](socketio-realtime.md) — real-time messaging shares the Express HTTP server (path /api/socket.io); stays consistent with REST.
 - [/auth/google frontend-trusted](auth-google-frontend-trusted.md) — Google login trusts raw client profile by design; account-takeover risk is known/documented, harden only on request.
+- [Email link host allowlist](email-link-host-allowlist.md) — email link host comes from getFrontendBaseUrl with an Origin allowlist (not raw Origin) to block reset-token poisoning.

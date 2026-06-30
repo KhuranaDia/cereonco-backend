@@ -228,7 +228,7 @@
      ]
     },
     {
-     "name": "Forgot Password",
+     "name": "Forgot Password (Origin present \u2192 link host = Origin)",
      "request": {
       "method": "POST",
       "url": "{{base_url}}/auth/forgot-password",
@@ -236,6 +236,11 @@
        {
         "key": "Content-Type",
         "value": "application/json"
+       },
+       {
+        "key": "Origin",
+        "value": "http://localhost:5173",
+        "description": "When present, the reset email link host = this Origin, e.g. http://localhost:5173/reset-password?token=... (server logs the link in non-production). Remove this header to test the FRONTEND_URL/TEST_FRONTEND_URL fallback."
        }
       ],
       "body": {
@@ -252,6 +257,10 @@
          "pm.test('success true', () => pm.expect(pm.response.json().success).to.be.true);",
          "const d = pm.response.json().data;",
          "// setupToken is only present in non-production (NODE_ENV !== 'production').",
+         "// The reset link host is derived from the Origin header (this request sends",
+         "// http://localhost:5173). Remove the Origin header to fall back to",
+         "// FRONTEND_URL, then TEST_FRONTEND_URL, then http://localhost:5173.",
+         "// The full link is logged by the server in non-production; verify it there.",
          "// In production, copy the reset token from the server logs / email link instead,",
          "// then complete it via 'Set Password (patient)'.",
          "if (d.setupToken) { pm.collectionVariables.set('setup_token', d.setupToken); }"

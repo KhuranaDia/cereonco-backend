@@ -1125,7 +1125,14 @@ paths:
             Always returns success when the request is well-formed, even if no
             account matches the email, to avoid leaking which emails are
             registered. A reset link is emailed (or logged) only when a user
-            exists.
+            exists. The link host is resolved dynamically: the request `Origin`
+            header is used first, but only when it matches an allowlisted origin
+            (`FRONTEND_URL` / `TEST_FRONTEND_URL` / `ALLOWED_FRONTEND_ORIGINS` /
+            the localhost dev default); otherwise it falls back to `FRONTEND_URL`,
+            then `TEST_FRONTEND_URL`, then `http://localhost:5173`. Reset links
+            point at `/reset-password?token=...`. Only the `Origin` header is ever
+            consulted from the request (never request-body values), and a
+            non-allowlisted Origin cannot override the link host.
         "400":
           description: Validation error
 

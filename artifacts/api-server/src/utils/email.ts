@@ -57,27 +57,79 @@ function sanitizeOrigin(candidate: string | undefined): string | null {
   }
 }
 
+const DEFAULT_FRONTEND_ORIGIN = "http://localhost:5173";
+
 /**
- * Resolve the frontend base URL used to build password setup/reset links.
+ * Build the set of frontend origins that are allowed to appear as the host of a
+ * token-bearing email link. Always includes FRONTEND_URL, TEST_FRONTEND_URL and
+ * the local dev default; ALLOWED_FRONTEND_ORIGINS (comma-separated) adds extra
+ * production origins. Each entry is normalized to its bare origin for matching.
+ */
+function allowedFrontendOrigins(): Set<string> {
+  const candidates = [
+    process.env.FRONTEND_URL,
+    process.env.TEST_FRONTEND_URL,
+    DEFAULT_FRONTEND_ORIGIN,
+    ...(process.env.ALLOWED_FRONTEND_ORIGINS?.split(",") ?? []),
+  ];
+  const allowed = new Set<string>();
+  for (const candidate of candidates) {
+    const origin = sanitizeOrigin(candidate?.trim());
+    if (origin) allowed.add(origin);
+  }
+  return allowed;
+}
+
+/**
+ * Reusable resolver for the frontend base URL used to build any email action
+ * link (password setup, password reset, future auth emails). Single source of
+ * truth — do not duplicate this logic elsewhere.
+ *
  * Preferred order:
- *   1. req.headers.origin   (the calling frontend, e.g. http://localhost:5173)
+ *   1. req.headers.origin   (only when it matches an allowed frontend origin)
  *   2. process.env.FRONTEND_URL
  *   3. process.env.TEST_FRONTEND_URL
  *   4. http://localhost:5173
- * Only the Origin header is trusted from the request — never request-body input.
+ *
+ * SECURITY: only the browser-set Origin header is ever consulted from the
+ * request — request-body input is never used. The Origin is additionally
+ * checked against an allowlist (FRONTEND_URL / TEST_FRONTEND_URL /
+ * ALLOWED_FRONTEND_ORIGINS / localhost dev default) before it is trusted as a
+ * link host. This blocks Origin-header poisoning: an attacker who POSTs
+ * /auth/forgot-password with a victim's email and a forged Origin must not be
+ * able to redirect the victim's reset-token link to an attacker-controlled
+ * domain. A non-allowed Origin falls back to the configured defaults.
  */
-function frontendBaseUrl(req?: Request): string {
-  const fromOrigin = sanitizeOrigin(req?.headers.origin);
+export function getFrontendBaseUrl(req?: Request): string {
+  const requestOrigin = sanitizeOrigin(req?.headers.origin);
+  const trustedOrigin =
+    requestOrigin && allowedFrontendOrigins().has(requestOrigin)
+      ? requestOrigin
+      : null;
   const base =
-    fromOrigin ??
+    trustedOrigin ??
     process.env.FRONTEND_URL ??
     process.env.TEST_FRONTEND_URL ??
-    "http://localhost:5173";
+    DEFAULT_FRONTEND_ORIGIN;
   return base.replace(/\/+$/, "");
 }
 
-export function buildPasswordSetupUrl(token: string, req?: Request): string {
-  return `${frontendBaseUrl(req)}/set-password?token=${token}`;
+/** Frontend page that handles each password email action. */
+function passwordActionPath(kind: "setup" | "reset"): string {
+  return kind === "setup" ? "/set-password" : "/reset-password";
+}
+
+/**
+ * Build the full, token-bearing password action link for the given email kind,
+ * resolving the host via {@link getFrontendBaseUrl}. Setup links point at
+ * `/set-password`; reset (forgot-password) links at `/reset-password`.
+ */
+export function buildPasswordActionUrl(
+  kind: "setup" | "reset",
+  token: string,
+  req?: Request,
+): string {
+  return `${getFrontendBaseUrl(req)}${passwordActionPath(kind)}?token=${token}`;
 }
 
 /**
@@ -223,15 +275,16 @@ function renderEmail(
 }
 
 /**
- * Shared delivery for the password setup/reset link. `kind` only affects the
- * email wording; both flows use the same `/set-password?token=...` link.
+ * Shared delivery for the password setup/reset link. `kind` affects both the
+ * email wording and the link path: setup → `/set-password?token=...`, reset →
+ * `/reset-password?token=...`. Both still complete via POST /auth/set-password.
  */
 async function deliverPasswordLink(
   kind: "setup" | "reset",
   opts: { req: Request; to: string; name: string; token: string },
 ): Promise<void> {
   const { req, to, name, token } = opts;
-  const setupUrl = buildPasswordSetupUrl(token, req);
+  const setupUrl = buildPasswordActionUrl(kind, token, req);
 
   if (smtpConfigured()) {
     const { subject, text, html } = renderEmail(kind, name, setupUrl);
@@ -285,8 +338,8 @@ async function deliverPasswordLink(
 }
 
 /**
- * Send a "forgot password" reset link. Reuses the same setup-token flow (and
- * the same `/set-password?token=...` link) as registration, so the recipient
+ * Send a "forgot password" reset link. Reuses the same setup-token flow as
+ * registration but links to `/reset-password?token=...`; the recipient still
  * completes it via the existing POST /auth/set-password endpoint.
  */
 export async function sendPasswordResetEmail(opts: {
