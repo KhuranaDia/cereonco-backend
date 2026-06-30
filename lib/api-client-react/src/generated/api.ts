@@ -2113,7 +2113,9 @@ export const getCreateGroupUrl = () => {
 }
 
 /**
- * @summary Create a community group
+ * Accepts application/json or multipart/form-data with an optional `image` file (jpg/jpeg/png/webp, max 20MB) plus the text fields name, description, category, and optional tagline. An uploaded image's stored URL is saved into the group's imageUrl and takes precedence over any imageUrl sent in the body.
+
+ * @summary Create a community group (JSON or multipart image upload)
  */
 export const createGroup = async (createGroupInput: CreateGroupInput, options?: RequestInit): Promise<Group> => {
 
@@ -2162,7 +2164,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateGroupMutationError = ErrorType<CreateGroup400 | void>
 
     /**
- * @summary Create a community group
+ * @summary Create a community group (JSON or multipart image upload)
  */
 export const useCreateGroup = <TError = ErrorType<CreateGroup400 | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGroup>>, TError,{data: BodyType<CreateGroupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}

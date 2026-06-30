@@ -94,12 +94,33 @@ const postMediaUpload = multer({
   fileFilter: makeFileFilter({ images: true, videos: true }),
 });
 
+const groupImageUpload = multer({
+  storage: buildStorage("groups"),
+  limits: { fileSize: 20 * MB, files: 1 },
+  fileFilter: makeFileFilter({ images: true, videos: false }),
+});
+
 /**
  * Wraps a multer middleware so upload errors return the standard JSON envelope
  * instead of Express's default HTML error page. Multipart bodies that aren't
  * multipart (e.g. application/json) pass straight through untouched.
  */
-function wrap(mw: RequestHandler, kind: "avatar" | "post media"): RequestHandler {
+const UNEXPECTED_FILE_MESSAGE: Record<
+  "avatar" | "post media" | "group image",
+  string
+> = {
+  avatar:
+    "Unsupported profile image upload. Allowed fields: image, avatar. Allowed types: jpg, jpeg, png, webp",
+  "post media":
+    "Unsupported post media upload. Allowed field: media. Allowed types: jpg, jpeg, png, webp, mp4, mov, webm",
+  "group image":
+    "Unsupported group image upload. Allowed field: image. Allowed types: jpg, jpeg, png, webp",
+};
+
+function wrap(
+  mw: RequestHandler,
+  kind: "avatar" | "post media" | "group image",
+): RequestHandler {
   return (req, res, next) => {
     mw(req, res, (err: unknown) => {
       if (!err) {
@@ -112,13 +133,7 @@ function wrap(mw: RequestHandler, kind: "avatar" | "post media"): RequestHandler
           return;
         }
         if (err.code === "LIMIT_UNEXPECTED_FILE") {
-          error(
-            res,
-            kind === "avatar"
-              ? "Unsupported profile image upload. Allowed fields: image, avatar. Allowed types: jpg, jpeg, png, webp"
-              : "Unsupported post media upload. Allowed field: media. Allowed types: jpg, jpeg, png, webp, mp4, mov, webm",
-            400,
-          );
+          error(res, UNEXPECTED_FILE_MESSAGE[kind], 400);
           return;
         }
         error(res, `Upload error: ${err.message}`, 400);
@@ -157,4 +172,10 @@ export function pickProfileImage(req: Request): Express.Multer.File | undefined 
 export const uploadPostMedia: RequestHandler = wrap(
   postMediaUpload.array("media", 10),
   "post media",
+);
+
+/** POST /groups — single optional `image` file. */
+export const uploadGroupImage: RequestHandler = wrap(
+  groupImageUpload.single("image"),
+  "group image",
 );

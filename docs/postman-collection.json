@@ -1446,6 +1446,67 @@
      ]
     },
     {
+     "name": "POST CREATE GROUP (multipart + image upload)",
+     "request": {
+      "method": "POST",
+      "url": "{{base_url}}/groups",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ],
+      "body": {
+       "mode": "formdata",
+       "formdata": [
+        {
+         "key": "name",
+         "value": "Form-data Support Group",
+         "type": "text"
+        },
+        {
+         "key": "description",
+         "value": "Created via Postman multipart/form-data",
+         "type": "text"
+        },
+        {
+         "key": "category",
+         "value": "general",
+         "type": "text"
+        },
+        {
+         "key": "tagline",
+         "value": "Stronger together",
+         "type": "text"
+        },
+        {
+         "key": "image",
+         "type": "file",
+         "src": [],
+         "description": "Optional image file (jpg/jpeg/png/webp, max 20MB). Pick a file to upload; leave empty to create without an image."
+        }
+       ]
+      },
+      "description": "Create a group via multipart/form-data, mirroring POST /posts media uploads. Do NOT set a Content-Type header manually \u2014 Postman adds the multipart boundary automatically. The uploaded image is stored and its URL saved to imageUrl. JSON requests (see the previous request) still work unchanged."
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 201', () => pm.response.to.have.status(201));",
+         "const d = pm.response.json().data;",
+         "pm.test('creator auto-joined as admin', () => pm.expect(d.isAdmin).to.eql(true));",
+         "pm.test('creatorUserId set', () => pm.expect(d.creatorUserId).to.be.a('number'));",
+         "pm.test('memberCount 1', () => pm.expect(d.memberCount).to.eql(1));",
+         "// When an image file is attached, imageUrl is the stored upload path.",
+         "if (d.imageUrl) { pm.test('imageUrl is stored upload path', () => pm.expect(d.imageUrl).to.include('/uploads/groups/')); }"
+        ]
+       }
+      }
+     ]
+    },
+    {
      "name": "CREATE GROUP \u2014 400 empty body",
      "request": {
       "method": "POST",

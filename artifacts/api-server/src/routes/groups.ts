@@ -26,6 +26,7 @@ import {
   DeleteGroupPostParams,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
+import { uploadGroupImage, publicUrl } from "../middlewares/upload";
 import { success, error } from "../utils/response";
 import { formatZodError } from "../utils/validation";
 import { z } from "zod/v4";
@@ -301,7 +302,14 @@ router.get("/groups", requireAuth, async (req, res): Promise<void> => {
 });
 
 // POST /groups
-router.post("/groups", requireAuth, async (req, res): Promise<void> => {
+// Accepts application/json (no file) OR multipart/form-data with an optional
+// `image` file — mirrors POST /posts. The upload middleware passes JSON bodies
+// straight through, so backward compatibility is preserved.
+router.post(
+  "/groups",
+  requireAuth,
+  uploadGroupImage,
+  async (req, res): Promise<void> => {
   // Parse with the Zod schema, then convert any issues into a single friendly,
   // field-level message via the reusable formatter — never a raw Zod array or
   // "Required"/"Invalid input".
@@ -319,6 +327,11 @@ router.post("/groups", requireAuth, async (req, res): Promise<void> => {
   }
   const data = parsed.data;
 
+  // An uploaded image file (multipart) takes precedence over any imageUrl sent
+  // in the body. JSON requests without a file keep using data.imageUrl.
+  const file = req.file as Express.Multer.File | undefined;
+  const imageUrl = file ? publicUrl("groups", file.filename) : data.imageUrl;
+
   const [created] = await db
     .insert(groupsTable)
     .values({
@@ -326,7 +339,7 @@ router.post("/groups", requireAuth, async (req, res): Promise<void> => {
       description: data.description,
       tagline: data.tagline,
       category: data.category,
-      imageUrl: data.imageUrl,
+      imageUrl,
       creatorUserId: req.userId!,
     })
     .returning();
@@ -338,7 +351,8 @@ router.post("/groups", requireAuth, async (req, res): Promise<void> => {
     .onConflictDoNothing();
 
   success(res, "Group created", buildGroupResponse(created, 1, true, true), 201);
-});
+  },
+);
 
 // GET /groups/:id
 router.get("/groups/:id", requireAuth, async (req, res): Promise<void> => {

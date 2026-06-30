@@ -47,3 +47,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Runtime upload artifacts (ephemeral local disk storage)
+artifacts/api-server/uploads/
