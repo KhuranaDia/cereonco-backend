@@ -1,0 +1,135 @@
+Create a single structured documentation file for the CereOnco backend project.
+
+This document should act as a handover + status report so that any developer (or AI like Claude) can understand the full backend state and continue work without context loss.
+
+Do NOT change code. Only analyze the repository and generate documentation.
+
+📄 Output Required
+
+Create a file:
+
+BACKEND_STATUS_REPORT.md
+
+📌 Content Structure (must follow exactly)
+1. Project Overview
+What the backend is for (CereOnco community platform)
+Tech stack used:
+Node.js, Express, TypeScript, PostgreSQL, Drizzle ORM, JWT, bcrypt, Swagger/OpenAPI
+2. Architecture Summary
+
+Explain briefly:
+
+Auth system
+Posts system
+Groups system
+Email system
+Password reset system
+Google login system
+3. Features Completed
+
+List all completed features with short explanation:
+
+Authentication (JWT login/register)
+Google OAuth login (frontend-trusted flow)
+Posts system (unified table with groupId handling)
+Group creation + group feeds
+Password reset flow (email + token-based)
+Email service with dynamic frontend URL resolution
+OpenAPI + Postman integration
+Database migrations applied
+4. Current Implementation Details
+
+Explain clearly:
+
+Posts System
+Single posts table used
+groupId nullable
+Main feed = groupId IS NULL
+Group feed = groupId = :groupId
+Groups
+No separate group posts table
+Validation improved with field-level errors
+Auth
+JWT-based auth
+Google login creates or reuses users
+password reset + set-password flow
+Email
+Frontend URL derived from:
+request origin
+env FRONTEND_URL
+TEST_FRONTEND_URL
+fallback localhost
+5. APIs Implemented
+
+List all major endpoints:
+
+Auth:
+
+POST /auth/login
+POST /auth/register
+POST /auth/google
+POST /auth/forgot-password
+POST /auth/set-password
+
+Posts:
+
+GET /api/posts
+POST /api/posts
+
+Groups:
+
+POST /api/groups
+GET /api/groups/:groupId/posts
+6. Database Schema Changes
+
+Document:
+
+posts.groupId (nullable UUID)
+users.googleSub (nullable unique text)
+any password reset token fields
+relationships between posts, users, groups
+7. Known Issues / Edge Cases
+
+Mention:
+
+Google login is frontend-trusted (no ID token verification yet)
+Token-based reset password edge cases handled but need testing verification
+Minor validation edge cases may still appear under load
+8. Pending Work
+
+Only list real remaining tasks:
+
+Final end-to-end API testing via Postman
+Optional security upgrade: Google ID token verification (not blocking)
+Final validation cleanup if edge cases appear
+9. Testing Status
+
+Mention:
+
+Postman collection updated
+OpenAPI synced
+Core flows tested:
+auth flow
+group posts
+password reset
+google login
+10. Deployment Readiness
+Build passing
+Typecheck passing
+Migration applied
+APIs stable
+11. Handover Note
+
+Write a clear section:
+
+“This backend is in a production-stabilization stage. All core modules are implemented. Remaining work is limited to testing, edge cases, and optional security hardening.”
+
+⚠️ Important Rules
+Do NOT modify code
+Only analyze and document
+Keep explanation clean and structured
+Make it readable for another developer or AI continuation
+Avoid unnecessary fluff
+OUTPUT FORMAT
+
+Only output the markdown file content.
