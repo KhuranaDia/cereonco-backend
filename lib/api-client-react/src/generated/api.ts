@@ -47,7 +47,6 @@ import type {
   GroupPost,
   GroupPostInput,
   GroupPostUpdate,
-  GroupsListResponse,
   HealthStatus,
   LikeToggle,
   ListEventsParams,
@@ -2037,9 +2036,9 @@ export const getListGroupsUrl = (params?: ListGroupsParams,) => {
  * Returns only groups where the authenticated user is the creator/admin OR a member. Each item includes creatorUserId, isAdmin, isMember and memberCount (count of all members). Unrelated groups are not returned.
  * @summary List the current user's groups
  */
-export const listGroups = async (params?: ListGroupsParams, options?: RequestInit): Promise<GroupsListResponse> => {
+export const listGroups = async (params?: ListGroupsParams, options?: RequestInit): Promise<Group[]> => {
 
-  return customFetch<GroupsListResponse>(getListGroupsUrl(params),
+  return customFetch<Group[]>(getListGroupsUrl(params),
   {
     ...options,
     method: 'GET'

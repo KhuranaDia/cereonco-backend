@@ -1397,10 +1397,9 @@
         "exec": [
          "pm.test('Status 200', () => pm.response.to.have.status(200));",
          "const d = pm.response.json().data;",
-         "pm.test('Has groups array', () => pm.expect(d.groups).to.be.an('array'));",
-         "pm.test('Has total', () => pm.expect(d.total).to.be.a('number'));",
-         "if (d.groups.length > 0) {",
-         "  const g = d.groups[0];",
+         "pm.test('Data is array', () => pm.expect(d).to.be.an('array'));",
+         "if (d.length > 0) {",
+         "  const g = d[0];",
          "  pm.test('Has memberCount', () => pm.expect(g).to.have.property('memberCount'));",
          "  pm.test('Has isMember', () => pm.expect(g).to.have.property('isMember'));",
          "  pm.test('Has isAdmin', () => pm.expect(g).to.have.property('isAdmin'));",

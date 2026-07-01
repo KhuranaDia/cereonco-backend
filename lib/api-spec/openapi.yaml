@@ -618,17 +618,6 @@ components:
           type: string
           format: date-time
 
-    GroupsListResponse:
-      type: object
-      required: [groups, total]
-      properties:
-        groups:
-          type: array
-          items:
-            $ref: "#/components/schemas/Group"
-        total:
-          type: integer
-
     CreateGroupInput:
       type: object
       required: [name, description, category]
@@ -1735,7 +1724,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GroupsListResponse"
+                type: array
+                items:
+                  $ref: "#/components/schemas/Group"
         "401":
           description: Unauthorized
     post:

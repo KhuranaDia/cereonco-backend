@@ -657,8 +657,7 @@ export const ListGroupsQueryParams = zod.object({
   "offset": zod.coerce.number().default(listGroupsQueryOffsetDefault)
 })
 
-export const ListGroupsResponse = zod.object({
-  "groups": zod.array(zod.object({
+export const ListGroupsResponseItem = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "description": zod.string(),
@@ -671,9 +670,8 @@ export const ListGroupsResponse = zod.object({
   "isAdmin": zod.boolean().describe('True when the current authenticated user is the group\'s creator\/admin.'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
-})),
-  "total": zod.number()
 })
+export const ListGroupsResponse = zod.array(ListGroupsResponseItem)
 
 
 /**

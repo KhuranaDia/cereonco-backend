@@ -298,7 +298,7 @@ router.get("/groups", requireAuth, async (req, res): Promise<void> => {
     buildGroupResponse(r, r.memberCount, r.isMember, r.creatorUserId === userId),
   );
 
-  success(res, "Groups retrieved", { groups, total: groups.length });
+  success(res, "Groups retrieved", groups);
 });
 
 // POST /groups

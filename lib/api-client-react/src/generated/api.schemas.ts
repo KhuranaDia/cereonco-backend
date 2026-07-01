@@ -342,11 +342,6 @@ export interface Group {
   updatedAt: string;
 }
 
-export interface GroupsListResponse {
-  groups: Group[];
-  total: number;
-}
-
 export interface CreateGroupInput {
   /** @minLength 1 */
   name: string;

@@ -1032,24 +1032,6 @@ export const openApiSpec = {
           }
         }
       },
-      "GroupsListResponse": {
-        "type": "object",
-        "required": [
-          "groups",
-          "total"
-        ],
-        "properties": {
-          "groups": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Group"
-            }
-          },
-          "total": {
-            "type": "integer"
-          }
-        }
-      },
       "CreateGroupInput": {
         "type": "object",
         "required": [
@@ -2847,7 +2829,10 @@ export const openApiSpec = {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GroupsListResponse"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Group"
+                  }
                 }
               }
             }

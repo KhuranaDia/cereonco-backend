@@ -38,7 +38,6 @@ export * from './group';
 export * from './groupPost';
 export * from './groupPostInput';
 export * from './groupPostUpdate';
-export * from './groupsListResponse';
 export * from './healthStatus';
 export * from './likeToggle';
 export * from './listEventsParams';
