@@ -7,12 +7,12 @@
  */
 
 /**
- * Auth0 access-token sign-in payload. The frontend authenticates the user with Auth0 (which can broker Google), obtains an Auth0 access token, and sends it as `accessToken`. The server verifies the token against the Auth0 `/userinfo` endpoint and trusts ONLY the profile Auth0 returns — never a raw client-supplied profile. Requires the `AUTH0_DOMAIN` env var.
+ * Auth0 sign-in payload. The frontend authenticates the user with Auth0 (which can broker Google), obtains an Auth0 access token, and sends it as `token`. The server verifies the token against the Auth0 `/userinfo` endpoint and trusts ONLY the profile Auth0 returns (`email`, `name`, `picture`, `sub`, `email_verified`) — never a raw client-supplied profile.
  */
 export interface GoogleAuthInput {
   /**
      * Auth0 access token obtained by the frontend after login.
      * @minLength 1
      */
-  accessToken: string;
+  token: string;
 }

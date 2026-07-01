@@ -106,15 +106,15 @@ Registration no longer collects a password. The flow is:
 
 ```json
 POST /api/auth/google
-{ "accessToken": "<auth0-access-token>" }
+{ "token": "<auth0-access-token>" }
 ```
 
-- **Auth0 access-token verified**: the frontend authenticates the user with Auth0 (which can broker Google), obtains an Auth0 **access token**, and sends it as `accessToken`. The server verifies it against the Auth0 `/userinfo` endpoint and trusts ONLY the profile Auth0 returns (`sub`, `email`, `name`, `picture`, …) — never a raw client-supplied profile.
-- **Configuration**: requires the `AUTH0_DOMAIN` env var (e.g. `your-tenant.auth0.com`). The access token is the client's bearer credential; the domain is non-secret config.
-- **Lookup order**: by `email` first (when present), then by `googleSub`. If neither matches, a new account is created (`role = patient`, `emailVerified = true`, `passwordHash` stays null). When the profile omits an email, a placeholder `${sanitizedSub}@google.local` is generated to satisfy the unique-email constraint.
-- **Existing users** get their `googleSub` and profile photo backfilled if missing.
-- **Returns** `{ token, user }` — `201` when a new account was created, `200` for an existing one.
-- **Errors**: missing `accessToken` → `400`; invalid/expired token → `401`; `AUTH0_DOMAIN` not configured → `503`.
+- **Auth0 access-token verified**: the frontend authenticates the user with Auth0 (which can broker Google), obtains an Auth0 **access token**, and sends it as `token`. The server verifies it against the Auth0 `/userinfo` endpoint (via axios) and trusts ONLY the profile Auth0 returns (`email`, `name`, `picture`, `sub`, `email_verified`) — never a raw client-supplied profile.
+- **Configuration**: the Auth0 tenant is set via the `AUTH0_DOMAIN` env var (e.g. `your-tenant.auth0.com`); when unset it defaults to the project's Auth0 tenant. The access token is the client's bearer credential; the domain is non-secret config.
+- **Email required**: the account is keyed on the verified email. Lookup is by `email`. If no user matches, a new account is created (`role = patient`, `emailVerified = true`, `passwordHash` stays null). If the verified profile has no email, the request is rejected with `400`.
+- **Existing users** get their `googleSub`, profile photo, and `emailVerified` backfilled if missing.
+- **Returns** `{ token, user }` with message `"Logged in successfully"` (`200`) — identical to normal login.
+- **Errors**: missing `token` → `400 "Auth0 token is required."`; no email on the verified profile → `400 "No email associated with this Google account."`; invalid/expired token → `401 "Invalid or expired Google token."`; Auth0 unreachable → `502 "Unable to verify Google account."`.
 
 #### Forgot password flow
 

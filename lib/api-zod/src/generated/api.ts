@@ -84,15 +84,15 @@ export const ForgotPasswordBody = zod.object({
 
 
 /**
- * Accepts an Auth0 `accessToken` from the frontend, verifies it against the Auth0 `/userinfo` endpoint, then looks up the user by email (when present) then by Google `sub`; creates the account if none exists. Returns the same auth payload as login. Requires the `AUTH0_DOMAIN` env var (503 if unset); an invalid or expired token returns 401.
+ * Accepts an Auth0 `token` from the frontend, verifies it against the Auth0 `/userinfo` endpoint, and trusts ONLY the profile Auth0 returns. Looks up the user by verified email; creates the account (role `patient`, `emailVerified` true) if none exists, otherwise backfills missing googleSub / avatar fields and logs in. Returns the same auth payload as login.
  * @summary Log in or register with an Auth0 access token
  */
 
 
 
 export const GoogleAuthBody = zod.object({
-  "accessToken": zod.string().min(1).describe('Auth0 access token obtained by the frontend after login.')
-}).describe('Auth0 access-token sign-in payload. The frontend authenticates the user with Auth0 (which can broker Google), obtains an Auth0 access token, and sends it as `accessToken`. The server verifies the token against the Auth0 `\/userinfo` endpoint and trusts ONLY the profile Auth0 returns — never a raw client-supplied profile. Requires the `AUTH0_DOMAIN` env var.')
+  "token": zod.string().min(1).describe('Auth0 access token obtained by the frontend after login.')
+}).describe('Auth0 sign-in payload. The frontend authenticates the user with Auth0 (which can broker Google), obtains an Auth0 access token, and sends it as `token`. The server verifies the token against the Auth0 `\/userinfo` endpoint and trusts ONLY the profile Auth0 returns (`email`, `name`, `picture`, `sub`, `email_verified`) — never a raw client-supplied profile.')
 
 export const GoogleAuthResponse = zod.object({
   "token": zod.string(),

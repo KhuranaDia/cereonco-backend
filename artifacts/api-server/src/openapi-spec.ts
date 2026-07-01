@@ -689,12 +689,12 @@ export const openApiSpec = {
       },
       "GoogleAuthInput": {
         "type": "object",
-        "description": "Auth0 access-token sign-in payload. The frontend authenticates the user with Auth0 (which can broker Google), obtains an Auth0 access token, and sends it as `accessToken`. The server verifies the token against the Auth0 `/userinfo` endpoint and trusts ONLY the profile Auth0 returns — never a raw client-supplied profile. Requires the `AUTH0_DOMAIN` env var.",
+        "description": "Auth0 sign-in payload. The frontend authenticates the user with Auth0 (which can broker Google), obtains an Auth0 access token, and sends it as `token`. The server verifies the token against the Auth0 `/userinfo` endpoint and trusts ONLY the profile Auth0 returns (`email`, `name`, `picture`, `sub`, `email_verified`) — never a raw client-supplied profile.",
         "required": [
-          "accessToken"
+          "token"
         ],
         "properties": {
-          "accessToken": {
+          "token": {
             "type": "string",
             "minLength": 1,
             "description": "Auth0 access token obtained by the frontend after login."
@@ -1887,7 +1887,7 @@ export const openApiSpec = {
           "auth"
         ],
         "summary": "Log in or register with an Auth0 access token",
-        "description": "Accepts an Auth0 `accessToken` from the frontend, verifies it against the Auth0 `/userinfo` endpoint, then looks up the user by email (when present) then by Google `sub`; creates the account if none exists. Returns the same auth payload as login. Requires the `AUTH0_DOMAIN` env var (503 if unset); an invalid or expired token returns 401.",
+        "description": "Accepts an Auth0 `token` from the frontend, verifies it against the Auth0 `/userinfo` endpoint, and trusts ONLY the profile Auth0 returns. Looks up the user by verified email; creates the account (role `patient`, `emailVerified` true) if none exists, otherwise backfills missing googleSub / avatar fields and logs in. Returns the same auth payload as login.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1900,17 +1900,7 @@ export const openApiSpec = {
         },
         "responses": {
           "200": {
-            "description": "Logged in (existing user)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AuthResponse"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Registered and logged in (new user)",
+            "description": "Logged in successfully",
             "content": {
               "application/json": {
                 "schema": {
@@ -1920,13 +1910,13 @@ export const openApiSpec = {
             }
           },
           "400": {
-            "description": "Validation error (missing accessToken)"
+            "description": "Validation error — the `token` is missing (\"Auth0 token is required.\") or the verified profile has no email (\"No email associated with this Google account.\")."
           },
           "401": {
-            "description": "Invalid or expired Auth0 access token"
+            "description": "Invalid or expired Google token"
           },
-          "503": {
-            "description": "Google sign-in is not configured (AUTH0_DOMAIN unset)"
+          "502": {
+            "description": "Unable to verify Google account (Auth0 unreachable)"
           }
         }
       }

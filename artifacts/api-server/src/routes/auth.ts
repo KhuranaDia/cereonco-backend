@@ -8,7 +8,6 @@ import {
   SetPasswordBody,
   ForgotPasswordBody,
   TestEmailBody,
-  GoogleAuthBody,
 } from "@workspace/api-zod";
 import {
   generateToken,
@@ -26,7 +25,8 @@ import {
 import { safeUser } from "../utils/safeUser";
 import {
   verifyAuth0AccessToken,
-  Auth0NotConfiguredError,
+  Auth0VerificationError,
+  Auth0UnavailableError,
 } from "../utils/auth0";
 import { success, error } from "../utils/response";
 import { requireAuth } from "../middlewares/auth";
@@ -321,34 +321,45 @@ router.post("/auth/login", async (req, res): Promise<void> => {
  * Google / Auth0 sign-in.
  *
  * The frontend authenticates with Auth0 (which can broker Google), obtains an
- * Auth0 access token, and sends it as `accessToken`. We verify the token via the
- * Auth0 `/userinfo` endpoint and trust ONLY the profile Auth0 returns — never a
- * raw client-supplied profile. On success we resolve (or create) the local user
- * and return the SAME `{ token, user }` payload as POST /auth/login.
+ * Auth0 access token, and sends it as `token`. We verify the token via the Auth0
+ * `/userinfo` endpoint and trust ONLY the profile Auth0 returns — never a raw
+ * client-supplied profile. On success we resolve (or create) the local user by
+ * verified email and return the SAME `{ token, user }` payload as POST
+ * /auth/login.
  *
- * Requires the `AUTH0_DOMAIN` env var. If unset, the endpoint returns 503.
+ * The Auth0 tenant is configured via `AUTH0_DOMAIN` (defaults to the project
+ * tenant when unset). Errors: missing token → 400; no email on the profile →
+ * 400; invalid/expired token → 401; Auth0 unreachable → 502.
  */
 router.post("/auth/google", async (req, res): Promise<void> => {
-  const parsed = GoogleAuthBody.safeParse(req.body);
+  // Read the Auth0 token directly from the request body. We never accept or
+  // trust any client-supplied Google profile fields — the profile comes solely
+  // from Auth0's verified `/userinfo` response.
+  const rawToken = (req.body as { token?: unknown } | undefined)?.token;
+  const auth0Token = typeof rawToken === "string" ? rawToken.trim() : "";
 
-  if (!parsed.success) {
-    error(res, parsed.error.issues.map((i) => i.message).join(", "), 400);
+  if (!auth0Token) {
+    error(res, "Auth0 token is required.", 400);
     return;
   }
 
   // Verify the Auth0 access token server-side and trust only its profile.
   let profile;
   try {
-    profile = await verifyAuth0AccessToken(parsed.data.accessToken);
+    profile = await verifyAuth0AccessToken(auth0Token);
   } catch (err) {
-    if (err instanceof Auth0NotConfiguredError) {
-      req.log.error(
-        "POST /auth/google attempted but AUTH0_DOMAIN is not configured",
-      );
-      error(res, "Google sign-in is not configured on the server.", 503);
+    if (err instanceof Auth0UnavailableError) {
+      req.log.error({ err }, "Auth0 userinfo endpoint unavailable");
+      error(res, "Unable to verify Google account.", 502);
       return;
     }
-    error(res, "Invalid or expired Auth0 access token.", 401);
+    if (err instanceof Auth0VerificationError) {
+      error(res, "Invalid or expired Google token.", 401);
+      return;
+    }
+    // Any unexpected failure is treated as an inability to verify.
+    req.log.error({ err }, "Unexpected error verifying Auth0 token");
+    error(res, "Unable to verify Google account.", 502);
     return;
   }
 
@@ -357,35 +368,29 @@ router.post("/auth/google", async (req, res): Promise<void> => {
 
   const normalizedEmail = email?.trim().toLowerCase() || null;
 
-  // Lookup order: email first (when present), then Google sub.
+  // Google/Auth0 must supply a verified email — we key accounts on it.
+  if (!normalizedEmail) {
+    error(res, "No email associated with this Google account.", 400);
+    return;
+  }
+
+  // Find the user by their verified email.
   let user = null as typeof usersTable.$inferSelect | null;
-
-  if (normalizedEmail) {
-    const [byEmail] = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.email, normalizedEmail));
-    user = byEmail ?? null;
-  }
-
-  if (!user) {
-    const [bySub] = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.googleSub, sub));
-    user = bySub ?? null;
-  }
-
-  let created = false;
+  const [byEmail] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.email, normalizedEmail));
+  user = byEmail ?? null;
 
   if (user) {
-    // Existing user — attach googleSub / picture if missing so future logins
-    // can resolve by sub and the profile photo stays populated.
+    // Existing user — backfill googleSub, profile photo, and email-verified
+    // state only where they are currently missing/false, then log in.
     const updates: Partial<typeof usersTable.$inferInsert> = {};
     if (!user.googleSub) updates.googleSub = sub;
     if (picture && !user.avatarUrl) updates.avatarUrl = picture;
     if (picture && !user.profilePhotoUrl) updates.profilePhotoUrl = picture;
     if (picture && !user.imageUrl) updates.imageUrl = picture;
+    if (!user.emailVerified) updates.emailVerified = true;
 
     if (Object.keys(updates).length > 0) {
       const [updated] = await db
@@ -396,23 +401,18 @@ router.post("/auth/google", async (req, res): Promise<void> => {
       user = updated;
     }
   } else {
-    // No match by email or sub → create the account from the available profile.
+    // No match → create the account from Auth0's verified profile.
     const resolvedName =
       name?.trim() ||
       [given_name, family_name].filter(Boolean).join(" ").trim() ||
       nickname?.trim() ||
       "Google User";
 
-    // Generate a placeholder email only when Google did not supply one — the
-    // schema requires a unique, non-null email.
-    const sanitizedSub = sub.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
-    const finalEmail = normalizedEmail ?? `${sanitizedSub}@google.local`;
-
     const [createdUser] = await db
       .insert(usersTable)
       .values({
         name: resolvedName,
-        email: finalEmail,
+        email: normalizedEmail,
         googleSub: sub,
         role: "patient",
         emailVerified: true,
@@ -425,17 +425,11 @@ router.post("/auth/google", async (req, res): Promise<void> => {
       .returning();
 
     user = createdUser;
-    created = true;
   }
 
   const token = generateToken({ userId: user.id });
 
-  success(
-    res,
-    created ? "Account created and logged in" : "Logged in successfully",
-    { token, user: safeUser(user) },
-    created ? 201 : 200,
-  );
+  success(res, "Logged in successfully", { token, user: safeUser(user) }, 200);
 });
 
 router.post("/auth/logout", (_req, res): void => {

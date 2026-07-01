@@ -752,16 +752,16 @@
       ],
       "body": {
        "mode": "raw",
-       "raw": "{\n  \"accessToken\": \"{{auth0_access_token}}\"\n}"
+       "raw": "{\n  \"token\": \"{{auth0Token}}\"\n}"
       },
-      "description": "Set the {{auth0_access_token}} collection variable to a real Auth0 access token and ensure AUTH0_DOMAIN is configured on the server. New users return 201, existing users return 200."
+      "description": "Set the {{auth0Token}} collection variable to a real Auth0 access token. The server verifies it against Auth0 /userinfo and trusts only that profile. New or existing users both return 200 'Logged in successfully'."
      },
      "event": [
       {
        "listen": "test",
        "script": {
         "exec": [
-         "pm.test('Status 200 or 201', () => pm.expect([200, 201]).to.include(pm.response.code));",
+         "pm.test('Status 200', () => pm.response.to.have.status(200));",
          "if (pm.response.code < 400) {",
          "  const d = pm.response.json().data;",
          "  pm.test('JWT returned', () => pm.expect(d.token).to.be.a('string'));",
@@ -774,7 +774,7 @@
      ]
     },
     {
-     "name": "Auth0 Sign-in \u2014 invalid token (401 or 503)",
+     "name": "Auth0 Sign-in \u2014 invalid token (401)",
      "request": {
       "method": "POST",
       "url": "{{base_url}}/auth/google",
@@ -786,24 +786,25 @@
       ],
       "body": {
        "mode": "raw",
-       "raw": "{\n  \"accessToken\": \"definitely-not-a-valid-auth0-token\"\n}"
+       "raw": "{\n  \"token\": \"definitely-not-a-valid-auth0-token\"\n}"
       },
-      "description": "Returns 401 when AUTH0_DOMAIN is configured (token rejected by Auth0), or 503 when AUTH0_DOMAIN is not configured."
+      "description": "Returns 401 'Invalid or expired Google token.' when Auth0 rejects the token."
      },
      "event": [
       {
        "listen": "test",
        "script": {
         "exec": [
-         "pm.test('Status 401 or 503', () => pm.expect([401, 503]).to.include(pm.response.code));",
-         "pm.test('success false', () => pm.expect(pm.response.json().success).to.be.false);"
+         "pm.test('Status 401', () => pm.response.to.have.status(401));",
+         "pm.test('success false', () => pm.expect(pm.response.json().success).to.be.false);",
+         "pm.test('Message', () => pm.expect(pm.response.json().message).to.eql('Invalid or expired Google token.'));"
         ]
        }
       }
      ]
     },
     {
-     "name": "Auth0 Sign-in \u2014 missing accessToken (400)",
+     "name": "Auth0 Sign-in \u2014 missing token (400)",
      "request": {
       "method": "POST",
       "url": "{{base_url}}/auth/google",
@@ -816,7 +817,8 @@
       "body": {
        "mode": "raw",
        "raw": "{}"
-      }
+      },
+      "description": "Returns 400 'Auth0 token is required.' when the token field is missing."
      },
      "event": [
       {
@@ -824,7 +826,8 @@
        "script": {
         "exec": [
          "pm.test('Status 400', () => pm.response.to.have.status(400));",
-         "pm.test('success false', () => pm.expect(pm.response.json().success).to.be.false);"
+         "pm.test('success false', () => pm.expect(pm.response.json().success).to.be.false);",
+         "pm.test('Message', () => pm.expect(pm.response.json().message).to.eql('Auth0 token is required.'));"
         ]
        }
       }
