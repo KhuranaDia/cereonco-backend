@@ -691,17 +691,6 @@ components:
           type: string
           format: date-time
 
-    GroupPostsListResponse:
-      type: object
-      required: [posts, total]
-      properties:
-        posts:
-          type: array
-          items:
-            $ref: "#/components/schemas/GroupPost"
-        total:
-          type: integer
-
     GroupPostInput:
       type: object
       required: [content]
@@ -1912,7 +1901,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GroupPostsListResponse"
+                type: array
+                items:
+                  $ref: "#/components/schemas/GroupPost"
         "401":
           description: Unauthorized
         "404":

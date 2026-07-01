@@ -383,11 +383,6 @@ export interface GroupPost {
   updatedAt: string;
 }
 
-export interface GroupPostsListResponse {
-  posts: GroupPost[];
-  total: number;
-}
-
 export interface GroupPostInput {
   /** @minLength 1 */
   content: string;

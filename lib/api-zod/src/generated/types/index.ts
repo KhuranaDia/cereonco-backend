@@ -37,7 +37,6 @@ export * from './googleAuthInput';
 export * from './group';
 export * from './groupPost';
 export * from './groupPostInput';
-export * from './groupPostsListResponse';
 export * from './groupPostUpdate';
 export * from './groupsListResponse';
 export * from './healthStatus';

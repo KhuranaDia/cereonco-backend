@@ -760,8 +760,7 @@ export const GetGroupFeedQueryParams = zod.object({
   "offset": zod.coerce.number().default(getGroupFeedQueryOffsetDefault)
 })
 
-export const GetGroupFeedResponse = zod.object({
-  "posts": zod.array(zod.object({
+export const GetGroupFeedResponseItem = zod.object({
   "id": zod.number(),
   "groupId": zod.number(),
   "userId": zod.number(),
@@ -782,9 +781,8 @@ export const GetGroupFeedResponse = zod.object({
   "isBookmarked": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
-}).describe('A group post is a row in the shared posts table with a non-null groupId. It carries the same shape as a main-feed post (counts, media, feeling, author, like\/bookmark state).')),
-  "total": zod.number()
-})
+}).describe('A group post is a row in the shared posts table with a non-null groupId. It carries the same shape as a main-feed post (counts, media, feeling, author, like\/bookmark state).')
+export const GetGroupFeedResponse = zod.array(GetGroupFeedResponseItem)
 
 
 /**

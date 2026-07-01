@@ -498,7 +498,7 @@ router.get("/groups/:id/posts", requireAuth, async (req, res): Promise<void> => 
   });
   const formatted = await buildGroupPosts(rawPosts, req.userId);
 
-  success(res, "Group feed retrieved", { posts: formatted, total: formatted.length });
+  success(res, "Group feed retrieved", formatted);
 });
 
 // POST /groups/:id/posts

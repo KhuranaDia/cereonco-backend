@@ -1162,24 +1162,6 @@ export const openApiSpec = {
           }
         }
       },
-      "GroupPostsListResponse": {
-        "type": "object",
-        "required": [
-          "posts",
-          "total"
-        ],
-        "properties": {
-          "posts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/GroupPost"
-            }
-          },
-          "total": {
-            "type": "integer"
-          }
-        }
-      },
       "GroupPostInput": {
         "type": "object",
         "required": [
@@ -3121,7 +3103,10 @@ export const openApiSpec = {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GroupPostsListResponse"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GroupPost"
+                  }
                 }
               }
             }

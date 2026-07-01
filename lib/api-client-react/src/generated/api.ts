@@ -47,7 +47,6 @@ import type {
   GroupPost,
   GroupPostInput,
   GroupPostUpdate,
-  GroupPostsListResponse,
   GroupsListResponse,
   HealthStatus,
   LikeToggle,
@@ -2415,9 +2414,9 @@ export const getGetGroupFeedUrl = (id: number,
  * @summary Get posts in a group
  */
 export const getGroupFeed = async (id: number,
-    params?: GetGroupFeedParams, options?: RequestInit): Promise<GroupPostsListResponse> => {
+    params?: GetGroupFeedParams, options?: RequestInit): Promise<GroupPost[]> => {
 
-  return customFetch<GroupPostsListResponse>(getGetGroupFeedUrl(id,params),
+  return customFetch<GroupPost[]>(getGetGroupFeedUrl(id,params),
   {
     ...options,
     method: 'GET'
