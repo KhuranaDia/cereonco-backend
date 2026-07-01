@@ -1784,6 +1784,31 @@ paths:
         "401":
           description: Unauthorized
 
+  /groups/all:
+    get:
+      operationId: listAllGroups
+      tags: [groups]
+      summary: List every group
+      description: >-
+        Returns ALL groups in the database with no membership filter. Uses the
+        same serializer and response shape as GET /groups. Each item includes
+        creatorUserId, isAdmin, isMember and memberCount (count of all members).
+        isMember/isAdmin are computed relative to the authenticated user, so a
+        user not in a group sees isMember=false and isAdmin=false.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Groups list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Group"
+        "401":
+          description: Unauthorized
+
   /groups/{id}:
     get:
       operationId: getGroup

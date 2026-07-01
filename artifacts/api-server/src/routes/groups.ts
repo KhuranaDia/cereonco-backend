@@ -301,6 +301,38 @@ router.get("/groups", requireAuth, async (req, res): Promise<void> => {
   success(res, "Groups retrieved", groups);
 });
 
+// GET /groups/all
+// Returns EVERY group (no membership filter), using the same serializer and
+// response shape as GET /groups. isMember/isAdmin are still computed relative to
+// the authenticated user, so a user not in a group sees isMember=false,
+// isAdmin=false. Declared before GET /groups/:id so "all" isn't parsed as an id.
+router.get("/groups/all", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.userId!;
+
+  const rows = await db
+    .select({
+      id: groupsTable.id,
+      name: groupsTable.name,
+      description: groupsTable.description,
+      tagline: groupsTable.tagline,
+      category: groupsTable.category,
+      imageUrl: groupsTable.imageUrl,
+      creatorUserId: groupsTable.creatorUserId,
+      createdAt: groupsTable.createdAt,
+      updatedAt: groupsTable.updatedAt,
+      memberCount: sql<number>`cast((select count(*) from ${groupMembersTable} gm_all where gm_all.group_id = ${groupsTable.id}) as integer)`,
+      isMember: sql<boolean>`exists (select 1 from ${groupMembersTable} gm_me where gm_me.group_id = ${groupsTable.id} and gm_me.user_id = ${userId})`,
+    })
+    .from(groupsTable)
+    .orderBy(desc(groupsTable.createdAt));
+
+  const groups = rows.map((r) =>
+    buildGroupResponse(r, r.memberCount, r.isMember, r.creatorUserId === userId),
+  );
+
+  success(res, "Groups retrieved", groups);
+});
+
 // POST /groups
 // Accepts application/json (no file) OR multipart/form-data with an optional
 // `image` file — mirrors POST /posts. The upload middleware passes JSON bodies

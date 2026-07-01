@@ -1416,6 +1416,41 @@
      ]
     },
     {
+     "name": "LIST ALL GROUPS",
+     "request": {
+      "method": "GET",
+      "url": "{{base_url}}/groups/all",
+      "header": [
+       {
+        "key": "Authorization",
+        "value": "Bearer {{token}}"
+       }
+      ]
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "exec": [
+         "pm.test('Status 200', () => pm.response.to.have.status(200));",
+         "pm.test('Message', () => pm.expect(pm.response.json().message).to.eql('Groups retrieved'));",
+         "const d = pm.response.json().data;",
+         "pm.test('Data is array', () => pm.expect(d).to.be.an('array'));",
+         "if (d.length > 0) {",
+         "  const g = d[0];",
+         "  pm.test('Has memberCount', () => pm.expect(g).to.have.property('memberCount'));",
+         "  pm.test('Has isMember', () => pm.expect(g).to.have.property('isMember'));",
+         "  pm.test('Has isAdmin', () => pm.expect(g).to.have.property('isAdmin'));",
+         "  pm.test('Has creatorUserId', () => pm.expect(g).to.have.property('creatorUserId'));",
+         "  pm.test('Has category', () => pm.expect(g).to.have.property('category'));",
+         "  pm.test('Has imageUrl', () => pm.expect(g).to.have.property('imageUrl'));",
+         "}"
+        ]
+       }
+      }
+     ]
+    },
+    {
      "name": "POST CREATE GROUP",
      "request": {
       "method": "POST",

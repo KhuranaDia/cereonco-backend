@@ -2175,6 +2175,84 @@ export const useCreateGroup = <TError = ErrorType<CreateGroup400 | void>,
       return useMutation(getCreateGroupMutationOptions(options));
     }
 
+export const getListAllGroupsUrl = () => {
+
+
+
+
+  return `/api/groups/all`
+}
+
+/**
+ * Returns ALL groups in the database with no membership filter. Uses the same serializer and response shape as GET /groups. Each item includes creatorUserId, isAdmin, isMember and memberCount (count of all members). isMember/isAdmin are computed relative to the authenticated user, so a user not in a group sees isMember=false and isAdmin=false.
+ * @summary List every group
+ */
+export const listAllGroups = async ( options?: RequestInit): Promise<Group[]> => {
+
+  return customFetch<Group[]>(getListAllGroupsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAllGroupsQueryKey = () => {
+    return [
+    `/api/groups/all`
+    ] as const;
+    }
+
+
+export const getListAllGroupsQueryOptions = <TData = Awaited<ReturnType<typeof listAllGroups>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAllGroups>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAllGroupsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAllGroups>>> = ({ signal }) => listAllGroups({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAllGroups>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAllGroupsQueryResult = NonNullable<Awaited<ReturnType<typeof listAllGroups>>>
+export type ListAllGroupsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List every group
+ */
+
+export function useListAllGroups<TData = Awaited<ReturnType<typeof listAllGroups>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAllGroups>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAllGroupsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getGetGroupUrl = (id: number,) => {
 
 

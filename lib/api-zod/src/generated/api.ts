@@ -694,6 +694,27 @@ export const CreateGroupBody = zod.object({
 
 
 /**
+ * Returns ALL groups in the database with no membership filter. Uses the same serializer and response shape as GET /groups. Each item includes creatorUserId, isAdmin, isMember and memberCount (count of all members). isMember/isAdmin are computed relative to the authenticated user, so a user not in a group sees isMember=false and isAdmin=false.
+ * @summary List every group
+ */
+export const ListAllGroupsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "tagline": zod.string().nullish(),
+  "category": zod.string(),
+  "imageUrl": zod.string().nullish(),
+  "creatorUserId": zod.number().nullable().describe('ID of the user who created\/owns the group (its admin). Null only for legacy rows with no recorded creator.'),
+  "memberCount": zod.number(),
+  "isMember": zod.boolean(),
+  "isAdmin": zod.boolean().describe('True when the current authenticated user is the group\'s creator\/admin.'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListAllGroupsResponse = zod.array(ListAllGroupsResponseItem)
+
+
+/**
  * @summary Get a single group with membership info
  */
 export const GetGroupParams = zod.object({
